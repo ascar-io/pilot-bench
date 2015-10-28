@@ -1,5 +1,6 @@
 cmake_minimum_required (VERSION 2.6)
 project (pilot)
+enable_testing ()
 set (PILOT_VERSION_MAJOR 0)
 set (PILOT_VERSION_MINOR 1)
 
@@ -17,6 +18,9 @@ include_directories("${PROJECT_BINARY_DIR}")
 # libpilot
 include_directories ("${PROJECT_SOURCE_DIR}/lib/include")
 add_subdirectory (lib)
+
+add_test (NAME func_test_seq_write
+		  COMMAND func_test_seq_write /tmp/test_output_file)
 
 # pilot command line tool
 add_subdirectory (cli)

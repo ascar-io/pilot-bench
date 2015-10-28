@@ -33,34 +33,105 @@
  * OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "libpilot.h"
-#include <iostream>
 #include <boost/program_options.hpp>
+#include <iostream>
+#include <string>
+#include <vector>
+#include "../interface_include/libpilot.h"
 
 using namespace std;
 namespace po = boost::program_options;
+using boost::timer::cpu_timer;
+using boost::timer::nanosecond_type;
+
+/**
+ * \brief the sequential write workload func for libpilot
+ * \details THis function generates a series of fsyncked sequential I/O and calculate the throughput.
+ * @param[in] total_work_amount
+ * @param[in] lib_malloc_func
+ * @param[out] num_of_work_unit
+ * @param[out] reading_per_work_unit the memory can be
+ * @param[out] readings
+ * @return
+ */
+int workload_func(size_t total_work_amount,
+                  pilot_malloc_func_t *lib_malloc_func,
+                  size_t *num_of_work_unit,
+                  boost::timer::nanosecond_type **reading_per_work_unit,
+                  int **readings) {
+
+    /*! \todo implement function */
+    return 0;
+}
 
 int main(int argc, char **argv) {
-    // Declare the supported options.
+    // Parsing the command line arguments
     po::options_description desc("Allowed options");
+    // Don't use po::value<>()->required() here or --help wouldn't work
     desc.add_options()
             ("help", "produce help message")
-            ("output file", po::value<string>(), "set output file name, can be a device")
+            ("output,o", po::value<string>(), "set output file name, can be a device")
+            ("io-size,s", po::value<int>(), "set I/O request size in bytes (default to 4096)")
+            ("limit,l", po::value<int>(), "set I/O size in bytes (default to 100*1024*1024)")
             ;
 
     po::variables_map vm;
-    po::store(po::parse_command_line(argc, argv, desc), vm);
-    po::notify(vm);
-
-    if (vm.count("help")) {
-        cout << desc << "\n";
+    try {
+        po::store(po::parse_command_line(argc, argv, desc), vm);
+        po::notify(vm);
+    } catch (po::error &e) {
+        cout << e.what() << endl;
         return 1;
     }
 
-    if (vm.count("output file")) {
-        cout << "Output file was set to "
-                << vm["output file"].as<string>() << ".\n";
-    } else {
-        cout << "Output file was not set.\n";
+    if (vm.count("help")) {
+        cout << desc << endl;
+        return 2;
     }
+
+    string output_file_name;
+    size_t io_size  = 4096;
+    size_t io_limit = 100*1024*1024;
+    if (vm.count("output")) {
+        output_file_name = vm["output"].as<string>();
+        cout << "Output file is set to " << output_file_name << endl;
+    } else {
+        cout << "Error: output file was not set." << endl;
+        cout << desc << endl;
+        return 2;
+    }
+    if (vm.count("io-size")) {
+        if (vm["io-size"].as<int>() <= 0) {
+            cout << "I/O size must be larger than 0" << endl;
+            return 1;
+        }
+        io_size = vm["io-size"].as<int>();
+    }
+    cout << "I/O size is set to " << io_size << endl;
+    if (vm.count("limit")) {
+        if (vm["limit"].as<int>() <= 0) {
+            cout << "I/O limit must be larger than 0" << endl;
+            return 1;
+        }
+        io_limit = vm["limit"].as<int>();
+    }
+    cout << "I/O limit is set to " << io_limit << endl;
+
+    // Starting the actual work
+    pilot_workload_t *wl = pilot_new_workload("Sequential write");
+    pilot_set_num_of_readings(wl, 1);
+    pilot_set_workload_func(wl, &workload_func);
+
+    int res = pilot_run_workload(wl);
+    if (res != 0) {
+        cout << pilot_strerror(res) << endl;
+        return res;
+    }
+
+    res = pilot_export_session_data(wl, "/tmp/seq-write.csv");
+    if (res != 0) {
+        cout << pilot_strerror(res) << endl;
+        return res;
+    }
+    return 0;
 }
