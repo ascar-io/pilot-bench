@@ -1,6 +1,6 @@
 # add the binary tree directory to the search path 
 # for include files
-include_directories (${CMAKE_CURRENT_BINARY_DIR})
+include_directories (${CMAKE_CURRENT_BINARY_DIR}/../gtest/src/gtest/include)
 include_directories (interface_include)
 include_directories (priv_include)
 
@@ -13,9 +13,18 @@ endif ()
 
 # the main library
 add_library (libpilot libpilot.cc)
+# used by boost 1.59+
+target_compile_features(libpilot PUBLIC cxx_nonstatic_member_init)
 
 # tests
 add_executable (func_test_seq_write test/func_test_seq_write.cc)
 target_link_libraries (func_test_seq_write ${Boost_LIBRARIES} libpilot)
+add_executable (unit_test_statistics test/unit_test_statistics.cc)
+target_link_libraries (unit_test_statistics libpilot ${Boost_LIBRARIES} ${binary_dir}/libgtest.a ${binary_dir}/libgtest_main.a)
+
+add_test (NAME unit_test_statistics
+		  COMMAND unit_test_statistics)
+#add_test (NAME func_test_seq_write
+#		  COMMAND func_test_seq_write /tmp/test_output_file)
 
 install (DIRECTORY interface_include DESTINATION include/pilot)

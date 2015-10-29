@@ -1,8 +1,22 @@
 cmake_minimum_required (VERSION 2.6)
 project (pilot)
-enable_testing ()
 set (PILOT_VERSION_MAJOR 0)
 set (PILOT_VERSION_MINOR 1)
+
+enable_testing ()
+
+include(ExternalProject)
+ExternalProject_Add(gtest
+  URL https://googletest.googlecode.com/files/gtest-1.7.0.zip
+  # Comment above line, and uncomment line below to use subversion.
+  # SVN_REPOSITORY http://googletest.googlecode.com/svn/trunk/
+  # Uncomment line below to freeze a revision (here the one for 1.7.0)
+  # SVN_REVISION -r700
+
+  PREFIX ${CMAKE_CURRENT_BINARY_DIR}/gtest
+  INSTALL_COMMAND ""
+)
+ExternalProject_Get_Property(gtest source_dir binary_dir)
 
 # configure a header file to pass some of the CMake settings
 # to the source code
@@ -16,12 +30,7 @@ configure_file (
 include_directories("${PROJECT_BINARY_DIR}")
 
 # libpilot
-include_directories ("${PROJECT_SOURCE_DIR}/lib/include")
 add_subdirectory (lib)
-
-add_test (NAME func_test_seq_write
-		  COMMAND func_test_seq_write /tmp/test_output_file)
-
 # pilot command line tool
 add_subdirectory (cli)
 
