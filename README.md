@@ -8,6 +8,9 @@ provides the following features:
 *  handling the correlation between test runs,
 *  saving test results in a standard format for sharing and comparing results.
 
+Join our Slack to give feedback and dicsuss your ideas:
+https://pilot-tool.slack.com !
+
 # INSTALL
 
 ## Supported OSes
