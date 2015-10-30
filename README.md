@@ -21,7 +21,7 @@ hopefully Windows and other embedded systems in the future.
 We have tested it on the following operating systems:
 
 1. Mac OS X Version 10.11 El Capitan
-2. Ubuntu 15.10 amd64
+2. Ubuntu 15.10 x86-64
 
 ## Requirements
 
@@ -31,7 +31,15 @@ It also uses gtest (Google Test) for running test cases, but can install gtest a
 
 ## Steps
 
-Install the dependencies as listed above, then:
+Install the dependencies as listed above. For Ubuntu, install the following packages:
+
+- sudo apt-get install git cmake libboost-all-dev g++
+
+For Mac, make sure you have the latest Xcode and command line development tools installed. You can install [MacPort](https://www.macports.org/) then install the following packages:
+
+- sudo port install cmake boost
+
+Then you can build pilot-tool:
 
 1. make build
 2. cd build
