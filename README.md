@@ -9,7 +9,7 @@ provides the following features:
 *  saving test results in a standard format for sharing and comparing results.
 
 Join our Slack to give feedback and dicsuss your ideas:
-https://pilot-tool.slack.com !
+https://pilot-tool.slack.com/signup
 
 # INSTALL
 
