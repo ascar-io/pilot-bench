@@ -1,0 +1,7 @@
+digraph G {
+    graph [rankdir=LR]
+    node [shape=box]
+    Workload -> Reading [dir=both arrowtail=teetee arrowhead=crowodot]
+    Reading -> Round [dir=both arrowtail=teetee arrowhead=crowodot]
+    Round -> "Unit reading" [dir=both arrowtail=teetee arrowhead=crowodot]
+}

@@ -25,7 +25,7 @@ We have tested it on the following operating systems:
 
 ## Requirements
 
-Pilot requires a modern C++ compiler, CMake, and the boost C++ library.
+Pilot requires a modern C++ compiler, CMake, the boost C++ library, and graphviz (for building the documentation).
 
 It also uses gtest (Google Test) for running test cases, but can install gtest automatically when you run ``make'' for the first time.
 
@@ -33,11 +33,11 @@ It also uses gtest (Google Test) for running test cases, but can install gtest a
 
 Install the dependencies as listed above. For Ubuntu, install the following packages:
 
-- sudo apt-get install git cmake libboost-all-dev g++
+- sudo apt-get install git cmake libboost-all-dev g++ graphviz
 
 For Mac, make sure you have the latest Xcode and command line development tools installed. You can install [MacPort](https://www.macports.org/) then install the following packages:
 
-- sudo port install cmake boost
+- sudo port install cmake boost graphviz
 
 Then you can build pilot-tool:
 

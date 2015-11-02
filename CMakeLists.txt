@@ -33,4 +33,5 @@ include_directories("${PROJECT_BINARY_DIR}")
 add_subdirectory (lib)
 # pilot command line tool
 add_subdirectory (cli)
-
+# documentation
+add_subdirectory (doc)
