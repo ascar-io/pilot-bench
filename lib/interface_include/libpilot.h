@@ -36,9 +36,6 @@
 #ifndef LIBPILOT_HEADER_LIBPILOT_H_
 #define LIBPILOT_HEADER_LIBPILOT_H_
 
-#include <boost/log/core.hpp>
-#include <boost/log/trivial.hpp>
-#include <boost/log/expressions.hpp>
 #include <boost/timer/timer.hpp>
 #include <boost/accumulators/accumulators.hpp>
 #include <boost/accumulators/statistics/stats.hpp>
@@ -56,20 +53,21 @@ extern "C" {
  * @param size the size of memory to allocate
  */
 typedef void* pilot_malloc_func_t(size_t size);
+void* pilot_malloc_func(size_t size);
 
 /**
  * \brief A function from the library's user for running one benchmark and collecting readings.
  * @param[in] total_work_amount
  * @param[out] num_of_work_unit
- * @param[out] reading_per_work_unit the readings of each work unit. The user allocates memory.
- * @param[out] readings the final readings of this workload run.
+ * @param[out] unit_readings the reading of each work unit. Format: unit_readings[piid][unit_id]. The user needs to allocate memory using lib_malloc_func.
+ * @param[out] readings the final readings of this workload run. Format: readings[piid]. The user needs to allocate memory using lib_malloc_func.
  * @return
  */
 typedef int pilot_workload_func_t(size_t total_work_amount,
                                   pilot_malloc_func_t *lib_malloc_func,
                                   size_t *num_of_work_unit,
-                                  boost::timer::nanosecond_type **reading_per_work_unit,
-                                  int **readings);
+                                  double ***unit_readings,
+                                  double **readings);
 
 /**
  * \brief The data object that holds all the information of a workload.
@@ -79,12 +77,13 @@ typedef int pilot_workload_func_t(size_t total_work_amount,
 struct pilot_workload_t;
 
 pilot_workload_t* pilot_new_workload(const char *workload_name);
-void pilot_set_num_of_readings(pilot_workload_t*, size_t num_of_readings);
+void pilot_set_num_of_pi(pilot_workload_t*, size_t num_of_readings);
 void pilot_set_workload_func(pilot_workload_t*, pilot_workload_func_t*);
+void pilot_set_total_work_amount(pilot_workload_t*, size_t);
 
 /**
  * \brief Run the workload as specified in wl
- * @param wl pointer to the workload struct information
+ * @param[in] wl pointer to the workload struct
  * @return 0 on success, otherwise error code. On error, call pilot_strerror to
  * get a pointer to the error message.
  */
@@ -99,12 +98,43 @@ const char *pilot_strerror(int errnum);
 
 /**
  * \brief Export the session data into a csv file
- * @param wl pointer to the workload struct information
+ * @param[in] wl pointer to the workload struct
  * @param file_name the file name for export
  * @return 0 on success, otherwise error code. On error, call pilot_strerror to
  * get a pointer to the error message.
  */
 int pilot_export_session_data(pilot_workload_t *wl, const char *file_name);
+
+/**
+ * \brief Estimate the sample variance when sample cannot be proven not
+ * correlated and the distribution of sample mean is unknown.
+ * \details This function uses the method of independent replications as
+ * described in equation (2.18) and (2.19) in [Ferrari78].
+ * @param n sample size
+ * @param sample sample data
+ * @param q size of independent subsessions
+ * @return
+ */
+int pilot_est_sample_var_dist_unknown(const size_t n, const double *sample, size_t q);
+
+/**
+ * \brief Return the total number of rounds so far.
+ * @param[in] wl pointer to the workload struct
+ * @return the number of rounds; a negative number on error
+ */
+int pilot_get_num_of_rounds(const pilot_workload_t *wl);
+
+/**
+ * \brief Return the all readings of a performance index
+ * @param[in] wl pointer to the workload struct
+ * @param reading_id the ID of the reading
+ * @return a pointer to readings data, the length of which can be get by using pilot_get_num_of_rounds(); NULL on error.
+ */
+const double* pilot_get_pi_readings(const pilot_workload_t *wl, size_t piid);
+
+int pilot_destroy_workload(pilot_workload_t *wl);
+
+int pilot_calculate_optimal_length();
 
 }
 

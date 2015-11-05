@@ -57,8 +57,8 @@ using boost::timer::nanosecond_type;
 int workload_func(size_t total_work_amount,
                   pilot_malloc_func_t *lib_malloc_func,
                   size_t *num_of_work_unit,
-                  boost::timer::nanosecond_type **reading_per_work_unit,
-                  int **readings) {
+                  double ***reading_per_work_unit,
+                  double **readings) {
 
     /*! \todo implement function */
     return 0;
@@ -119,7 +119,9 @@ int main(int argc, char **argv) {
 
     // Starting the actual work
     pilot_workload_t *wl = pilot_new_workload("Sequential write");
-    pilot_set_num_of_readings(wl, 1);
+    pilot_set_num_of_pi(wl, 1);
+    // Limit the write to 500 MB
+    pilot_set_total_work_amount(wl, 500);
     pilot_set_workload_func(wl, &workload_func);
 
     int res = pilot_run_workload(wl);

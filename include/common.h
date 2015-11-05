@@ -1,5 +1,5 @@
 /*
- * unit_test_statistics.cc: unit tests for statistics routines
+ * common.h: the common header file shared across pilot-tool
  *
  * Copyright (c) 2015, University of California, Santa Cruz, CA, USA.
  *
@@ -32,34 +32,29 @@
  * OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <algorithm>
-#include "gtest/gtest.h"
-#include "libpilot.h"
-#include <vector>
+#ifndef PILOT_TOOL_INCLUDE_COMMON_H_
+#define PILOT_TOOL_INCLUDE_COMMON_H_
 
-using namespace boost::accumulators;
-using namespace std;
-using namespace std::placeholders;
+#include <iostream>
+#include <boost/log/core.hpp>
+#include <boost/log/trivial.hpp>
+#include <boost/log/expressions.hpp>
 
-/**
- * \details These sample response time are taken from [Ferrari78], page 79.
- */
-const vector<double> g_mean_response_time{
-    1.21, 1.67, 1.71, 1.53, 2.03, 2.15, 1.88, 2.02, 1.75, 1.84, 1.61, 1.35, 1.43, 1.64, 1.52, 1.44, 1.17, 1.42, 1.64, 1.86, 1.68, 1.91, 1.73, 2.18,
-    2.27, 1.93, 2.19, 2.04, 1.92, 1.97, 1.65, 1.71, 1.89, 1.70, 1.62, 1.48, 1.55, 1.39, 1.45, 1.67, 1.62, 1.77, 1.88, 1.82, 1.93, 2.09, 2.24, 2.16
-};
+#define debug_log   BOOST_LOG_TRIVIAL(debug)
+#define info_log    BOOST_LOG_TRIVIAL(info)
+#define warning_log BOOST_LOG_TRIVIAL(warning)
+#define error_log   BOOST_LOG_TRIVIAL(error)
+#define fatal_log   BOOST_LOG_TRIVIAL(fatal)
 
-TEST(StatisticsUnitTest, Mean) {
-    accumulator_set< double, features<tag::mean > > acc;
-    for_each(g_mean_response_time.begin(), g_mean_response_time.end(), bind<void>( ref(acc), _1 ) );
-    ASSERT_DOUBLE_EQ(mean(acc), 1.756458333333333) << "Mean is wrong";
+namespace pilot {
+
+inline void die_if (bool condition, int error_code = 1, const char *error_msg = NULL) {
+    if (condition) return;
+
+    fatal_log << error_msg;
+    exit(error_code);
 }
 
-TEST(StatisticsUnitTest, AutocorrelationCoefficient) {
-    // Tests function pilot_est_sample_var_dist_unknown()
-}
+} /* namespace pilot */
 
-int main(int argc, char **argv) {
-  ::testing::InitGoogleTest(&argc, argv);
-  return RUN_ALL_TESTS();
-}
+#endif /* PILOT_TOOL_INCLUDE_COMMON_H_ */
