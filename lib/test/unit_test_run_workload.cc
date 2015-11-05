@@ -62,7 +62,7 @@ int mock_workload_func(size_t total_work_amount,
                        double ***unit_readings,
                        double **readings) {
     assert(500 == total_work_amount);
-    *num_of_work_unit = g_mock_readings[g_test_round].size();
+    *num_of_work_unit = g_mock_unit_readings[g_test_round][0].size();
 
     // store unit_readings
     assert(NULL == *unit_readings);
@@ -92,9 +92,13 @@ TEST(PilotRunWorkloadTest, RunWorkload) {
 
     ASSERT_EQ(0, pilot_run_workload(wl));
     ASSERT_EQ(1, pilot_get_num_of_rounds(wl));
-    const double *pi_readings = pilot_get_pi_readings(wl, 0);
     ASSERT_EQ(0, memcmp(g_mock_readings[0].data(), pilot_get_pi_readings(wl, 0),
                         sizeof(double) * g_mock_readings[0].size()));
+    size_t num_of_work_units;
+    const double *pi_unit_readings = pilot_get_pi_unit_readings(wl, 0, 0, &num_of_work_units);
+    ASSERT_EQ(g_mock_unit_readings[0][0].size(), num_of_work_units);
+    ASSERT_EQ(0, memcmp(g_mock_unit_readings[0][0].data(), pi_unit_readings,
+                        sizeof(double) * g_mock_unit_readings[0][0].size()));
     pilot_destroy_workload(wl);
 }
 

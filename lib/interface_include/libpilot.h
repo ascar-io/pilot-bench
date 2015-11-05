@@ -125,12 +125,22 @@ int pilot_est_sample_var_dist_unknown(const size_t n, const double *sample, size
 int pilot_get_num_of_rounds(const pilot_workload_t *wl);
 
 /**
- * \brief Return the all readings of a performance index
+ * \brief Return the read only copy of all readings of a performance index
  * @param[in] wl pointer to the workload struct
- * @param reading_id the ID of the reading
+ * @param piid Performance Index ID
  * @return a pointer to readings data, the length of which can be get by using pilot_get_num_of_rounds(); NULL on error.
  */
 const double* pilot_get_pi_readings(const pilot_workload_t *wl, size_t piid);
+
+/**
+ * \brief Return the read only copy of all unit readings of a performance index in a certain round
+ * @param[in] wl pointer to the workload struct
+ * @param piid Performance Index ID
+ * @param round Performance Index ID
+ * @param[out] num_of_work_units the number of work units in that round
+ * @return the data of all unit readings of PIID in that round. It is a read-only array of size num_of_work_units.
+ */
+const double* pilot_get_pi_unit_readings(const pilot_workload_t *wl, size_t piid, size_t round, size_t *num_of_work_units);
 
 int pilot_destroy_workload(pilot_workload_t *wl);
 

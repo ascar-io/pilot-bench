@@ -42,7 +42,8 @@ using namespace std;
 
 struct pilot_workload_t {
     typedef vector<double> reading_data_t; //! The data of one reading of all rounds
-    typedef vector<double*> unit_reading_data_t; //! Per round unit reading data
+    typedef vector<double> unit_reading_data_per_round_t;
+    typedef vector<unit_reading_data_per_round_t> unit_reading_data_t; //! Per round unit reading data
 
     size_t num_of_pi;                      //! Number of performance indices to collect for each round
     size_t rounds;                         //! Number of rounds we've done so far
@@ -56,8 +57,8 @@ struct pilot_workload_t {
 };
 
 pilot_workload_t* pilot_new_workload(const char *workload_name) {
-    pilot_workload_t *res = new pilot_workload_t;
-    return res;
+    pilot_workload_t *wl = new pilot_workload_t;
+    return wl;
 }
 
 void pilot_set_num_of_pi(pilot_workload_t* wl, size_t num_of_readings) {
@@ -79,7 +80,7 @@ int pilot_run_workload(pilot_workload_t *wl) {
     if (wl->workload_func == nullptr || wl->num_of_pi == 0 ||
         wl->total_work_amount == 0) return 11;
     // ready to start the workload
-    size_t num_of_work_unit;
+    size_t num_of_work_units;
     double **unit_readings;
     double *readings;
 
@@ -87,7 +88,7 @@ int pilot_run_workload(pilot_workload_t *wl) {
     readings = NULL;
     int rc =
     wl->workload_func(wl->total_work_amount, &pilot_malloc_func,
-                      &num_of_work_unit, &unit_readings,
+                      &num_of_work_units, &unit_readings,
                       &readings);
     // result check first
     if (0 != rc)   return 12;
@@ -98,8 +99,11 @@ int pilot_run_workload(pilot_workload_t *wl) {
         wl->readings[piid].push_back(readings[piid]);
     // it is ok for unit_readings to be NULL
     if (unit_readings) {
-        for (int piid = 0; piid < wl->num_of_pi; ++piid)
-            wl->unit_readings[piid].push_back(unit_readings[piid]);
+        info_log << "got num_of_work_units = " << num_of_work_units;
+        for (int piid = 0; piid < wl->num_of_pi; ++piid) {
+            wl->unit_readings[piid].emplace_back(vector<double>(unit_readings[piid], unit_readings[piid] + num_of_work_units));
+            free(unit_readings[piid]);
+        }
     } else {
         //! TODO: need to handle empty unit_readings?
     }
@@ -107,8 +111,6 @@ int pilot_run_workload(pilot_workload_t *wl) {
     //! TODO: save the data to a database
 
     // clean up
-    if (unit_readings) {
-    }
     if (readings) free(readings);
     if (unit_readings) free(unit_readings);
     ++wl->rounds;
@@ -156,8 +158,29 @@ const double* pilot_get_pi_readings(const pilot_workload_t *wl, size_t piid) {
     return wl->readings[piid].data();
 }
 
+const double* pilot_get_pi_unit_readings(const pilot_workload_t *wl,
+    size_t piid, size_t round, size_t *num_of_work_units) {
+    if (!wl) {
+        error_log << "wl is NULL";
+        return NULL;
+    }
+    if (piid >= wl->num_of_pi) {
+        error_log << "piid out of range";
+        return NULL;
+    }
+    if (round >= wl->rounds) {
+        error_log << "round out of range";
+        return NULL;
+    }
+    *num_of_work_units = wl->unit_readings[piid][round].size();
+    return wl->unit_readings[piid][round].data();
+}
+
 int pilot_destroy_workload(pilot_workload_t *wl) {
-    for(int piid = 0; piid < wl->num_of_pi; ++piid)
-        for(int r = 0; r < wl->rounds; ++r)
-            free (wl->unit_readings[piid][r]);
+    if (!wl) {
+        error_log << "wl is NULL";
+        return 11;
+    }
+    delete wl;
+    return 0;
 }
