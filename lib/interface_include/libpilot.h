@@ -97,15 +97,6 @@ int pilot_run_workload(pilot_workload_t *wl);
 const char *pilot_strerror(int errnum);
 
 /**
- * \brief Export the session data into a csv file
- * @param[in] wl pointer to the workload struct
- * @param file_name the file name for export
- * @return 0 on success, otherwise error code. On error, call pilot_strerror to
- * get a pointer to the error message.
- */
-int pilot_export_session_data(pilot_workload_t *wl, const char *file_name);
-
-/**
  * \brief Estimate the sample variance when sample cannot be proven not
  * correlated and the distribution of sample mean is unknown.
  * \details This function uses the method of independent replications as
@@ -142,6 +133,25 @@ const double* pilot_get_pi_readings(const pilot_workload_t *wl, size_t piid);
  */
 const double* pilot_get_pi_unit_readings(const pilot_workload_t *wl, size_t piid, size_t round, size_t *num_of_work_units);
 
+enum pilot_export_format_t {
+    CSV
+};
+/**
+ * \brief Export all data of a workload to a file
+ * @param[in] wl pointer to the workload struct
+ * @param format file format to use
+ * @param[in] filename the file name to use
+ * @return 0 on success, otherwise error code. On error, call pilot_strerror to
+ * get a pointer to the error message.
+ */
+int pilot_export(const pilot_workload_t *wl, pilot_export_format_t format, const char *filename);
+
+/**
+ * \brief Destroy (free) a workload struct
+ * @param[in] wl pointer to the workload struct
+ * @return 0 on success, otherwise error code. On error, call pilot_strerror to
+ * get a pointer to the error message.
+ */
 int pilot_destroy_workload(pilot_workload_t *wl);
 
 int pilot_calculate_optimal_length();

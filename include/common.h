@@ -48,6 +48,16 @@
 
 namespace pilot {
 
+enum error_t {
+    NO_ERROR = 0,
+    ERR_WRONG_PARAM = 2,
+    ERR_IO = 5,
+    ERR_NOT_INIT = 11,
+    ERR_WL_FAIL = 12,
+    ERR_NO_READING = 13,
+    ERR_NOT_IMPL = 200
+};
+
 inline void die_if (bool condition, int error_code = 1, const char *error_msg = NULL) {
     if (condition) return;
 

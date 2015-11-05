@@ -1,7 +1,7 @@
 find_package (Threads)
 # add the binary tree directory to the search path 
 # for include files
-include_directories (${CMAKE_CURRENT_BINARY_DIR}/../gtest/src/gtest/include)
+include_directories (${CMAKE_SOURCE_DIR}/gtest/src/gtest/include)
 include_directories (${CMAKE_SOURCE_DIR}/include)
 include_directories (interface_include)
 include_directories (priv_include)
@@ -34,7 +34,9 @@ target_link_libraries (unit_test_statistics ${PILOT_TESTS_LIBRARIES})
 add_test (NAME unit_test_statistics
 		  COMMAND unit_test_statistics)
 add_test (NAME unit_test_run_workload
-		  COMMAND unit_test_run_workload)
+		  COMMAND unit_test_run_workload && diff unit_test_run_workload_export.cs ${PROJECT_SOURCE_DIR}/test/unit_test_run_workload_export_expected.csv)
+add_test (NAME unit_test_run_workload_check_export
+		  COMMAND diff unit_test_run_workload_export.csv ${CMAKE_CURRENT_LIST_DIR}/test/unit_test_run_workload_export_expected.csv)
 #add_test (NAME func_test_seq_write
 #		  COMMAND func_test_seq_write /tmp/test_output_file)
 

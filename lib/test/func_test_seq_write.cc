@@ -130,7 +130,7 @@ int main(int argc, char **argv) {
         return res;
     }
 
-    res = pilot_export_session_data(wl, "/tmp/seq-write.csv");
+    res = pilot_export(wl, CSV, "/tmp/seq-write.csv");
     if (res != 0) {
         cout << pilot_strerror(res) << endl;
         return res;

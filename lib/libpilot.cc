@@ -34,6 +34,7 @@
 
 #include "common.h"
 #include "config.h"
+#include <fstream>
 #include "interface_include/libpilot.h"
 #include <vector>
 
@@ -105,7 +106,10 @@ int pilot_run_workload(pilot_workload_t *wl) {
             free(unit_readings[piid]);
         }
     } else {
-        //! TODO: need to handle empty unit_readings?
+        info_log << "no unit readings in this round";
+        for (int piid = 0; piid < wl->num_of_pi; ++piid) {
+            wl->unit_readings[piid].emplace_back(vector<double>());
+        }
     }
 
     //! TODO: save the data to a database
@@ -119,19 +123,15 @@ int pilot_run_workload(pilot_workload_t *wl) {
 
 const char *pilot_strerror(int errnum) {
     switch (errnum) {
-    case 0:   return "No error";
-    case 11:  return "Workload not properly initialized";
-    case 12:  return "Workload failure";
-    case 13:  return "Workload did not return readings";
-    case 200: return "Not implemented";
-    default:  return "Unknown error code";
+    case NO_ERROR:        return "No error";
+    case ERR_WRONG_PARAM: return "Parameter error";
+    case ERR_IO:          return "I/O error";
+    case ERR_NOT_INIT:    return "Workload not properly initialized";
+    case ERR_WL_FAIL:     return "Workload failure";
+    case ERR_NO_READING:  return "Workload did not return readings";
+    case ERR_NOT_IMPL:    return "Not implemented";
+    default:              return "Unknown error code";
     }
-}
-
-int pilot_export_session_data(pilot_workload_t *wl, const char *file_name) {
-    /*! \todo implement function */
-    abort();
-    return 200;
 }
 
 void* pilot_malloc_func(size_t size) {
@@ -174,6 +174,57 @@ const double* pilot_get_pi_unit_readings(const pilot_workload_t *wl,
     }
     *num_of_work_units = wl->unit_readings[piid][round].size();
     return wl->unit_readings[piid][round].data();
+}
+
+int pilot_export(const pilot_workload_t *wl, pilot_export_format_t format,
+                 const char *filename) {
+    if (!wl) {
+        error_log << "wl is NULL";
+        return ERR_WRONG_PARAM;
+    }
+    if (!filename) {
+        error_log << "filename is NULL";
+        return ERR_WRONG_PARAM;
+    }
+    switch (format) {
+    case CSV:
+        try {
+            ofstream of;
+            of.exceptions(ofstream::failbit | ofstream::badbit);
+            of.open(filename);
+            of << "piid,round,reading,unit_reading" << endl;
+            for (int piid = 0; piid < wl->num_of_pi; ++piid)
+            for (int round = 0; round < wl->rounds; ++round) {
+                if (wl->unit_readings[piid][round].size() != 0) {
+                    for (int ur=0; ur < wl->unit_readings[piid][round].size(); ++ur) {
+                        if (0 == ur)
+                        of << piid << ","
+                        << round << ","
+                        << wl->readings[piid][round] << ","
+                        << wl->unit_readings[piid][round][ur] << endl;
+                        else
+                        of << piid << ","
+                        << round << ","
+                        << ","
+                        << wl->unit_readings[piid][round][ur] << endl;
+                    }
+                } else {
+                    of << piid << ","
+                    << round << ","
+                    << wl->readings[piid][round] << "," << endl;
+                }
+            }
+            of.close();
+        } catch (ofstream::failure e) {
+            error_log << "I/O error: " << strerror(errno);
+            return ERR_IO;
+        }
+        break;
+    default:
+        error_log << "Unknown format: " << format;
+        return ERR_WRONG_PARAM;
+    }
+    return 0;
 }
 
 int pilot_destroy_workload(pilot_workload_t *wl) {
