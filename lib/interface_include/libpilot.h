@@ -154,6 +154,21 @@ int pilot_export(const pilot_workload_t *wl, pilot_export_format_t format, const
  */
 int pilot_destroy_workload(pilot_workload_t *wl);
 
+enum pilot_log_level_t
+{
+    trace,
+    debug,
+    info,
+    warning,
+    error,
+    fatal
+};
+/**
+ * \brief Set the logging level of the library
+ * @param log_level
+ */
+void pilot_set_log_level(pilot_log_level_t log_level);
+
 int pilot_calculate_optimal_length();
 
 }

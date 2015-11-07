@@ -1,7 +1,7 @@
 find_package (Threads)
 # add the binary tree directory to the search path 
 # for include files
-include_directories (${CMAKE_SOURCE_DIR}/gtest/src/gtest/include)
+include_directories (${CMAKE_CURRENT_BINARY_DIR}/../gtest/src/gtest/include)
 include_directories (${CMAKE_SOURCE_DIR}/include)
 include_directories (interface_include)
 include_directories (priv_include)

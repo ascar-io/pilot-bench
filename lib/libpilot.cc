@@ -94,13 +94,19 @@ int pilot_run_workload(pilot_workload_t *wl) {
     // result check first
     if (0 != rc)   return 12;
     if (!readings) return 13;
+    //! TODO validity check
+    // Get the total_elapsed_time and avg_time_per_unit = total_elapsed_time / num_of_work_units.
+    // If avg_time_per_unit is not at least 100 times longer than the CPU time resolution then
+    // the results cannot be used. See FB#2808 and
+    // http://www.boost.org/doc/libs/1_59_0/libs/timer/doc/cpu_timers.html
+
 
     // move all data into the permanent location
     for (int piid = 0; piid < wl->num_of_pi; ++piid)
         wl->readings[piid].push_back(readings[piid]);
     // it is ok for unit_readings to be NULL
     if (unit_readings) {
-        info_log << "got num_of_work_units = " << num_of_work_units;
+        debug_log << "got num_of_work_units = " << num_of_work_units;
         for (int piid = 0; piid < wl->num_of_pi; ++piid) {
             wl->unit_readings[piid].emplace_back(vector<double>(unit_readings[piid], unit_readings[piid] + num_of_work_units));
             free(unit_readings[piid]);
@@ -234,4 +240,11 @@ int pilot_destroy_workload(pilot_workload_t *wl) {
     }
     delete wl;
     return 0;
+}
+
+void pilot_set_log_level(pilot_log_level_t log_level) {
+    boost::log::core::get()->set_filter
+    (
+        boost::log::trivial::severity >= (boost::log::trivial::severity_level)log_level
+    );
 }
