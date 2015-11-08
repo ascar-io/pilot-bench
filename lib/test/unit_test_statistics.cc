@@ -49,14 +49,20 @@ const vector<double> g_mean_response_time{
     2.27, 1.93, 2.19, 2.04, 1.92, 1.97, 1.65, 1.71, 1.89, 1.70, 1.62, 1.48, 1.55, 1.39, 1.45, 1.67, 1.62, 1.77, 1.88, 1.82, 1.93, 2.09, 2.24, 2.16
 };
 
-TEST(StatisticsUnitTest, Mean) {
+TEST(StatisticsUnitTest, AutocorrelationCoefficient) {
     accumulator_set< double, features<tag::mean > > acc;
     for_each(g_mean_response_time.begin(), g_mean_response_time.end(), bind<void>( ref(acc), _1 ) );
-    ASSERT_DOUBLE_EQ(mean(acc), 1.756458333333333) << "Mean is wrong";
-}
+    double sample_mean = mean(acc);
+    ASSERT_DOUBLE_EQ(1.756458333333333, sample_mean) << "Mean is wrong";
 
-TEST(StatisticsUnitTest, AutocorrelationCoefficient) {
-    // Tests function pilot_est_sample_var_dist_unknown()
+    ASSERT_DOUBLE_EQ(0.073474423758865273, pilot_subsession_var(g_mean_response_time.data(), g_mean_response_time.size(), 1, sample_mean)) << "Subsession mean is wrong";
+    ASSERT_DOUBLE_EQ(0.046770566452423196, pilot_subsession_cov(g_mean_response_time.data(), g_mean_response_time.size(), 1, sample_mean)) << "Coverance mean is wrong";
+    ASSERT_DOUBLE_EQ(0.63655574361384437, pilot_subsession_autocorrelation_coefficient(g_mean_response_time.data(), g_mean_response_time.size(), 1, sample_mean)) << "Autocorrelation coefficient is wrong";
+
+    ASSERT_DOUBLE_EQ(0.55892351761172487, pilot_subsession_autocorrelation_coefficient(g_mean_response_time.data(), g_mean_response_time.size(), 2, sample_mean)) << "Autocorrelation coefficient is wrong";
+    ASSERT_DOUBLE_EQ(0.08230986644266707, pilot_subsession_autocorrelation_coefficient(g_mean_response_time.data(), g_mean_response_time.size(), 4, sample_mean)) << "Autocorrelation coefficient is wrong";
+
+    //! TODO Tests function pilot_est_sample_var_dist_unknown()
 }
 
 int main(int argc, char **argv) {

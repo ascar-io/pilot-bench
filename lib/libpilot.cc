@@ -32,6 +32,7 @@
  * OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <cmath>
 #include "common.h"
 #include "config.h"
 #include <fstream>
@@ -247,4 +248,47 @@ void pilot_set_log_level(pilot_log_level_t log_level) {
     (
         boost::log::trivial::severity >= (boost::log::trivial::severity_level)log_level
     );
+}
+
+using namespace boost::accumulators;
+
+double pilot_subsession_cov(const double *data, size_t n, size_t q, double sample_mean) {
+    accumulator_set< double, features<tag::mean > > cov_acc;
+    size_t h = n/q;
+    assert (h >= 2);
+
+    double uae, ube;
+    accumulator_set< double, features<tag::mean > > ua_acc;
+    for (size_t a = 0; a < q; ++a)
+        ua_acc(data[a]);
+    uae = mean(ua_acc) - sample_mean;
+
+    for (size_t i = 1; i < h; ++i) {
+        accumulator_set< double, features<tag::mean > > ub_acc;
+        for (size_t b = 0; b < q; ++b)
+            ub_acc(data[i*q+b]);
+        ube = mean(ub_acc) - sample_mean;
+
+        cov_acc(uae * ube);
+        uae = ube;
+    }
+    return mean(cov_acc);
+}
+
+double pilot_subsession_var(const double *data, size_t n, size_t q, double sample_mean) {
+    double s = 0;
+    size_t h = n/q;
+    for (size_t i = 0; i < h; ++i) {
+        accumulator_set< double, features<tag::mean > > acc;
+        for (size_t j = 0; j < q; ++j)
+            acc(data[i*q + j]);
+
+        s += pow(mean(acc) - sample_mean, 2);
+    }
+    return s / (h - 1);
+}
+
+double pilot_subsession_autocorrelation_coefficient(const double *data, size_t n, size_t q, double sample_mean) {
+    return pilot_subsession_cov(data, n, q, sample_mean) /
+           pilot_subsession_var(data, n, q, sample_mean);
 }

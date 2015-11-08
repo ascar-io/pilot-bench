@@ -169,6 +169,10 @@ enum pilot_log_level_t
  */
 void pilot_set_log_level(pilot_log_level_t log_level);
 
+double pilot_subsession_cov(const double *data, size_t n, size_t q, double sample_mean);
+double pilot_subsession_var(const double *data, size_t n, size_t q, double sample_mean);
+double pilot_subsession_autocorrelation_coefficient(const double *data, size_t n, size_t q, double sample_mean);
+
 int pilot_calculate_optimal_length();
 
 }
