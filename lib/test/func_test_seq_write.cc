@@ -49,10 +49,11 @@ size_t const MEGABYTE = 1000000;
 size_t g_io_size = 1024*1024*1;
 string g_output_file_name;
 char *g_io_buf;
+bool g_fsync = false;
 
 /**
  * \brief the sequential write workload func for libpilot
- * \details THis function generates a series of fsyncked sequential I/O and calculate the throughput.
+ * \details THis function generates a series of sequential I/O and calculate the throughput.
  * @param[in] total_work_amount
  * @param[in] lib_malloc_func
  * @param[out] num_of_work_unit
@@ -104,13 +105,15 @@ int workload_func(size_t total_work_amount,
                 return errno;
             }
         }
-        do {
-            res = fsync(fd);
-        } while (EINTR == res);
-        if (0 != res) {
-            cerr << "fsync error: " << strerror(errno) << endl;
-            close(fd);
-            return errno;
+        if (g_fsync) {
+            do {
+                res = fsync(fd);
+            } while (EINTR == res);
+            if (0 != res) {
+                cerr << "fsync error: " << strerror(errno) << endl;
+                close(fd);
+                return errno;
+            }
         }
         if (unit_id < *num_of_work_unit)
             work_unit_elapsed_times[unit_id] = timer.elapsed().wall;
@@ -120,8 +123,10 @@ int workload_func(size_t total_work_amount,
     close(fd);
 
     // we do calculation after finishing the workload to minimize the overhead
+    nanosecond_type prev_ts = 0;
     for (size_t i = 0; i < *num_of_work_unit; ++i) {
-        (*unit_readings)[0][i] = ((double)g_io_size / MEGABYTE) / ((double)work_unit_elapsed_times[i] / ONE_SECOND);
+        (*unit_readings)[0][i] = ((double)g_io_size / MEGABYTE) / ((double)(work_unit_elapsed_times[i]-prev_ts) / ONE_SECOND);
+        prev_ts = work_unit_elapsed_times[i];
     }
 
     (*readings)[0] = ((double)total_work_amount / MEGABYTE) / ((double)total_elapsed_time / ONE_SECOND);
@@ -135,10 +140,12 @@ int main(int argc, char **argv) {
     // Don't use po::value<>()->required() here or --help wouldn't work
     desc.add_options()
             ("help", "produce help message")
+            ("fsync,f", "call fsync() after each I/O request")
             ("io-size,s", po::value<int>(), "set I/O request size in bytes (default to 1 MB)")
             ("limit,l", po::value<int>(), "set I/O size in bytes (default to 100*1024*1024)")
             ("output,o", po::value<string>(), "set output file name, can be a device. WARNING: the file will be overwritten if it exists.")
-            ("verbose,v", po::value<bool>(), "print more debug information")
+            ("result,r", po::value<string>(), "set result file name, (default to seq-write.csv)")
+            ("verbose,v", "print more debug information")
             ;
 
     po::variables_map vm;
@@ -155,12 +162,19 @@ int main(int argc, char **argv) {
         return 2;
     }
 
+    // verbose
     pilot_set_log_level(warning);
     bool verbose = false;
     if (vm.count("verbose")) {
         pilot_set_log_level(trace);
         verbose = true;
     }
+
+    // fsync
+    if (vm.count("fsync")) {
+        g_fsync = true;
+    }
+
     size_t io_limit = 100*1024*1024;
     if (vm.count("output")) {
         g_output_file_name = vm["output"].as<string>();
@@ -178,8 +192,13 @@ int main(int argc, char **argv) {
         }
         g_io_size = vm["io-size"].as<int>();
     }
+    string result_file_name("seq-write.csv");
+    if (vm.count("result")) {
+        result_file_name = vm["result"].as<string>();
+    }
+
+    // fill g_io_buf with some pseudo-random data
     g_io_buf = new char[g_io_size];
-    // fill in some pseudo-random data
     for (size_t i = 0; i < g_io_size; ++i)
         g_io_buf[i] = (char)i + 42;
     cout << "I/O size is set to " << g_io_size << endl;
@@ -215,7 +234,6 @@ int main(int argc, char **argv) {
     }
     cout << "]" << endl;
 
-    string result_file_name("seq-write.csv");
     res = pilot_export(wl, CSV, result_file_name.c_str());
     if (res != 0) {
         cout << pilot_strerror(res) << endl;
