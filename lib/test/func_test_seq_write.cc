@@ -35,6 +35,7 @@
 
 #include <boost/program_options.hpp>
 #include <fcntl.h>
+#include <iomanip>
 #include <iostream>
 #include <string>
 #include <vector>
@@ -45,11 +46,17 @@ namespace po = boost::program_options;
 using boost::timer::cpu_timer;
 using boost::timer::nanosecond_type;
 nanosecond_type const ONE_SECOND = 1000000000LL;
-size_t const MEGABYTE = 1000000;
+size_t const MEGABYTE = 1024*1024;
 size_t g_io_size = 1024*1024*1;
 string g_output_file_name;
 char *g_io_buf;
 bool g_fsync = false;
+
+// We are using two PIs. 0 is time per I/O, 1 is throughput per I/O.
+enum piid_t {
+    time_pi = 0,
+    tp_pi = 1
+};
 
 /**
  * \brief the sequential write workload func for libpilot
@@ -68,9 +75,10 @@ int workload_func(size_t total_work_amount,
                   double **readings) {
     *num_of_work_unit = total_work_amount / g_io_size;
     // allocate space for storing result readings
-    *unit_readings = (double**)lib_malloc_func(sizeof(double*) * 1);
+    *unit_readings = (double**)lib_malloc_func(sizeof(double*) * 2);
     (*unit_readings)[0] = (double*)lib_malloc_func(sizeof(double) * *num_of_work_unit);
-    *readings = (double*)lib_malloc_func(sizeof(double));
+    (*unit_readings)[1] = (double*)lib_malloc_func(sizeof(double) * *num_of_work_unit);
+    *readings = (double*)lib_malloc_func(sizeof(double) * 2);
     vector<nanosecond_type> work_unit_elapsed_times(*num_of_work_unit);
 
     int fd = open(g_output_file_name.c_str(), O_CREAT | O_WRONLY, S_IRUSR | S_IWUSR | S_IRGRP);
@@ -125,11 +133,13 @@ int workload_func(size_t total_work_amount,
     // we do calculation after finishing the workload to minimize the overhead
     nanosecond_type prev_ts = 0;
     for (size_t i = 0; i < *num_of_work_unit; ++i) {
-        (*unit_readings)[0][i] = ((double)g_io_size / MEGABYTE) / ((double)(work_unit_elapsed_times[i]-prev_ts) / ONE_SECOND);
+        (*unit_readings)[time_pi][i] = (double)(work_unit_elapsed_times[i]-prev_ts) / ONE_SECOND;
+        (*unit_readings)[tp_pi][i] = ((double)g_io_size / MEGABYTE) / ((double)(work_unit_elapsed_times[i]-prev_ts) / ONE_SECOND);
         prev_ts = work_unit_elapsed_times[i];
     }
 
-    (*readings)[0] = ((double)total_work_amount / MEGABYTE) / ((double)total_elapsed_time / ONE_SECOND);
+    (*readings)[time_pi] = (double)total_elapsed_time / ONE_SECOND;
+    (*readings)[tp_pi] = ((double)total_work_amount / MEGABYTE) / ((double)total_elapsed_time / ONE_SECOND);
 
     return 0;
 }
@@ -141,10 +151,11 @@ int main(int argc, char **argv) {
     desc.add_options()
             ("help", "produce help message")
             ("fsync,f", "call fsync() after each I/O request")
-            ("io-size,s", po::value<int>(), "set I/O request size in bytes (default to 1 MB)")
-            ("limit,l", po::value<int>(), "set I/O size in bytes (default to 100*1024*1024)")
+            ("io-size,s", po::value<size_t>(), "set I/O request size in bytes (default to 1 MB)")
+            ("limit,l", po::value<size_t>(), "set I/O size in bytes (default to 100*1024*1024)")
             ("output,o", po::value<string>(), "set output file name, can be a device. WARNING: the file will be overwritten if it exists.")
             ("result,r", po::value<string>(), "set result file name, (default to seq-write.csv)")
+            ("warmupio,w", po::value<size_t>(), "skip warmupio from the beginning (default to 1/5 of total IO ops)")
             ("verbose,v", "print more debug information")
             ;
 
@@ -186,11 +197,11 @@ int main(int argc, char **argv) {
     }
 
     if (vm.count("io-size")) {
-        if (vm["io-size"].as<int>() <= 0) {
+        if (vm["io-size"].as<size_t>() <= 0) {
             cout << "I/O size must be larger than 0" << endl;
             return 1;
         }
-        g_io_size = vm["io-size"].as<int>();
+        g_io_size = vm["io-size"].as<size_t>();
     }
     string result_file_name("seq-write.csv");
     if (vm.count("result")) {
@@ -201,20 +212,39 @@ int main(int argc, char **argv) {
     g_io_buf = new char[g_io_size];
     for (size_t i = 0; i < g_io_size; ++i)
         g_io_buf[i] = (char)i + 42;
-    cout << "I/O size is set to " << g_io_size << endl;
+    cout << "I/O size is set to ";
+    if (g_io_size >= MEGABYTE) {
+        cout << g_io_size / MEGABYTE << " MB" << endl;
+    } else {
+        cout << g_io_size << " bytes" << endl;
+    }
 
     if (vm.count("limit")) {
-        if (vm["limit"].as<int>() <= 0) {
+        if (vm["limit"].as<size_t>() <= 0) {
             cout << "I/O limit must be larger than 0" << endl;
             return 1;
         }
-        io_limit = vm["limit"].as<int>();
+        io_limit = vm["limit"].as<size_t>();
     }
-    cout << "I/O limit is set to " << io_limit << endl;
+    cout << "I/O limit is set to ";
+    if (io_limit >= MEGABYTE) {
+        cout << io_limit / MEGABYTE << " MB"<< endl;
+    } else {
+        cout << io_limit << " bytes" << endl;
+    }
+
+    size_t warmupio = io_limit / g_io_size / 5;
+    if (vm.count("warmupio")) {
+        warmupio = vm["warmupio"].as<size_t>();
+        cout << "warmupio set to " << warmupio << endl;
+    } else {
+        cout << "warmupio set to 1/5 of total IO ops" << endl;
+    }
 
     // Starting the actual work
+    cout << "Running benchmark ..." << endl;
     pilot_workload_t *wl = pilot_new_workload("Sequential write");
-    pilot_set_num_of_pi(wl, 1);
+    pilot_set_num_of_pi(wl, 2);
     pilot_set_total_work_amount(wl, io_limit);
     pilot_set_workload_func(wl, &workload_func);
 
@@ -223,13 +253,53 @@ int main(int argc, char **argv) {
         cout << pilot_strerror(res) << endl;
         return res;
     }
+    cout << "Benchmark finished" << endl << endl;
 
-    // print the readings
-    cout << "Readings (MB/s): [";
-    const double* readings = pilot_get_pi_readings(wl, 0);
+    // analyze the readings
+    cout << setprecision(4);
+    size_t num_of_work_units;
+    const double* time_readings = pilot_get_pi_unit_readings(wl, time_pi, 0, &num_of_work_units) + warmupio;
+    num_of_work_units -= warmupio;
+    double sm = pilot_subsession_mean(time_readings, num_of_work_units);
+    cout << "Time per I/O analysis" << endl;
+    cout << "=====================" << endl;
+    cout << "removed " << warmupio << " IO ops from beginning as warm-up phase" << endl;
+    cout << "sample mean: " << sm << endl;
+    double var = pilot_subsession_var(time_readings, num_of_work_units, 1, sm);
+    cout << "variance (q=1): " << var << endl;
+    cout << "variance (q=1) % of sample mean: " << var * 100 / sm << "%" << endl;
+    double ac = pilot_subsession_autocorrelation_coefficient(time_readings, num_of_work_units, 1, sm);
+    cout << "autocorrelation coefficient (q=1): " << ac << endl;
+    size_t q = pilot_optimal_subsession_size(time_readings, num_of_work_units);
+    cout << "optimal subsession size (q): " << q << endl;
+    var = pilot_subsession_var(time_readings, num_of_work_units, q, sm);
+    cout << "variance (q=" << q << "): " << var << endl;
+    cout << "variance (q=" << q << ") % of sample mean: " << var * 100 / sm << "%" << endl;
+    size_t min_ss = pilot_optimal_length(time_readings, num_of_work_units, sm*0.05);
+    cout << "minimum sample size (using the q above): " << min_ss << endl;
+    if (min_ss < 200) {
+        cout << "minimum sample size smaller than 80, boosting it to 200 (the sample size must be sufficiently large)" << endl;
+        min_ss = 200;
+    }
+    size_t cur_ss = num_of_work_units / q;
+    cout << "current sample size: " << cur_ss << endl;
+
+    double ci = pilot_subsession_confidence_interval(time_readings, num_of_work_units, q, .95);
+    if (cur_ss >= min_ss) {
+        cout << "We have a large enough sample size in this benchmark." << endl;
+    } else {
+        cout << "Out sample size is not large enough to achieve a confidence interval of 0.05 * sample_mean." << endl;
+    }
+    cout << "confidence interval is " << ci*100/sm << "% of sample_mean" << endl;
+    cout << "calculated throughput is "
+         << double(io_limit) / double(num_of_work_units) / MEGABYTE / sm
+         << " +- " << ci << " MB/s" << endl;
+
+    cout << "dumb throughput (io_limit / total_elapsed_time) (MB/s): [";
+    const double* tp_readings = pilot_get_pi_readings(wl, tp_pi);
     size_t rounds = pilot_get_num_of_rounds(wl);
     for(size_t i = 0; i < rounds; ++i) {
-        cout << readings[i];
+        cout << tp_readings[i];
         if (i != rounds-1) cout << ", ";
     }
     cout << "]" << endl;
@@ -239,7 +309,7 @@ int main(int argc, char **argv) {
         cout << pilot_strerror(res) << endl;
         return res;
     }
-    cout << "Unit readings are saved to " << result_file_name << endl;
+    cout << "Benchmark results are saved to " << result_file_name << endl;
     assert(pilot_destroy_workload(wl) == 0);
     delete g_io_buf;
     return 0;

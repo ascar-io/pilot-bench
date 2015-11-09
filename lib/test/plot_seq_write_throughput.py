@@ -62,7 +62,11 @@ with open(input_csv, 'rb') as csvfile:
     csvreader = csv.reader(csvfile, delimiter=',')
     for row in csvreader:
         try:
-            tp.append(float(row[3]))
+            # skip time_pi
+            if int(row[0]) == 0:
+                continue
+            else:
+                tp.append(float(row[3]))
         except ValueError:
             pass
 

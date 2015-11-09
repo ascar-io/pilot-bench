@@ -208,26 +208,26 @@ int pilot_export(const pilot_workload_t *wl, pilot_export_format_t format,
             of.open(filename);
             of << "piid,round,reading,unit_reading" << endl;
             for (int piid = 0; piid < wl->num_of_pi; ++piid)
-            for (int round = 0; round < wl->rounds; ++round) {
-                if (wl->unit_readings[piid][round].size() != 0) {
-                    for (int ur=0; ur < wl->unit_readings[piid][round].size(); ++ur) {
-                        if (0 == ur)
+                for (int round = 0; round < wl->rounds; ++round) {
+                    if (wl->unit_readings[piid][round].size() != 0) {
+                        for (int ur=0; ur < wl->unit_readings[piid][round].size(); ++ur) {
+                            if (0 == ur)
+                            of << piid << ","
+                            << round << ","
+                            << wl->readings[piid][round] << ","
+                            << wl->unit_readings[piid][round][ur] << endl;
+                            else
+                            of << piid << ","
+                            << round << ","
+                            << ","
+                            << wl->unit_readings[piid][round][ur] << endl;
+                        }
+                    } else {
                         of << piid << ","
                         << round << ","
-                        << wl->readings[piid][round] << ","
-                        << wl->unit_readings[piid][round][ur] << endl;
-                        else
-                        of << piid << ","
-                        << round << ","
-                        << ","
-                        << wl->unit_readings[piid][round][ur] << endl;
+                        << wl->readings[piid][round] << "," << endl;
                     }
-                } else {
-                    of << piid << ","
-                    << round << ","
-                    << wl->readings[piid][round] << "," << endl;
-                }
-            }
+                } /* round loop */
             of.close();
         } catch (ofstream::failure e) {
             error_log << "I/O error: " << strerror(errno);
@@ -323,6 +323,8 @@ int pilot_optimal_subsession_size(const double *data, size_t n, double max_autoc
 }
 
 double pilot_subsession_confidence_interval(const double *data, size_t n, size_t q, double confidence_level) {
+    // See http://www.boost.org/doc/libs/1_59_0/libs/math/doc/html/math_toolkit/stat_tut/weg/st_eg/tut_mean_intervals.html
+    // for explanation of the code
     using namespace boost::math;
 
     students_t dist(n-1);
