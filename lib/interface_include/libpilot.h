@@ -169,11 +169,50 @@ enum pilot_log_level_t
  */
 void pilot_set_log_level(pilot_log_level_t log_level);
 
+/**
+ * \brief Set the confidence interval for workload
+ * @param[in] wl pointer to the workload struct
+ * @param ci the new confidence interval
+ * @return the old confidence interval
+ */
+double pilot_set_confidence_interval(pilot_workload_t *wl, double ci);
+
+double pilot_subsession_mean(const double *data, size_t n);
 double pilot_subsession_cov(const double *data, size_t n, size_t q, double sample_mean);
 double pilot_subsession_var(const double *data, size_t n, size_t q, double sample_mean);
 double pilot_subsession_autocorrelation_coefficient(const double *data, size_t n, size_t q, double sample_mean);
 
-int pilot_calculate_optimal_length();
+/**
+ * \brief Calculate the optimal subsession size (q) so that autocorrelation coefficient doesn't exceed the limit
+ * @param[in] data the input data
+ * @param n size of the input data
+ * @param max_autocorrelation_coefficient the maximal limit of the autocorrelation coefficient
+ * @return the size of subsession (q); -1 if q can't be found (e.g. q would be larger than n)
+ */
+int pilot_optimal_subsession_size(const double *data, size_t n, double max_autocorrelation_coefficient = 0.1);
+
+/**
+ * \brief Calculate the width of the confidence interval given subsession size q and confidence level
+ * @param[in] data the input data
+ * @param n size of the input data
+ * @param q size of each subsession
+ * @param confidence_level the probability that the real mean falls within the confidence interval, e.g., .95
+ * @return the width of the confidence interval
+ */
+double pilot_subsession_confidence_interval(const double *data, size_t n, size_t q, double confidence_level);
+
+/**
+ * \brief Calculate the optimal length of the benchmark session given observed
+ *        data, confidence interval, confidence level, and maximal
+ *        autocorrelation coefficient
+ * @param[in] data the input data
+ * @param n size of the input data
+ * @param confidence_interval_width
+ * @param confidence_level
+ * @param max_autocorrelation_coefficient
+ * @return the recommended sample size; -1 if the max_autocorrelation_coefficient cannot be met
+ */
+int pilot_optimal_length(const double *data, size_t n, double confidence_interval_width, double confidence_level = 0.95, double max_autocorrelation_coefficient = 0.1);
 
 }
 

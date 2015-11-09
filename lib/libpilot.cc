@@ -32,6 +32,8 @@
  * OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <algorithm>
+#include <boost/math/distributions/students_t.hpp>
 #include <cmath>
 #include "common.h"
 #include "config.h"
@@ -54,8 +56,13 @@ struct pilot_workload_t {
     vector<reading_data_t> readings;       //! Reading data of each round. Format: readings[piid][round_id].
     vector<unit_reading_data_t> unit_readings; //! Unit reading data of each round. Format: unit_readings[piid][round_id].
 
+    double confidence_interval;
+    double confidence_level;
+    double autocorrelation_coefficient_limit;
+
     pilot_workload_t() : num_of_pi(0), rounds(0), total_work_amount(0),
-                         workload_func(nullptr) {}
+                         workload_func(nullptr), confidence_interval(0.05),
+                         confidence_level(.95), autocorrelation_coefficient_limit(0.1) {}
 };
 
 pilot_workload_t* pilot_new_workload(const char *workload_name) {
@@ -250,7 +257,20 @@ void pilot_set_log_level(pilot_log_level_t log_level) {
     );
 }
 
+double pilot_set_confidence_interval(pilot_workload_t *wl, double ci) {
+    double old_ci = wl->confidence_interval;
+    wl->confidence_interval = ci;
+    return old_ci;
+}
+
 using namespace boost::accumulators;
+
+double pilot_subsession_mean(const double *data, size_t n) {
+    using namespace std::placeholders;
+    accumulator_set< double, features<tag::mean > > acc;
+    for_each(data, data + n, bind<void>( ref(acc), _1 ) );
+    return mean(acc);
+}
 
 double pilot_subsession_cov(const double *data, size_t n, size_t q, double sample_mean) {
     accumulator_set< double, features<tag::mean > > cov_acc;
@@ -291,4 +311,43 @@ double pilot_subsession_var(const double *data, size_t n, size_t q, double sampl
 double pilot_subsession_autocorrelation_coefficient(const double *data, size_t n, size_t q, double sample_mean) {
     return pilot_subsession_cov(data, n, q, sample_mean) /
            pilot_subsession_var(data, n, q, sample_mean);
+}
+
+int pilot_optimal_subsession_size(const double *data, size_t n, double max_autocorrelation_coefficient) {
+    double sm = pilot_subsession_mean(data, n);
+    for (size_t q = 1; q != n + 1; ++q) {
+        if (pilot_subsession_autocorrelation_coefficient(data, n, q, sm) <= max_autocorrelation_coefficient)
+            return q;
+    }
+    return -1;
+}
+
+double pilot_subsession_confidence_interval(const double *data, size_t n, size_t q, double confidence_level) {
+    using namespace boost::math;
+
+    students_t dist(n-1);
+    // T is called z' in [Ferrari78], page 60.
+    double T = ::boost::math::quantile(complement(dist, (1 - confidence_level) / 2));
+
+    double sm = pilot_subsession_mean(data, n);
+    double var = pilot_subsession_var(data, n, q, sm);
+    return T * sqrt(var / double(n));
+}
+
+int pilot_optimal_length(const double *data, size_t n, double confidence_interval_width, double confidence_level, double max_autocorrelation_coefficient) {
+    using namespace boost::math;
+
+    int q = pilot_optimal_subsession_size(data, n, max_autocorrelation_coefficient);
+    if (q < 0) return q;
+    debug_log << "optimal subsession size (q) = " << q;
+
+    size_t h = n / q;
+    students_t dist(h-1);
+    // T is called z' in [Ferrari78], page 60.
+    double T = ::boost::math::quantile(complement(dist, (1 - confidence_level) / 2));
+    debug_log << "T score for " << 100*confidence_level << "% confidence level = " << T;
+
+    double sm = pilot_subsession_mean(data, n);
+    double var = pilot_subsession_var(data, n, q, sm);
+    return ceil(var * pow(T / confidence_interval_width, 2));
 }

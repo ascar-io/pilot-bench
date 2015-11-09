@@ -32,14 +32,11 @@
  * OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <algorithm>
 #include "gtest/gtest.h"
 #include "libpilot.h"
 #include <vector>
 
-using namespace boost::accumulators;
 using namespace std;
-using namespace std::placeholders;
 
 /**
  * \details These sample response time are taken from [Ferrari78], page 79.
@@ -50,9 +47,7 @@ const vector<double> g_mean_response_time{
 };
 
 TEST(StatisticsUnitTest, AutocorrelationCoefficient) {
-    accumulator_set< double, features<tag::mean > > acc;
-    for_each(g_mean_response_time.begin(), g_mean_response_time.end(), bind<void>( ref(acc), _1 ) );
-    double sample_mean = mean(acc);
+    double sample_mean = pilot_subsession_mean(g_mean_response_time.data(), g_mean_response_time.size());
     ASSERT_DOUBLE_EQ(1.756458333333333, sample_mean) << "Mean is wrong";
 
     ASSERT_DOUBLE_EQ(0.073474423758865273, pilot_subsession_var(g_mean_response_time.data(), g_mean_response_time.size(), 1, sample_mean)) << "Subsession mean is wrong";
@@ -60,12 +55,22 @@ TEST(StatisticsUnitTest, AutocorrelationCoefficient) {
     ASSERT_DOUBLE_EQ(0.63655574361384437, pilot_subsession_autocorrelation_coefficient(g_mean_response_time.data(), g_mean_response_time.size(), 1, sample_mean)) << "Autocorrelation coefficient is wrong";
 
     ASSERT_DOUBLE_EQ(0.55892351761172487, pilot_subsession_autocorrelation_coefficient(g_mean_response_time.data(), g_mean_response_time.size(), 2, sample_mean)) << "Autocorrelation coefficient is wrong";
+
+    ASSERT_DOUBLE_EQ(0.05264711174242424, pilot_subsession_var(g_mean_response_time.data(), g_mean_response_time.size(), 4, sample_mean)) << "Subsession var is wrong";
     ASSERT_DOUBLE_EQ(0.08230986644266707, pilot_subsession_autocorrelation_coefficient(g_mean_response_time.data(), g_mean_response_time.size(), 4, sample_mean)) << "Autocorrelation coefficient is wrong";
+
+    ASSERT_DOUBLE_EQ(0.066625214255877543, pilot_subsession_confidence_interval(g_mean_response_time.data(), g_mean_response_time.size(), 4, .95));
+
+    ASSERT_DOUBLE_EQ(4, pilot_optimal_subsession_size(g_mean_response_time.data(), g_mean_response_time.size()));
+
+    ASSERT_DOUBLE_EQ(34, pilot_optimal_length(g_mean_response_time.data(), g_mean_response_time.size(), sample_mean * 0.05, .95, .1));
 
     //! TODO Tests function pilot_est_sample_var_dist_unknown()
 }
 
 int main(int argc, char **argv) {
-  ::testing::InitGoogleTest(&argc, argv);
-  return RUN_ALL_TESTS();
+    pilot_set_log_level(warning);
+
+    ::testing::InitGoogleTest(&argc, argv);
+    return RUN_ALL_TESTS();
 }
