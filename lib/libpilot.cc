@@ -60,9 +60,18 @@ struct pilot_workload_t {
     double confidence_level;
     double autocorrelation_coefficient_limit;
 
+    bool warm_up_removal;
+    enum warm_up_removal_detection_method_t {
+        MOVING_AVERAGE,
+    } warm_up_removal_detection_method;
+    double warm_up_removal_moving_average_window_size_in_seconds;
+
     pilot_workload_t() : num_of_pi(0), rounds(0), total_work_amount(0),
                          workload_func(nullptr), confidence_interval(0.05),
-                         confidence_level(.95), autocorrelation_coefficient_limit(0.1) {}
+                         confidence_level(.95), autocorrelation_coefficient_limit(0.1),
+                         warm_up_removal_detection_method(MOVING_AVERAGE),
+                         warm_up_removal(true),
+                         warm_up_removal_moving_average_window_size_in_seconds(3) {}
 };
 
 pilot_workload_t* pilot_new_workload(const char *workload_name) {
