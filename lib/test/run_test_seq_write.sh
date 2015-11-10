@@ -17,7 +17,7 @@ while [ $# -ge 1 ]; do
     shift
 done
 PDF_FILE_NAME=${OUTPUT_FILE_NAME%.*}.pdf
-OUT_FILE_NAME=${OUTPUT_FILE_NAME%.*}.out
+OUT_FILE_NAME=${OUTPUT_FILE_NAME%.*}.txt
 
 ./func_test_seq_write "${OPTS[@]}" | tee "${OUT_FILE_NAME}"
 python `dirname $0`/plot_seq_write_throughput.py "${PDF_FILE_NAME}" "${OUTPUT_FILE_NAME}"

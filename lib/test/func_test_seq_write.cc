@@ -276,24 +276,23 @@ int main(int argc, char **argv) {
     cout << "variance (q=" << q << "): " << var << endl;
     cout << "variance (q=" << q << ") % of sample mean: " << var * 100 / sm << "%" << endl;
     size_t min_ss = pilot_optimal_length(time_readings, num_of_work_units, sm*0.05);
-    cout << "minimum sample size (using the q above): " << min_ss << endl;
-    if (min_ss < 200) {
-        cout << "minimum sample size smaller than 80, boosting it to 200 (the sample size must be sufficiently large)" << endl;
-        min_ss = 200;
-    }
+    cout << "minimum sample size according to t-distribution (using the q above): " << min_ss << endl;
     size_t cur_ss = num_of_work_units / q;
     cout << "current sample size: " << cur_ss << endl;
 
     double ci = pilot_subsession_confidence_interval(time_readings, num_of_work_units, q, .95);
-    if (cur_ss >= min_ss) {
+    if (cur_ss >= min_ss && cur_ss >= 200) {
         cout << "We have a large enough sample size in this benchmark." << endl;
     } else {
-        cout << "Out sample size is not large enough to achieve a confidence interval of 0.05 * sample_mean." << endl;
+        if (cur_ss < 200)
+            cout << "sample size MIGHT NOT be large enough (>200 is recommended)" << endl;
+        else
+            cout << "sample size is not large enough to achieve a confidence interval of 0.05 * sample_mean." << endl;
     }
     cout << "confidence interval is " << ci*100/sm << "% of sample_mean" << endl;
     cout << "calculated throughput is "
          << double(io_limit) / double(num_of_work_units) / MEGABYTE / sm
-         << " +- " << ci << " MB/s" << endl;
+         << " +- " << ci << " MB/s with 95% confidence" << endl;
 
     cout << "dumb throughput (io_limit / total_elapsed_time) (MB/s): [";
     const double* tp_readings = pilot_get_pi_readings(wl, tp_pi);

@@ -79,6 +79,15 @@ if debug >= 1:
 
 color = colors[line_no % len(colors)]
 
+# we only plot 500 data points to reduce the size of the output PDF file
+if len(tp) > 500:
+    new_tp = []
+    scale_factor = len(tp) / 500
+    for i in range(0, 500):
+        for j in range(0, scale_factor):
+            new_tp.append(tp[i * scale_factor])
+    tp = new_tp
+
 plt.plot(range(1, len(tp)+1), tp, linestyle='-', color=color, markersize=4, label='throughput')
 
 plt.title('Seq. Write Throughput', fontsize=22)
