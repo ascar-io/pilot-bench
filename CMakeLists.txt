@@ -9,9 +9,11 @@ if (NOT CMAKE_BUILD_TYPE)
       FORCE)
 endif (NOT CMAKE_BUILD_TYPE)
 
-enable_testing ()
+find_program( MEMORYCHECK_COMMAND valgrind )
+set( MEMORYCHECK_COMMAND_OPTIONS "--trace-children=yes --leak-check=full" )
+include( CTest )
 
-include(ExternalProject)
+include( ExternalProject )
 ExternalProject_Add(gtest
   URL https://googletest.googlecode.com/files/gtest-1.7.0.zip
   # Comment above line, and uncomment line below to use subversion.
