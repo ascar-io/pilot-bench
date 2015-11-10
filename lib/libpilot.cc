@@ -43,6 +43,12 @@
 
 using namespace pilot;
 using namespace std;
+using boost::timer::cpu_timer;
+using boost::timer::nanosecond_type;
+
+// all consts go here, they should be named either k_something, or SOMETHING
+nanosecond_type const ONE_SECOND = 1000000000LL;
+size_t const MEGABYTE = 1024*1024;
 
 struct pilot_workload_t {
     typedef vector<double> reading_data_t; //! The data of one reading of all rounds
@@ -53,6 +59,8 @@ struct pilot_workload_t {
     size_t rounds;                         //! Number of rounds we've done so far
     size_t total_work_amount;
     pilot_workload_func_t *workload_func;
+
+    vector<nanosecond_type> round_durations; //! The duration of each round
     vector<reading_data_t> readings;       //! Reading data of each round. Format: readings[piid][round_id].
     vector<unit_reading_data_t> unit_readings; //! Unit reading data of each round. Format: unit_readings[piid][round_id].
 
@@ -104,13 +112,18 @@ int pilot_run_workload(pilot_workload_t *wl) {
 
     unit_readings = NULL;
     readings = NULL;
+
+    cpu_timer timer;
     int rc =
     wl->workload_func(wl->total_work_amount, &pilot_malloc_func,
                       &num_of_work_units, &unit_readings,
                       &readings);
+    nanosecond_type round_duration = timer.elapsed().wall;
+
     // result check first
     if (0 != rc)   return 12;
     if (!readings) return 13;
+
     //! TODO validity check
     // Get the total_elapsed_time and avg_time_per_unit = total_elapsed_time / num_of_work_units.
     // If avg_time_per_unit is not at least 100 times longer than the CPU time resolution then
@@ -119,6 +132,7 @@ int pilot_run_workload(pilot_workload_t *wl) {
 
 
     // move all data into the permanent location
+    wl->round_durations.push_back(round_duration);
     for (int piid = 0; piid < wl->num_of_pi; ++piid)
         wl->readings[piid].push_back(readings[piid]);
     // it is ok for unit_readings to be NULL
