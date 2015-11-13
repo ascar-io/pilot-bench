@@ -42,8 +42,21 @@
 #include <boost/accumulators/statistics/mean.hpp>
 #include <functional>
 #include <vector>
+#include "pilot_exports.h"
 
+#ifdef __cplusplus
 extern "C" {
+#endif
+
+enum pilot_error_t {
+    NO_ERROR = 0,
+    ERR_WRONG_PARAM = 2,
+    ERR_IO = 5,
+    ERR_NOT_INIT = 11,
+    ERR_WL_FAIL = 12,
+    ERR_NO_READING = 13,
+    ERR_NOT_IMPL = 200
+};
 
 /**
  * \brief The type of memory allocation function, which is used by pilot_workload_func_t.
@@ -77,9 +90,61 @@ typedef int pilot_workload_func_t(size_t total_work_amount,
 struct pilot_workload_t;
 
 pilot_workload_t* pilot_new_workload(const char *workload_name);
-void pilot_set_num_of_pi(pilot_workload_t*, size_t num_of_readings);
+
+/**
+ * \brief Set the number of performance indices to record
+ * @param[in] wl pointer to the workload struct
+ * @param num_of_pi the number of performance indices
+ */
+void pilot_set_num_of_pi(pilot_workload_t* wl, size_t num_of_pi);
+
+/**
+ * \brief Get the number of performance indices
+ * @param[in] wl pointer to the workload struct
+ * @param[out] p_num_of_pi the pointer for storing the num_of_pi
+ * @return 0 on success; aborts if wl is NULL; otherwise error code
+ */
+int pilot_get_num_of_pi(pilot_workload_t* wl, size_t *p_num_of_pi);
+
 void pilot_set_workload_func(pilot_workload_t*, pilot_workload_func_t*);
-void pilot_set_total_work_amount(pilot_workload_t*, size_t);
+
+/**
+ * \brief Set the upper limit for work amount that pilot should attempt
+ * \details pilot will start with this init_work_amount and repeat the workload
+ * and/or increase the work amount until the required confidence level
+ * can be achieved, but it will never do more than work_amount_limit
+ * in a single round.
+ * @param[in] wl pointer to the workload struct
+ * @param init_work_amount the initial work amount
+ */
+void pilot_set_work_amount_limit(pilot_workload_t* wl, size_t work_amount_limit);
+
+/**
+ * \brief Get work_amount_limit, the upper limit of work amount that pilot should attempt
+ * @param[in] wl pointer to the workload struct
+ * @param[out] p_work_amount_limit the pointer for storing the work_amount_limit
+ * @return 0 on success; aborts if wl is NULL; otherwise error code
+ */
+int pilot_get_work_amount_limit(pilot_workload_t* wl, size_t *p_work_amount_limit);
+
+/**
+ * \brief Set the initial work amount that pilot should attempt
+ * \details pilot will start with this init_work_amount and repeat the workload
+ * and/or increase the work amount until the required confidence level
+ * can be achieved, but it will never do more than work_amount_limit
+ * in a single round.
+ * @param[in] wl pointer to the workload struct
+ * @param init_work_amount the initial work amount
+ */
+void pilot_set_init_work_amount(pilot_workload_t* wl, size_t init_work_amount);
+
+/**
+ * \brief Get init_work_amount, the initial work amount that pilot should attempt
+ * @param[in] wl pointer to the workload struct
+ * @param[out] p_init_work_amount the pointer for storing init_work_amount
+ * @return 0 on success; aborts if wl is NULL; otherwise error code
+ */
+int pilot_get_init_work_amount(pilot_workload_t* wl, size_t *p_init_work_amount);
 
 /**
  * \brief Run the workload as specified in wl
@@ -141,7 +206,7 @@ enum pilot_export_format_t {
  * @param[in] wl pointer to the workload struct
  * @param format file format to use
  * @param[in] filename the file name to use
- * @return 0 on success, otherwise error code. On error, call pilot_strerror to
+ * @return 0 on success; aborts if wl is NULL; otherwise returns an error code. On error, call pilot_strerror to
  * get a pointer to the error message.
  */
 int pilot_export(const pilot_workload_t *wl, pilot_export_format_t format, const char *filename);
@@ -149,7 +214,7 @@ int pilot_export(const pilot_workload_t *wl, pilot_export_format_t format, const
 /**
  * \brief Destroy (free) a workload struct
  * @param[in] wl pointer to the workload struct
- * @return 0 on success, otherwise error code. On error, call pilot_strerror to
+ * @return 0 on success; aborts if wl is NULL; otherwise returns an error code. On error, call pilot_strerror to
  * get a pointer to the error message.
  */
 int pilot_destroy_workload(pilot_workload_t *wl);
@@ -214,6 +279,8 @@ double pilot_subsession_confidence_interval(const double *data, size_t n, size_t
  */
 int pilot_optimal_length(const double *data, size_t n, double confidence_interval_width, double confidence_level = 0.95, double max_autocorrelation_coefficient = 0.1);
 
+#ifdef __cplusplus
 }
+#endif
 
 #endif /* LIBPILOT_HEADER_LIBPILOT_H_ */

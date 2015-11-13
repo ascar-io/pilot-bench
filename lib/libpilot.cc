@@ -51,60 +51,105 @@ nanosecond_type const ONE_SECOND = 1000000000LL;
 size_t const MEGABYTE = 1024*1024;
 
 struct pilot_workload_t {
+    string workload_name_;
+
     typedef vector<double> reading_data_t; //! The data of one reading of all rounds
     typedef vector<double> unit_reading_data_per_round_t;
     typedef vector<unit_reading_data_per_round_t> unit_reading_data_t; //! Per round unit reading data
 
-    size_t num_of_pi;                      //! Number of performance indices to collect for each round
-    size_t rounds;                         //! Number of rounds we've done so far
-    size_t total_work_amount;
-    pilot_workload_func_t *workload_func;
+    size_t num_of_pi_;                      //! Number of performance indices to collect for each round
+    size_t rounds_;                         //! Number of rounds we've done so far
+    size_t init_work_amount_;
+    size_t work_amount_limit_;
+    pilot_workload_func_t *workload_func_;
 
-    vector<nanosecond_type> round_durations; //! The duration of each round
-    vector<reading_data_t> readings;       //! Reading data of each round. Format: readings[piid][round_id].
-    vector<unit_reading_data_t> unit_readings; //! Unit reading data of each round. Format: unit_readings[piid][round_id].
+    vector<nanosecond_type> round_durations_; //! The duration of each round
+    vector<reading_data_t> readings_;       //! Reading data of each round. Format: readings_[piid][round_id].
+    vector<unit_reading_data_t> unit_readings_; //! Unit reading data of each round. Format: unit_readings_[piid][round_id].
 
-    double confidence_interval;
-    double confidence_level;
-    double autocorrelation_coefficient_limit;
+    double confidence_interval_;
+    double confidence_level_;
+    double autocorrelation_coefficient_limit_;
 
-    bool warm_up_removal;
+    bool warm_up_removal_;
     enum warm_up_removal_detection_method_t {
         MOVING_AVERAGE,
-    } warm_up_removal_detection_method;
-    double warm_up_removal_moving_average_window_size_in_seconds;
+    } warm_up_removal_detection_method_;
+    double warm_up_removal_moving_average_window_size_in_seconds_;
 
-    pilot_workload_t() : num_of_pi(0), rounds(0), total_work_amount(0),
-                         workload_func(nullptr), confidence_interval(0.05),
-                         confidence_level(.95), autocorrelation_coefficient_limit(0.1),
-                         warm_up_removal_detection_method(MOVING_AVERAGE),
-                         warm_up_removal(true),
-                         warm_up_removal_moving_average_window_size_in_seconds(3) {}
+    pilot_workload_t(const char *wl_name) :
+                         num_of_pi_(0), rounds_(0), init_work_amount_(0),
+                         work_amount_limit_(0), workload_func_(nullptr),
+                         confidence_interval_(0.05), confidence_level_(.95),
+                         autocorrelation_coefficient_limit_(0.1),
+                         warm_up_removal_detection_method_(MOVING_AVERAGE),
+                         warm_up_removal_(true),
+                         warm_up_removal_moving_average_window_size_in_seconds_(3) {
+        if (wl_name) workload_name_ = wl_name;
+    }
 };
 
 pilot_workload_t* pilot_new_workload(const char *workload_name) {
-    pilot_workload_t *wl = new pilot_workload_t;
+    pilot_workload_t *wl = new pilot_workload_t(workload_name);
     return wl;
 }
 
 void pilot_set_num_of_pi(pilot_workload_t* wl, size_t num_of_readings) {
-    wl->num_of_pi = num_of_readings;
-    wl->readings.resize(num_of_readings);
-    wl->unit_readings.resize(num_of_readings);
+    ASSERT_VALID_POINTER(wl);
+    if (wl->num_of_pi_ != 0) {
+        fatal_log << "Changing the number of performance indices is not supported";
+        abort();
+    }
+    wl->num_of_pi_ = num_of_readings;
+    wl->readings_.resize(num_of_readings);
+    wl->unit_readings_.resize(num_of_readings);
+}
+
+int pilot_get_num_of_pi(pilot_workload_t* wl, size_t *p_num_of_pi) {
+    ASSERT_VALID_POINTER(wl);
+    ASSERT_VALID_POINTER(p_num_of_pi);
+    if (0 == wl->num_of_pi_) {
+        error_log << __func__ << "(): workload is not properly initialized yet";
+        return ERR_NOT_INIT;
+    }
+    *p_num_of_pi = wl->num_of_pi_;
+    return 0;
 }
 
 void pilot_set_workload_func(pilot_workload_t* wl, pilot_workload_func_t *wf) {
-    wl->workload_func = wf;
+    ASSERT_VALID_POINTER(wl);
+    wl->workload_func_ = wf;
 }
 
-void pilot_set_total_work_amount(pilot_workload_t* wl, size_t t) {
-    wl->total_work_amount = t;
+void pilot_set_work_amount_limit(pilot_workload_t* wl, size_t t) {
+    ASSERT_VALID_POINTER(wl);
+    wl->work_amount_limit_ = t;
+}
+
+int pilot_get_work_amount_limit(pilot_workload_t* wl, size_t *p_work_amount_limit) {
+    ASSERT_VALID_POINTER(wl);
+    ASSERT_VALID_POINTER(p_work_amount_limit);
+    *p_work_amount_limit = wl->work_amount_limit_;
+    return 0;
+}
+
+void pilot_set_init_work_amount(pilot_workload_t* wl, size_t init_work_amount) {
+    ASSERT_VALID_POINTER(wl);
+    wl->init_work_amount_ = init_work_amount;
+}
+
+int pilot_get_init_work_amount(pilot_workload_t* wl, size_t *p_init_work_amount) {
+    ASSERT_VALID_POINTER(wl);
+    ASSERT_VALID_POINTER(p_init_work_amount);
+    *p_init_work_amount = wl->init_work_amount_;
+    return 0;
 }
 
 int pilot_run_workload(pilot_workload_t *wl) {
+    ASSERT_VALID_POINTER(wl);
     // sanity check
-    if (wl->workload_func == nullptr || wl->num_of_pi == 0 ||
-        wl->total_work_amount == 0) return 11;
+    if (wl->workload_func_ == nullptr || wl->num_of_pi_ == 0 ||
+        wl->work_amount_limit_ == 0) return 11;
     // ready to start the workload
     size_t num_of_work_units;
     double **unit_readings;
@@ -115,7 +160,7 @@ int pilot_run_workload(pilot_workload_t *wl) {
 
     cpu_timer timer;
     int rc =
-    wl->workload_func(wl->total_work_amount, &pilot_malloc_func,
+    wl->workload_func_(wl->work_amount_limit_, &pilot_malloc_func,
                       &num_of_work_units, &unit_readings,
                       &readings);
     nanosecond_type round_duration = timer.elapsed().wall;
@@ -132,20 +177,20 @@ int pilot_run_workload(pilot_workload_t *wl) {
 
 
     // move all data into the permanent location
-    wl->round_durations.push_back(round_duration);
-    for (int piid = 0; piid < wl->num_of_pi; ++piid)
-        wl->readings[piid].push_back(readings[piid]);
+    wl->round_durations_.push_back(round_duration);
+    for (int piid = 0; piid < wl->num_of_pi_; ++piid)
+        wl->readings_[piid].push_back(readings[piid]);
     // it is ok for unit_readings to be NULL
     if (unit_readings) {
         debug_log << "got num_of_work_units = " << num_of_work_units;
-        for (int piid = 0; piid < wl->num_of_pi; ++piid) {
-            wl->unit_readings[piid].emplace_back(vector<double>(unit_readings[piid], unit_readings[piid] + num_of_work_units));
+        for (int piid = 0; piid < wl->num_of_pi_; ++piid) {
+            wl->unit_readings_[piid].emplace_back(vector<double>(unit_readings[piid], unit_readings[piid] + num_of_work_units));
             free(unit_readings[piid]);
         }
     } else {
         info_log << "no unit readings in this round";
-        for (int piid = 0; piid < wl->num_of_pi; ++piid) {
-            wl->unit_readings[piid].emplace_back(vector<double>());
+        for (int piid = 0; piid < wl->num_of_pi_; ++piid) {
+            wl->unit_readings_[piid].emplace_back(vector<double>());
         }
     }
 
@@ -154,7 +199,7 @@ int pilot_run_workload(pilot_workload_t *wl) {
     // clean up
     if (readings) free(readings);
     if (unit_readings) free(unit_readings);
-    ++wl->rounds;
+    ++wl->rounds_;
     return 0;
 }
 
@@ -163,7 +208,7 @@ const char *pilot_strerror(int errnum) {
     case NO_ERROR:        return "No error";
     case ERR_WRONG_PARAM: return "Parameter error";
     case ERR_IO:          return "I/O error";
-    case ERR_NOT_INIT:    return "Workload not properly initialized";
+    case ERR_NOT_INIT:    return "Workload not properly initialized yet";
     case ERR_WL_FAIL:     return "Workload failure";
     case ERR_NO_READING:  return "Workload did not return readings";
     case ERR_NOT_IMPL:    return "Not implemented";
@@ -176,53 +221,39 @@ void* pilot_malloc_func(size_t size) {
 }
 
 int pilot_get_num_of_rounds(const pilot_workload_t *wl) {
-    if (!wl) {
-        error_log << "wl is NULL";
-        return -1;
-    }
-    return wl->rounds;
+    ASSERT_VALID_POINTER(wl);
+    return wl->rounds_;
 }
 
 const double* pilot_get_pi_readings(const pilot_workload_t *wl, size_t piid) {
-    if (!wl) {
-        error_log << "wl is NULL";
-        return NULL;
-    }
-    if (piid >= wl->num_of_pi) {
+    ASSERT_VALID_POINTER(wl);
+    if (piid >= wl->num_of_pi_) {
         error_log << "piid out of range";
         return NULL;
     }
-    return wl->readings[piid].data();
+    return wl->readings_[piid].data();
 }
 
 const double* pilot_get_pi_unit_readings(const pilot_workload_t *wl,
     size_t piid, size_t round, size_t *num_of_work_units) {
-    if (!wl) {
-        error_log << "wl is NULL";
-        return NULL;
-    }
-    if (piid >= wl->num_of_pi) {
+    ASSERT_VALID_POINTER(wl);
+    if (piid >= wl->num_of_pi_) {
         error_log << "piid out of range";
         return NULL;
     }
-    if (round >= wl->rounds) {
+    if (round >= wl->rounds_) {
         error_log << "round out of range";
         return NULL;
     }
-    *num_of_work_units = wl->unit_readings[piid][round].size();
-    return wl->unit_readings[piid][round].data();
+    *num_of_work_units = wl->unit_readings_[piid][round].size();
+    return wl->unit_readings_[piid][round].data();
 }
 
 int pilot_export(const pilot_workload_t *wl, pilot_export_format_t format,
                  const char *filename) {
-    if (!wl) {
-        error_log << "wl is NULL";
-        return ERR_WRONG_PARAM;
-    }
-    if (!filename) {
-        error_log << "filename is NULL";
-        return ERR_WRONG_PARAM;
-    }
+    ASSERT_VALID_POINTER(wl);
+    ASSERT_VALID_POINTER(filename);
+
     switch (format) {
     case CSV:
         try {
@@ -230,25 +261,25 @@ int pilot_export(const pilot_workload_t *wl, pilot_export_format_t format,
             of.exceptions(ofstream::failbit | ofstream::badbit);
             of.open(filename);
             of << "piid,round,reading,unit_reading" << endl;
-            for (int piid = 0; piid < wl->num_of_pi; ++piid)
-                for (int round = 0; round < wl->rounds; ++round) {
-                    if (wl->unit_readings[piid][round].size() != 0) {
-                        for (int ur=0; ur < wl->unit_readings[piid][round].size(); ++ur) {
+            for (int piid = 0; piid < wl->num_of_pi_; ++piid)
+                for (int round = 0; round < wl->rounds_; ++round) {
+                    if (wl->unit_readings_[piid][round].size() != 0) {
+                        for (int ur=0; ur < wl->unit_readings_[piid][round].size(); ++ur) {
                             if (0 == ur)
                             of << piid << ","
                             << round << ","
-                            << wl->readings[piid][round] << ","
-                            << wl->unit_readings[piid][round][ur] << endl;
+                            << wl->readings_[piid][round] << ","
+                            << wl->unit_readings_[piid][round][ur] << endl;
                             else
                             of << piid << ","
                             << round << ","
                             << ","
-                            << wl->unit_readings[piid][round][ur] << endl;
+                            << wl->unit_readings_[piid][round][ur] << endl;
                         }
                     } else {
                         of << piid << ","
                         << round << ","
-                        << wl->readings[piid][round] << "," << endl;
+                        << wl->readings_[piid][round] << "," << endl;
                     }
                 } /* round loop */
             of.close();
@@ -265,10 +296,7 @@ int pilot_export(const pilot_workload_t *wl, pilot_export_format_t format,
 }
 
 int pilot_destroy_workload(pilot_workload_t *wl) {
-    if (!wl) {
-        error_log << "wl is NULL";
-        return 11;
-    }
+    ASSERT_VALID_POINTER(wl);
     delete wl;
     return 0;
 }
@@ -281,8 +309,9 @@ void pilot_set_log_level(pilot_log_level_t log_level) {
 }
 
 double pilot_set_confidence_interval(pilot_workload_t *wl, double ci) {
-    double old_ci = wl->confidence_interval;
-    wl->confidence_interval = ci;
+    ASSERT_VALID_POINTER(wl);
+    double old_ci = wl->confidence_interval_;
+    wl->confidence_interval_ = ci;
     return old_ci;
 }
 

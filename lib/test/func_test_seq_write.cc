@@ -2,6 +2,14 @@
  * func_test_seq_write.cc: functional test for libpilot using a
  * sequential write I/O workload
  *
+ * The program may seem long, but actually the logic of this program is simple:
+ * main() processes command line options and sets up a simple workload using
+ * the libpilot interface, using workload_func() as the workload function.
+ * libpilot will call this workload function one or multiple time to collect
+ * enough samples to meet the statistics requirement and produce results.
+ * Also please read the "Performance measurement of a sequential write
+ * workload" wiki page for more information.
+ *
  * Copyright (c) 2015, University of California, Santa Cruz, CA, USA.
  *
  * Developers:
@@ -60,7 +68,7 @@ enum piid_t {
 
 /**
  * \brief the sequential write workload func for libpilot
- * \details THis function generates a series of sequential I/O and calculate the throughput.
+ * \details This function generates a series of sequential I/O and calculate the throughput.
  * @param[in] total_work_amount
  * @param[in] lib_malloc_func
  * @param[out] num_of_work_unit
@@ -151,11 +159,15 @@ int main(int argc, char **argv) {
     desc.add_options()
             ("help", "produce help message")
             ("fsync,f", "call fsync() after each I/O request")
-            ("io-size,s", po::value<size_t>(), "set I/O request size in bytes (default to 1 MB)")
-            ("limit,l", po::value<size_t>(), "set I/O size in bytes (default to 100*1024*1024)")
+            ("io-size,s", po::value<size_t>(), "the size of I/O operations (default to 1 MB)")
+            ("length-limit,l", po::value<size_t>(), "the max. length of the workload in bytes (default to 100*1024*1024); "
+                    "the workload will not write beyond this limit")
+            ("init-length,i", po::value<size_t>(), "the initial length of workload in bytes (default to 1/5 of limitsize); "
+                    "the workload will start from this length and be gradually repeated or increased until the desired "
+                    "confidence level is reached")
             ("output,o", po::value<string>(), "set output file name, can be a device. WARNING: the file will be overwritten if it exists.")
             ("result,r", po::value<string>(), "set result file name, (default to seq-write.csv)")
-            ("warmupio,w", po::value<size_t>(), "skip warmupio from the beginning (default to 1/5 of total IO ops)")
+            ("warm-up-io,w", po::value<size_t>(), "the number of I/O operations that will be removed from the beginning as the warm-up phase (default to 1/5 of total IO ops)")
             ("verbose,v", "print more debug information")
             ;
 
@@ -219,7 +231,7 @@ int main(int argc, char **argv) {
         cout << g_io_size << " bytes" << endl;
     }
 
-    if (vm.count("limit")) {
+    if (vm.count("length-limit")) {
         if (vm["limit"].as<size_t>() <= 0) {
             cout << "I/O limit must be larger than 0" << endl;
             return 1;
@@ -233,8 +245,14 @@ int main(int argc, char **argv) {
         cout << io_limit << " bytes" << endl;
     }
 
+    size_t init_length;
+    if (vm.count("init-length"))
+        init_length = vm["init-length"].as<size_t>();
+    else
+        init_length = io_limit / 5;
+
     size_t warmupio = io_limit / g_io_size / 5;
-    if (vm.count("warmupio")) {
+    if (vm.count("warm-up-io")) {
         warmupio = vm["warmupio"].as<size_t>();
         cout << "warmupio set to " << warmupio << endl;
     } else {
@@ -245,7 +263,8 @@ int main(int argc, char **argv) {
     cout << "Running benchmark ..." << endl;
     pilot_workload_t *wl = pilot_new_workload("Sequential write");
     pilot_set_num_of_pi(wl, 2);
-    pilot_set_total_work_amount(wl, io_limit);
+    pilot_set_work_amount_limit(wl, io_limit);
+    pilot_set_init_work_amount(wl, init_length);
     pilot_set_workload_func(wl, &workload_func);
 
     int res = pilot_run_workload(wl);

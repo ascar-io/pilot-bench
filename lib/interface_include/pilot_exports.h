@@ -1,5 +1,5 @@
 /*
- * common.h: the common header file shared across pilot-tool
+ * pilot_exports.h: macros for marking symbols as exportable and importable
  *
  * Copyright (c) 2015, University of California, Santa Cruz, CA, USA.
  *
@@ -32,38 +32,42 @@
  * OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef PILOT_TOOL_INCLUDE_COMMON_H_
-#define PILOT_TOOL_INCLUDE_COMMON_H_
-
-#include <iostream>
-#include <boost/log/core.hpp>
-#include <boost/log/trivial.hpp>
-#include <boost/log/expressions.hpp>
-
-#define debug_log   BOOST_LOG_TRIVIAL(debug)
-#define info_log    BOOST_LOG_TRIVIAL(info)
-#define warning_log BOOST_LOG_TRIVIAL(warning)
-#define error_log   BOOST_LOG_TRIVIAL(error)
-#define fatal_log   BOOST_LOG_TRIVIAL(fatal)
-
-namespace pilot {
-
-inline void die_if (bool condition, int error_code = 1, const char *error_msg = NULL) {
-    if (condition) return;
-
-    fatal_log << error_msg;
-    exit(error_code);
-}
+#ifndef LIBPILOT_EXPORTS_H_
+#define LIBPILOT_EXPORTS_H_
 
 /**
- * \brief ASSERT_VALID_POINTER(p) checks that p is a valid pointer and aborts if it is NULL
- * \details This macro is used to check critical input parameters.
+ * PILOTPUBFUN:
+ * PILOTPUBFUN, PILOTPUBVAR, PILOTCALL
+ *
+ * Macros which declare an exportable function, an exportable variable, and
+ * the calling convention used for functions.
+ *
+ * Please use an extra block for every platform/compiler combination when
+ * modifying this, rather than mingling all of them in twisted #ifdef lines,
+ * for better readability.
  */
-#define ASSERT_VALID_POINTER(p) { if (NULL == (p)) { \
-        fatal_log << "function " << __func__ << "() called with " #p " as a NULL pointer"; \
-        abort(); \
-    }}
 
-} /* namespace pilot */
+/**
+ * PILOTPUBFUN:
+ *
+ * Macros which declare an exportable function
+ */
+#define PILOTPUBFUN
+/**
+ * PILOTPUBVAR:
+ *
+ * Macros which declare an exportable variable
+ */
+#define PILOTPUBVAR extern
+/**
+ * PILOTCALL:
+ *
+ * Macros which declare the called convention for exported functions
+ */
+#define PILOTCALL
 
-#endif /* PILOT_TOOL_INCLUDE_COMMON_H_ */
+/** DOC_DISABLE */
+
+
+
+#endif /* LIBPILOT_EXPORTS_H_ */

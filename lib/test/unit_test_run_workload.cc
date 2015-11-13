@@ -85,9 +85,20 @@ int mock_workload_func(size_t total_work_amount,
 
 TEST(PilotRunWorkloadTest, RunWorkload) {
     pilot_workload_t *wl = pilot_new_workload("Test workload");
+    size_t num_of_pi;
+    pilot_set_log_level(fatal);
+    ASSERT_EQ(ERR_NOT_INIT, pilot_get_num_of_pi(wl, &num_of_pi));
+    pilot_set_log_level(warning);
     pilot_set_num_of_pi(wl, 1);
+    ASSERT_EQ(0, pilot_get_num_of_pi(wl, &num_of_pi));
+    ASSERT_EQ(1, num_of_pi);
+
     // Limit the write to 500 MB
-    pilot_set_total_work_amount(wl, 500);
+    pilot_set_work_amount_limit(wl, 500);
+    size_t work_amount_limit;
+    ASSERT_EQ(0, pilot_get_work_amount_limit(wl, &work_amount_limit));
+    ASSERT_EQ(500, work_amount_limit);
+
     pilot_set_workload_func(wl, &mock_workload_func);
 
     ASSERT_EQ(0, pilot_run_workload(wl));
