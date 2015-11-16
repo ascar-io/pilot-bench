@@ -105,6 +105,7 @@ void test_opt_session_duration(size_t work_amount_limit,
         cerr << __func__ << "(): not enough rounds" << endl;
         abort();
     }
+    pilot_destroy_workload(wl);
 }
 
 TEST(PilotRunWorkloadTest, CalculatingOptimalSessionDuration) {
