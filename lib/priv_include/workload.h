@@ -2,9 +2,8 @@
  * workload.h: functions for workload manipulation
  *
  * Copyright (c) 2015, University of California, Santa Cruz, CA, USA.
- *
- * Developers:
- *   Yan Li <yanli@cs.ucsc.edu>
+ * Created by Yan Li <yanli@ucsc.edu, elliot.li.tech@gmail.com>,
+ * Department of Computer Science, Baskin School of Engineering.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
