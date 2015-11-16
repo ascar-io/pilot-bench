@@ -30,13 +30,17 @@ add_executable (unit_test_run_workload test/unit_test_run_workload.cc)
 target_link_libraries (unit_test_run_workload ${PILOT_TESTS_LIBRARIES})
 add_executable (unit_test_statistics test/unit_test_statistics.cc)
 target_link_libraries (unit_test_statistics ${PILOT_TESTS_LIBRARIES})
+add_executable (unit_test_session_duration test/unit_test_session_duration.cc)
+target_link_libraries (unit_test_session_duration ${PILOT_TESTS_LIBRARIES})
 
 add_test (NAME unit_test_statistics
 		  COMMAND unit_test_statistics)
 add_test (NAME unit_test_run_workload
-		  COMMAND unit_test_run_workload && diff unit_test_run_workload_export.cs ${PROJECT_SOURCE_DIR}/test/unit_test_run_workload_export_expected.csv)
+		  COMMAND unit_test_run_workload)
 add_test (NAME unit_test_run_workload_check_export
 		  COMMAND diff unit_test_run_workload_export.csv ${CMAKE_CURRENT_LIST_DIR}/test/unit_test_run_workload_export_expected.csv)
+add_test (NAME unit_test_session_duration
+		  COMMAND unit_test_session_duration)
 #add_test (NAME func_test_seq_write
 #		  COMMAND func_test_seq_write /tmp/test_output_file)
 

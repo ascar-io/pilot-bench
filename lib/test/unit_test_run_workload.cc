@@ -61,7 +61,7 @@ int mock_workload_func(size_t total_work_amount,
                        size_t *num_of_work_unit,
                        double ***unit_readings,
                        double **readings) {
-    assert(500 == total_work_amount);
+    assert(500/10 == total_work_amount);
     *num_of_work_unit = g_mock_unit_readings[g_test_round][0].size();
 
     // store unit_readings
@@ -83,6 +83,11 @@ int mock_workload_func(size_t total_work_amount,
     return 0;
 }
 
+bool post_workload_hook(pilot_workload_t* wl) {
+    // we only run a single round
+    return false;
+}
+
 TEST(PilotRunWorkloadTest, RunWorkload) {
     pilot_workload_t *wl = pilot_new_workload("Test workload");
     size_t num_of_pi;
@@ -100,8 +105,9 @@ TEST(PilotRunWorkloadTest, RunWorkload) {
     ASSERT_EQ(500, work_amount_limit);
 
     pilot_set_workload_func(wl, &mock_workload_func);
+    pilot_set_hook_func(wl, POST_WORKLOAD_RUN, &post_workload_hook);
 
-    ASSERT_EQ(0, pilot_run_workload(wl));
+    ASSERT_EQ(ERR_STOPPED_BY_HOOK, pilot_run_workload(wl));
     ASSERT_EQ(1, pilot_get_num_of_rounds(wl));
     ASSERT_EQ(0, memcmp(g_mock_readings[0].data(), pilot_get_pi_readings(wl, 0),
                         sizeof(double) * g_mock_readings[0].size()));

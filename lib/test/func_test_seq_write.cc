@@ -162,7 +162,7 @@ int main(int argc, char **argv) {
             ("io-size,s", po::value<size_t>(), "the size of I/O operations (default to 1 MB)")
             ("length-limit,l", po::value<size_t>(), "the max. length of the workload in bytes (default to 100*1024*1024); "
                     "the workload will not write beyond this limit")
-            ("init-length,i", po::value<size_t>(), "the initial length of workload in bytes (default to 1/5 of limitsize); "
+            ("init-length,i", po::value<size_t>(), "the initial length of workload in bytes (default to 1/10 of limitsize); "
                     "the workload will start from this length and be gradually repeated or increased until the desired "
                     "confidence level is reached")
             ("output,o", po::value<string>(), "set output file name, can be a device. WARNING: the file will be overwritten if it exists.")

@@ -52,9 +52,11 @@ enum pilot_error_t {
     NO_ERROR = 0,
     ERR_WRONG_PARAM = 2,
     ERR_IO = 5,
+    ERR_UNKNOWN_HOOK = 6,
     ERR_NOT_INIT = 11,
     ERR_WL_FAIL = 12,
     ERR_NO_READING = 13,
+    ERR_STOPPED_BY_HOOK = 14,
     ERR_NOT_IMPL = 200
 };
 
@@ -89,6 +91,57 @@ typedef int pilot_workload_func_t(size_t total_work_amount,
  */
 struct pilot_workload_t;
 
+/**
+ * \brief the function that calculates how many samples are needed for getting
+ * the desired result (used mainly in test cases)
+ * \details this function calculates the number of samples needed from the
+ * existing readings and the desired confidence interval and confidence
+ * level as specified in wl
+ * @param[in] wl pointer to the workload struct
+ * @param piid the Performance Index to calculate
+ * @return
+ */
+typedef size_t calc_readings_required_func_t(pilot_workload_t* wl, int piid);
+
+/**
+ * \brief The default function for calculating how many unit readings are needed to
+ * be get a statistically sound result
+ * @param[in] wl pointer to the workload struct
+ * @return the number of readings needed
+ */
+size_t default_calc_unit_readings_required_func(pilot_workload_t* wl, int piid);
+
+/**
+ * \brief The default function for calculating how many readings are needed to
+ * be get a statistically sound result
+ * @param[in] wl pointer to the workload struct
+ * @return the number of readings needed
+ */
+size_t default_calc_readings_required_func(pilot_workload_t* wl, int piid);
+
+/**
+ * \brief Set the function hook that calculates how many readings are needed
+ * for a session (used mainly in test cases)
+ * @param[in] wl pointer to the workload struct
+ * @param f the new hook function
+ */
+void pilot_set_calc_readings_required_func(pilot_workload_t* wl, calc_readings_required_func_t *f);
+
+/**
+ * \brief Set the function hook that calculates how many unit readings are needed
+ * for a session (used mainly in test cases)
+ * @param[in] wl pointer to the workload struct
+ * @param f the new hook function
+ */
+void pilot_set_calc_unit_readings_required_func(pilot_workload_t* wl, calc_readings_required_func_t *f);
+
+/**
+ * \brief Type for the general hook functions
+ * @param[in] wl pointer to the workload struct
+ * @return return false to stop the execution of the ongoing libpilot process
+ */
+typedef bool general_hook_func_t(pilot_workload_t* wl);
+
 pilot_workload_t* pilot_new_workload(const char *workload_name);
 
 /**
@@ -104,7 +157,7 @@ void pilot_set_num_of_pi(pilot_workload_t* wl, size_t num_of_pi);
  * @param[out] p_num_of_pi the pointer for storing the num_of_pi
  * @return 0 on success; aborts if wl is NULL; otherwise error code
  */
-int pilot_get_num_of_pi(pilot_workload_t* wl, size_t *p_num_of_pi);
+int pilot_get_num_of_pi(const pilot_workload_t* wl, size_t *p_num_of_pi);
 
 void pilot_set_workload_func(pilot_workload_t*, pilot_workload_func_t*);
 
@@ -125,7 +178,7 @@ void pilot_set_work_amount_limit(pilot_workload_t* wl, size_t work_amount_limit)
  * @param[out] p_work_amount_limit the pointer for storing the work_amount_limit
  * @return 0 on success; aborts if wl is NULL; otherwise error code
  */
-int pilot_get_work_amount_limit(pilot_workload_t* wl, size_t *p_work_amount_limit);
+int pilot_get_work_amount_limit(const pilot_workload_t* wl, size_t *p_work_amount_limit);
 
 /**
  * \brief Set the initial work amount that pilot should attempt
@@ -144,7 +197,52 @@ void pilot_set_init_work_amount(pilot_workload_t* wl, size_t init_work_amount);
  * @param[out] p_init_work_amount the pointer for storing init_work_amount
  * @return 0 on success; aborts if wl is NULL; otherwise error code
  */
-int pilot_get_init_work_amount(pilot_workload_t* wl, size_t *p_init_work_amount);
+int pilot_get_init_work_amount(const pilot_workload_t* wl, size_t *p_init_work_amount);
+
+enum pilot_hook_t {
+    PRE_WORKLOAD_RUN,
+    POST_WORKLOAD_RUN
+};
+
+/**
+ * \brief Set a hook function
+ * @param[in] wl pointer to the workload struct
+ * @param hook the hook to change
+ * @param f the new hook function
+  * @return 0 on success; otherwise error code
+ */
+int pilot_set_hook_func(pilot_workload_t* wl, enum pilot_hook_t hook, general_hook_func_t *f);
+
+enum pilot_warm_up_removal_detection_method_t {
+    NO_WARM_UP_REMOVAL = 0,
+    MOVING_AVERAGE,
+};
+
+/**
+ * \brief Set the warm-up removal method
+ * @param[in] wl pointer to the workload struct
+ * @param m the warm-up removal method
+ */
+void pilot_set_warm_up_removal_method(pilot_workload_t* wl, pilot_warm_up_removal_detection_method_t m);
+
+/**
+ * \brief Detect the ending location of the warm-up phase
+ * @param[in] readings input data (readings)
+ * @param num_of_readings size of input data
+ * @param method the detection method
+ * @return location of the end of the warm-up phase; negative value on detection failure
+ */
+ssize_t pilot_warm_up_removal_detect(const double *readings,
+                                     size_t num_of_readings,
+                                     pilot_warm_up_removal_detection_method_t method);
+
+
+/**
+ * \brief Whether to check for very short-lived workload
+ * @param[in] wl pointer to the workload struct
+ * @param check_short_workload true to enable short-lived workload check
+ */
+void pilot_set_short_workload_check(pilot_workload_t* wl, bool check_short_workload);
 
 /**
  * \brief Run the workload as specified in wl

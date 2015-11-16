@@ -38,8 +38,9 @@
 #include "common.h"
 #include "config.h"
 #include <fstream>
-#include "interface_include/libpilot.h"
+#include "libpilot.h"
 #include <vector>
+#include "workload.h"
 
 using namespace pilot;
 using namespace std;
@@ -50,48 +51,23 @@ using boost::timer::nanosecond_type;
 nanosecond_type const ONE_SECOND = 1000000000LL;
 size_t const MEGABYTE = 1024*1024;
 
-struct pilot_workload_t {
-    string workload_name_;
-
-    typedef vector<double> reading_data_t; //! The data of one reading of all rounds
-    typedef vector<double> unit_reading_data_per_round_t;
-    typedef vector<unit_reading_data_per_round_t> unit_reading_data_t; //! Per round unit reading data
-
-    size_t num_of_pi_;                      //! Number of performance indices to collect for each round
-    size_t rounds_;                         //! Number of rounds we've done so far
-    size_t init_work_amount_;
-    size_t work_amount_limit_;
-    pilot_workload_func_t *workload_func_;
-
-    vector<nanosecond_type> round_durations_; //! The duration of each round
-    vector<reading_data_t> readings_;       //! Reading data of each round. Format: readings_[piid][round_id].
-    vector<unit_reading_data_t> unit_readings_; //! Unit reading data of each round. Format: unit_readings_[piid][round_id].
-
-    double confidence_interval_;
-    double confidence_level_;
-    double autocorrelation_coefficient_limit_;
-
-    bool warm_up_removal_;
-    enum warm_up_removal_detection_method_t {
-        MOVING_AVERAGE,
-    } warm_up_removal_detection_method_;
-    double warm_up_removal_moving_average_window_size_in_seconds_;
-
-    pilot_workload_t(const char *wl_name) :
-                         num_of_pi_(0), rounds_(0), init_work_amount_(0),
-                         work_amount_limit_(0), workload_func_(nullptr),
-                         confidence_interval_(0.05), confidence_level_(.95),
-                         autocorrelation_coefficient_limit_(0.1),
-                         warm_up_removal_detection_method_(MOVING_AVERAGE),
-                         warm_up_removal_(true),
-                         warm_up_removal_moving_average_window_size_in_seconds_(3) {
-        if (wl_name) workload_name_ = wl_name;
-    }
-};
-
 pilot_workload_t* pilot_new_workload(const char *workload_name) {
     pilot_workload_t *wl = new pilot_workload_t(workload_name);
     return wl;
+}
+
+void pilot_set_calc_readings_required_func(pilot_workload_t* wl,
+        calc_readings_required_func_t *f) {
+    ASSERT_VALID_POINTER(wl);
+    ASSERT_VALID_POINTER(f);
+    wl->calc_readings_required_func_ = f;
+}
+
+void pilot_set_calc_unit_readings_required_func(pilot_workload_t* wl,
+        calc_readings_required_func_t *f) {
+    ASSERT_VALID_POINTER(wl);
+    ASSERT_VALID_POINTER(f);
+    wl->calc_unit_readings_required_func_ = f;
 }
 
 void pilot_set_num_of_pi(pilot_workload_t* wl, size_t num_of_readings) {
@@ -103,9 +79,12 @@ void pilot_set_num_of_pi(pilot_workload_t* wl, size_t num_of_readings) {
     wl->num_of_pi_ = num_of_readings;
     wl->readings_.resize(num_of_readings);
     wl->unit_readings_.resize(num_of_readings);
+    wl->warm_up_phase_len_.resize(num_of_readings);
+    wl->total_num_of_unit_readings_.resize(num_of_readings);
+    wl->total_num_of_readings_.resize(num_of_readings);
 }
 
-int pilot_get_num_of_pi(pilot_workload_t* wl, size_t *p_num_of_pi) {
+int pilot_get_num_of_pi(const pilot_workload_t* wl, size_t *p_num_of_pi) {
     ASSERT_VALID_POINTER(wl);
     ASSERT_VALID_POINTER(p_num_of_pi);
     if (0 == wl->num_of_pi_) {
@@ -126,7 +105,7 @@ void pilot_set_work_amount_limit(pilot_workload_t* wl, size_t t) {
     wl->work_amount_limit_ = t;
 }
 
-int pilot_get_work_amount_limit(pilot_workload_t* wl, size_t *p_work_amount_limit) {
+int pilot_get_work_amount_limit(const pilot_workload_t* wl, size_t *p_work_amount_limit) {
     ASSERT_VALID_POINTER(wl);
     ASSERT_VALID_POINTER(p_work_amount_limit);
     *p_work_amount_limit = wl->work_amount_limit_;
@@ -138,69 +117,175 @@ void pilot_set_init_work_amount(pilot_workload_t* wl, size_t init_work_amount) {
     wl->init_work_amount_ = init_work_amount;
 }
 
-int pilot_get_init_work_amount(pilot_workload_t* wl, size_t *p_init_work_amount) {
+int pilot_get_init_work_amount(const pilot_workload_t* wl, size_t *p_init_work_amount) {
     ASSERT_VALID_POINTER(wl);
     ASSERT_VALID_POINTER(p_init_work_amount);
     *p_init_work_amount = wl->init_work_amount_;
     return 0;
 }
 
-int pilot_run_workload(pilot_workload_t *wl) {
+int pilot_set_hook_func(pilot_workload_t* wl, enum pilot_hook_t hook,
+                        general_hook_func_t *f) {
     ASSERT_VALID_POINTER(wl);
+    general_hook_func_t old_f;
+    switch(hook) {
+    case PRE_WORKLOAD_RUN:
+        wl->hook_pre_workload_run_ = f;
+        return 0;
+    case POST_WORKLOAD_RUN:
+        wl->hook_post_workload_run_ = f;
+        return 0;
+    default:
+        error_log << "Trying to set an unknown hook: " << hook;
+        return ERR_UNKNOWN_HOOK;
+    }
+}
+
+void pilot_set_warm_up_removal_method(pilot_workload_t* wl,
+        pilot_warm_up_removal_detection_method_t m) {
+    ASSERT_VALID_POINTER(wl);
+    wl->warm_up_removal_detection_method_ = m;
+}
+
+void pilot_set_short_workload_check(pilot_workload_t* wl, bool check_short_workload) {
+    ASSERT_VALID_POINTER(wl);
+    wl->short_workload_check_ = check_short_workload;
+}
+
+inline static double calc_avg_work_unit_per_amount(const pilot_workload_t *wl, int piid) {
+    size_t total_work_units = 0;
+    size_t total_work_amount = 0;
+    for (auto const & c : wl->unit_readings_[piid])
+        total_work_units += c.size();
+    for (auto const & c : wl->work_amount_per_round_)
+        total_work_amount += c;
+    return total_work_units / total_work_amount;
+}
+
+inline static size_t calc_next_round_work_amount(pilot_workload_t *wl) {
+    if (0 == wl->rounds_)
+        return 0 == wl->init_work_amount_ ? wl->work_amount_limit_ / 10 : wl->init_work_amount_;
+
+    size_t max_work_amount = 0;
+    size_t num_of_readings_needed;
+    size_t work_amount_needed;
+    for (int piid = 0; piid != wl->num_of_pi_; ++piid) {
+        if (0 != wl->unit_readings_[piid][0].size()) {
+            num_of_readings_needed = wl->calc_unit_readings_required_func_(wl, piid)
+                                   - wl->total_num_of_unit_readings_[piid];
+        } else {
+            // this PI has no unit readings, we have to use readings
+            num_of_readings_needed = wl->calc_readings_required_func_(wl, piid)
+                                   - wl->rounds_;
+        }
+        work_amount_needed = size_t(1.2 * num_of_readings_needed
+                                        * calc_avg_work_unit_per_amount(wl, piid));
+        if (work_amount_needed >= wl->work_amount_limit_)
+            return wl->work_amount_limit_;
+        max_work_amount = max(work_amount_needed, max_work_amount);
+    }
+    return max_work_amount;
+}
+
+int pilot_run_workload(pilot_workload_t *wl) {
     // sanity check
+    ASSERT_VALID_POINTER(wl);
     if (wl->workload_func_ == nullptr || wl->num_of_pi_ == 0 ||
         wl->work_amount_limit_ == 0) return 11;
-    // ready to start the workload
-    size_t num_of_work_units;
+
+    int result = 0;
+    size_t num_of_unit_readings;
     double **unit_readings;
     double *readings;
+    unique_ptr<cpu_timer> ptimer;
 
-    unit_readings = NULL;
-    readings = NULL;
+    // ready to start the workload
+    size_t work_amount;
+    nanosecond_type round_duration;
+    while (true) {
+        unit_readings = NULL;
+        readings = NULL;
 
-    cpu_timer timer;
-    int rc =
-    wl->workload_func_(wl->work_amount_limit_, &pilot_malloc_func,
-                      &num_of_work_units, &unit_readings,
-                      &readings);
-    nanosecond_type round_duration = timer.elapsed().wall;
-
-    // result check first
-    if (0 != rc)   return 12;
-    if (!readings) return 13;
-
-    //! TODO validity check
-    // Get the total_elapsed_time and avg_time_per_unit = total_elapsed_time / num_of_work_units.
-    // If avg_time_per_unit is not at least 100 times longer than the CPU time resolution then
-    // the results cannot be used. See FB#2808 and
-    // http://www.boost.org/doc/libs/1_59_0/libs/timer/doc/cpu_timers.html
-
-
-    // move all data into the permanent location
-    wl->round_durations_.push_back(round_duration);
-    for (int piid = 0; piid < wl->num_of_pi_; ++piid)
-        wl->readings_[piid].push_back(readings[piid]);
-    // it is ok for unit_readings to be NULL
-    if (unit_readings) {
-        debug_log << "got num_of_work_units = " << num_of_work_units;
-        for (int piid = 0; piid < wl->num_of_pi_; ++piid) {
-            wl->unit_readings_[piid].emplace_back(vector<double>(unit_readings[piid], unit_readings[piid] + num_of_work_units));
-            free(unit_readings[piid]);
+        if (wl->hook_pre_workload_run_ && !wl->hook_pre_workload_run_(wl)) {
+            info_log << "pre_workload_run hook returns false, exiting";
+            result = ERR_STOPPED_BY_HOOK;
+            break;
         }
-    } else {
-        info_log << "no unit readings in this round";
+        work_amount = calc_next_round_work_amount(wl);
+        if (0 == work_amount) {
+            info_log << "enough readings collected, exiting";
+            break;
+        }
+        info_log << "starting workload round " << wl->rounds_ << " with work_amount=" << work_amount;
+        if (wl->short_workload_check_) ptimer.reset(new cpu_timer);
+        int rc =
+        wl->workload_func_(work_amount, &pilot_malloc_func,
+                          &num_of_unit_readings, &unit_readings,
+                          &readings);
+        if (ptimer)
+            round_duration = ptimer->elapsed().wall;
+        info_log << "finished workload round " << wl->rounds_;
+
+        // result check first
+        if (0 != rc)   { result = ERR_WL_FAIL; break; }
+        if (!readings) { result = ERR_NO_READING; break; }
+
+        //! TODO validity check
+        // Get the total_elapsed_time and avg_time_per_unit = total_elapsed_time / num_of_work_units.
+        // If avg_time_per_unit is not at least 100 times longer than the CPU time resolution then
+        // the results cannot be used. See FB#2808 and
+        // http://www.boost.org/doc/libs/1_59_0/libs/timer/doc/cpu_timers.html
+
+
+        // move all data into the permanent location
+        wl->work_amount_per_round_.push_back(work_amount);
+        if (ptimer) wl->round_durations_.push_back(round_duration);
+        // it is ok for unit_readings to be NULL
+        if (unit_readings) {
+            info_log << "received num_of_unit_readings = " << num_of_unit_readings;
+            for (int piid = 0; piid < wl->num_of_pi_; ++piid) {
+                wl->unit_readings_[piid].emplace_back(vector<double>(unit_readings[piid], unit_readings[piid] + num_of_unit_readings));
+                // warm-up removal
+                ssize_t wul; // warm-up phase len
+                wul = pilot_warm_up_removal_detect(unit_readings[piid],
+                                                   num_of_unit_readings,
+                                                   wl->warm_up_removal_detection_method_);
+                if (wul < 0) {
+                    warning_log << "warm-up phase detection failed on PI "
+                                << piid << " at round " << wl->rounds_;
+                    wul = 0;
+                }
+                wl->warm_up_phase_len_[piid].push_back(wul);
+                // update total number of unit readings
+                wl->total_num_of_unit_readings_[piid] += num_of_unit_readings - wul;
+
+                free(unit_readings[piid]);
+            }
+        } else {
+            info_log << "no unit readings in this round";
+            for (int piid = 0; piid < wl->num_of_pi_; ++piid) {
+                wl->unit_readings_[piid].emplace_back(vector<double>());
+            }
+        }
         for (int piid = 0; piid < wl->num_of_pi_; ++piid) {
-            wl->unit_readings_[piid].emplace_back(vector<double>());
+            wl->readings_[piid].push_back(readings[piid]);
+        }
+
+        //! TODO: save the data to a database
+
+        // clean up
+        if (readings) free(readings);
+        if (unit_readings) free(unit_readings);
+
+        ++wl->rounds_;
+
+        if (wl->hook_post_workload_run_ && !wl->hook_post_workload_run_(wl)) {
+            info_log << "post_workload_run hook returns false, exiting";
+            result = ERR_STOPPED_BY_HOOK;
+            break;
         }
     }
-
-    //! TODO: save the data to a database
-
-    // clean up
-    if (readings) free(readings);
-    if (unit_readings) free(unit_readings);
-    ++wl->rounds_;
-    return 0;
+    return result;
 }
 
 const char *pilot_strerror(int errnum) {
@@ -208,9 +293,11 @@ const char *pilot_strerror(int errnum) {
     case NO_ERROR:        return "No error";
     case ERR_WRONG_PARAM: return "Parameter error";
     case ERR_IO:          return "I/O error";
+    case ERR_UNKNOWN_HOOK: return "Unknown hook";
     case ERR_NOT_INIT:    return "Workload not properly initialized yet";
     case ERR_WL_FAIL:     return "Workload failure";
     case ERR_NO_READING:  return "Workload did not return readings";
+    case ERR_STOPPED_BY_HOOK: return "Execution is stopped by a hook function";
     case ERR_NOT_IMPL:    return "Not implemented";
     default:              return "Unknown error code";
     }
@@ -404,4 +491,29 @@ int pilot_optimal_length(const double *data, size_t n, double confidence_interva
     double sm = pilot_subsession_mean(data, n);
     double var = pilot_subsession_var(data, n, q, sm);
     return ceil(var * pow(T / confidence_interval_width, 2));
+}
+
+ssize_t pilot_warm_up_removal_detect(const double *readings,
+                                     size_t num_of_readings,
+                                     pilot_warm_up_removal_detection_method_t method) {
+    switch (method) {
+    case NO_WARM_UP_REMOVAL:
+        return 0;
+    case MOVING_AVERAGE:
+        fatal_log << "Unimplemented";
+        abort();
+        break;
+    default:
+        fatal_log << "Unimplemented";
+        abort();
+        break;
+    }
+}
+
+size_t default_calc_unit_readings_required_func(pilot_workload_t* wl, int piid) {
+    abort();
+}
+
+size_t default_calc_readings_required_func(pilot_workload_t* wl, int piid) {
+    abort();
 }
