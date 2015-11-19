@@ -214,6 +214,7 @@ int pilot_set_hook_func(pilot_workload_t* wl, enum pilot_hook_t hook, general_ho
 
 enum pilot_warm_up_removal_detection_method_t {
     NO_WARM_UP_REMOVAL = 0,
+    FIXED_PERCENTAGE,
     MOVING_AVERAGE,
 };
 
@@ -250,6 +251,13 @@ void pilot_set_short_workload_check(pilot_workload_t* wl, bool check_short_workl
  * get a pointer to the error message.
  */
 int pilot_run_workload(pilot_workload_t *wl);
+
+/**
+ * \brief Get the number of total valid unit readings after warm-up removal
+ * @param[in] wl pointer to the workload struct
+ * @return the total number of valid unit readings
+ */
+size_t pilot_get_total_num_of_unit_readings(const pilot_workload_t *wl, int piid);
 
 /**
  * \brief Get pointer to error message string
@@ -375,6 +383,66 @@ double pilot_subsession_confidence_interval(const double *data, size_t n, size_t
  * @return the recommended sample size; -1 if the max_autocorrelation_coefficient cannot be met
  */
 int pilot_optimal_length(const double *data, size_t n, double confidence_interval_width, double confidence_level = 0.95, double max_autocorrelation_coefficient = 0.1);
+
+struct pilot_pi_unit_readings_iter_t;
+
+/**
+ * \brief Get a forward iterator for going through the unit readings of a PI
+ * with warm-up phase removed
+ * @param[in] wl pointer to the workload struct
+ * @param piid the ID of the PI
+ * @return a iterator
+ */
+pilot_pi_unit_readings_iter_t*
+pilot_pi_unit_readings_iter_new(const pilot_workload_t *wl, int piid);
+
+/**
+ * \brief Get the value pointed to by the iterator
+ * @param[in] iter a iterator get by using pilot_get_pi_unit_readings_iter()
+ * @return the value pointed to by the iterator
+ */
+double pilot_pi_unit_readings_iter_get_val(const pilot_pi_unit_readings_iter_t* iter);
+
+/**
+ * \brief Move the iterator to next value and return it
+ * @param[in] iter a iterator get by using pilot_get_pi_unit_readings_iter()
+ * @return true on success; false on end of data
+ */
+bool pilot_pi_unit_readings_iter_next(pilot_pi_unit_readings_iter_t* iter);
+
+/**
+ * \brief Check if the iterator points to a valid reading
+ * @param[in] iter a iterator get by using pilot_get_pi_unit_readings_iter()
+ * @return true on yes; false on end of data
+ */
+bool pilot_pi_unit_readings_iter_valid(const pilot_pi_unit_readings_iter_t* iter);
+
+/**
+ * \brief Destroy and free an iterator
+ * @param[in] iter a iterator get by using pilot_get_pi_unit_readings_iter()
+ */
+void pilot_pi_unit_readings_iter_destroy(pilot_pi_unit_readings_iter_t* iter);
+
+/**
+ * \brief Import one round of benchmark results into a workload session
+ * @param[in] wl pointer to the workload struct
+ * @param round the round ID to store the results with. You can replace the data of
+ * an existing round, or add a new round by setting the round to the value of
+ * pilot_get_num_of_rounds()
+ * @param work_amount the amount of work of that round (you can set it to equal
+ * num_of_unit_readings if you have no special use for this value)
+ * @param round_duration the duration of the round
+ * @param[in] readings the readings of each PI
+ * @param num_of_unit_readings the number of unit readings
+ * @param[in] unit_readings the unit readings of each PI, can be NULL if there
+ * is no unit readings in this round
+ */
+void pilot_import_benchmark_results(pilot_workload_t *wl, int round,
+                                    size_t work_amount,
+                                    boost::timer::nanosecond_type round_duration,
+                                    const double *readings,
+                                    size_t num_of_unit_readings,
+                                    const double * const *unit_readings);
 
 #ifdef __cplusplus
 }

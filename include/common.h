@@ -34,10 +34,11 @@
 #ifndef PILOT_TOOL_INCLUDE_COMMON_H_
 #define PILOT_TOOL_INCLUDE_COMMON_H_
 
-#include <iostream>
 #include <boost/log/core.hpp>
 #include <boost/log/trivial.hpp>
 #include <boost/log/expressions.hpp>
+#include <iostream>
+#include <string>
 
 #define debug_log   BOOST_LOG_TRIVIAL(debug)
 #define info_log    BOOST_LOG_TRIVIAL(info)
@@ -48,7 +49,14 @@
 namespace pilot {
 
 inline void die_if (bool condition, int error_code = 1, const char *error_msg = NULL) {
-    if (condition) return;
+    if (!condition) return;
+
+    fatal_log << error_msg;
+    exit(error_code);
+}
+
+inline void die_if (bool condition, int error_code = 1, const std::string & error_msg = "") {
+    if (!condition) return;
 
     fatal_log << error_msg;
     exit(error_code);

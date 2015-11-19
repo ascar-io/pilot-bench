@@ -123,6 +123,7 @@ TEST(PilotRunWorkloadTest, CalculatingOptimalSessionDuration) {
             50,          // work_amount_limit
             { 5, 12},    // expected_work_amount_per_round
             {15, 15});   // required_sample_size_per_round
+    //! TODO: more cases
 
     //! TODO: test cases with average num of work units per work amount != 1
 }

@@ -216,67 +216,41 @@ int pilot_run_workload(pilot_workload_t *wl) {
             break;
         }
         info_log << "starting workload round " << wl->rounds_ << " with work_amount=" << work_amount;
-        if (wl->short_workload_check_) ptimer.reset(new cpu_timer);
+        ptimer.reset(new cpu_timer);
         int rc =
         wl->workload_func_(work_amount, &pilot_malloc_func,
                           &num_of_unit_readings, &unit_readings,
                           &readings);
-        if (ptimer)
-            round_duration = ptimer->elapsed().wall;
+        round_duration = ptimer->elapsed().wall;
         info_log << "finished workload round " << wl->rounds_;
 
         // result check first
         if (0 != rc)   { result = ERR_WL_FAIL; break; }
         if (!readings) { result = ERR_NO_READING; break; }
 
-        //! TODO validity check
+        //! TODO validity check: if (wl->short_workload_check_) ...
         // Get the total_elapsed_time and avg_time_per_unit = total_elapsed_time / num_of_work_units.
         // If avg_time_per_unit is not at least 100 times longer than the CPU time resolution then
         // the results cannot be used. See FB#2808 and
         // http://www.boost.org/doc/libs/1_59_0/libs/timer/doc/cpu_timers.html
 
-
         // move all data into the permanent location
-        wl->work_amount_per_round_.push_back(work_amount);
-        if (ptimer) wl->round_durations_.push_back(round_duration);
-        // it is ok for unit_readings to be NULL
-        if (unit_readings) {
-            info_log << "received num_of_unit_readings = " << num_of_unit_readings;
-            for (int piid = 0; piid < wl->num_of_pi_; ++piid) {
-                wl->unit_readings_[piid].emplace_back(vector<double>(unit_readings[piid], unit_readings[piid] + num_of_unit_readings));
-                // warm-up removal
-                ssize_t wul; // warm-up phase len
-                wul = pilot_warm_up_removal_detect(unit_readings[piid],
-                                                   num_of_unit_readings,
-                                                   wl->warm_up_removal_detection_method_);
-                if (wul < 0) {
-                    warning_log << "warm-up phase detection failed on PI "
-                                << piid << " at round " << wl->rounds_;
-                    wul = 0;
-                }
-                wl->warm_up_phase_len_[piid].push_back(wul);
-                // update total number of unit readings
-                wl->total_num_of_unit_readings_[piid] += num_of_unit_readings - wul;
-
-                free(unit_readings[piid]);
-            }
-        } else {
-            info_log << "no unit readings in this round";
-            for (int piid = 0; piid < wl->num_of_pi_; ++piid) {
-                wl->unit_readings_[piid].emplace_back(vector<double>());
-            }
-        }
-        for (int piid = 0; piid < wl->num_of_pi_; ++piid) {
-            wl->readings_[piid].push_back(readings[piid]);
-        }
+        pilot_import_benchmark_results(wl, wl->rounds_, work_amount,
+                                       round_duration, readings,
+                                       num_of_unit_readings,
+                                       unit_readings);
 
         //! TODO: save the data to a database
 
-        // clean up
+        // cleaning up
         if (readings) free(readings);
-        if (unit_readings) free(unit_readings);
-
-        ++wl->rounds_;
+        if (unit_readings) {
+            for (int piid = 0; piid < wl->num_of_pi_; ++piid) {
+                if (unit_readings[piid])
+                    free(unit_readings[piid]);
+            }
+            free(unit_readings);
+        }
 
         if (wl->hook_post_workload_run_ && !wl->hook_post_workload_run_(wl)) {
             info_log << "post_workload_run hook returns false, exiting";
@@ -285,6 +259,11 @@ int pilot_run_workload(pilot_workload_t *wl) {
         }
     }
     return result;
+}
+
+size_t pilot_get_total_num_of_unit_readings(const pilot_workload_t *wl, int piid) {
+    ASSERT_VALID_POINTER(wl);
+    return wl->total_num_of_unit_readings_[piid];
 }
 
 const char *pilot_strerror(int errnum) {
@@ -498,6 +477,14 @@ ssize_t pilot_warm_up_removal_detect(const double *readings,
     switch (method) {
     case NO_WARM_UP_REMOVAL:
         return 0;
+    case FIXED_PERCENTAGE:
+        if (num_of_readings == 1)
+            return 0;
+        else {
+            const int percentage = 10;
+            // calculate the ceil of num_of_readings / percentage so we remove at least one
+            return (num_of_readings + percentage - 1) / percentage;
+        }
     case MOVING_AVERAGE:
         fatal_log << "Unimplemented";
         abort();
@@ -507,6 +494,179 @@ ssize_t pilot_warm_up_removal_detect(const double *readings,
         abort();
         break;
     }
+}
+
+void pilot_import_benchmark_results(pilot_workload_t *wl, int round,
+                                    size_t work_amount,
+                                    boost::timer::nanosecond_type round_duration,
+                                    const double *readings,
+                                    size_t num_of_unit_readings,
+                                    const double * const *unit_readings) {
+
+    ASSERT_VALID_POINTER(wl);
+    die_if(round < 0 || round > wl->rounds_, ERR_WRONG_PARAM, string("Invalid round value for ") + __func__);
+    ASSERT_VALID_POINTER(readings);
+
+    // update work_amount
+    if (round != wl->rounds_)
+        wl->work_amount_per_round_[round] = work_amount;
+    else
+        wl->work_amount_per_round_.push_back(work_amount);
+
+    // update round_dueration
+    if (round != wl->rounds_)
+        wl->round_durations_[round] = round_duration;
+    else
+        wl->round_durations_.push_back(round_duration);
+
+    if (!unit_readings) num_of_unit_readings = 0;
+    for (int piid = 0; piid < wl->num_of_pi_; ++piid) {
+        // update total number of unit readings
+        if (round != wl->rounds_) {
+            // remove old total_num_of_unit_readings
+            wl->total_num_of_unit_readings_[piid] -= wl->unit_readings_[piid][round].size()
+                                                     - wl->warm_up_phase_len_[piid][round];
+        }
+
+        if (round == wl->rounds_) {
+            // inserting a new round
+            if (unit_readings && unit_readings[piid]) {
+                info_log << "new round num_of_unit_readings = " << num_of_unit_readings;
+                wl->unit_readings_[piid].emplace_back(vector<double>(unit_readings[piid], unit_readings[piid] + num_of_unit_readings));
+            } else {
+                info_log << "no unit readings in this new round";
+                wl->unit_readings_[piid].emplace_back(vector<double>());
+            }
+        } else {
+            info_log << "replacing data for an existing round";
+            wl->unit_readings_[piid][round].resize(num_of_unit_readings);
+            if (unit_readings && unit_readings[piid])
+                memcpy(wl->unit_readings_[piid][round].data(), unit_readings[piid], sizeof(double) * num_of_unit_readings);
+        }
+
+        if (unit_readings) {
+            // warm-up removal
+            ssize_t wul; // warm-up phase len
+            wul = pilot_warm_up_removal_detect(unit_readings[piid],
+                                               num_of_unit_readings,
+                                               wl->warm_up_removal_detection_method_);
+            if (wul < 0) {
+                warning_log << "warm-up phase detection failed on PI "
+                            << piid << " at round " << wl->rounds_;
+                wul = 0;
+            }
+            if (round == wl->rounds_) {
+                wl->warm_up_phase_len_[piid].push_back(wul);
+            } else {
+                wl->warm_up_phase_len_[piid][round] = wul;
+            }
+            // update total number of unit readings
+            wl->total_num_of_unit_readings_[piid] += num_of_unit_readings - wul;
+        } else {
+            // this round has no unit readings
+            wl->warm_up_phase_len_[piid].push_back(0);
+        } // if (unit_readings) for warm-up removal
+    } // for loop for PI
+
+    for (int piid = 0; piid < wl->num_of_pi_; ++piid) {
+        if (round == wl->rounds_) {
+            wl->readings_[piid].push_back(readings[piid]);
+            ++wl->rounds_;
+        } else
+            wl->readings_[piid][round] = readings[piid];
+    }
+}
+
+struct pilot_pi_unit_readings_iter_t {
+    const pilot_workload_t *wl_;
+    int piid_;
+    int cur_round_id_;
+    int cur_unit_reading_id_;
+    pilot_pi_unit_readings_iter_t (const pilot_workload_t *wl, int piid) :
+        wl_(wl), piid_(piid), cur_round_id_(0), cur_unit_reading_id_(0) {
+        ASSERT_VALID_POINTER(wl);
+        if (piid < 0 || piid >= wl->num_of_pi_) {
+            fatal_log << __func__ << "() piid has invalid value " << piid;
+            abort();
+        }
+
+        if (!pilot_pi_unit_readings_iter_valid(this))
+            pilot_pi_unit_readings_iter_next(this);
+    }
+};
+
+pilot_pi_unit_readings_iter_t*
+pilot_pi_unit_readings_iter_new(const pilot_workload_t *wl, int piid) {
+    return new pilot_pi_unit_readings_iter_t(wl, piid);
+}
+
+double pilot_pi_unit_readings_iter_get_val(const pilot_pi_unit_readings_iter_t* iter) {
+    assert (iter->piid_ >= 0);
+    assert (iter->cur_round_id_ >= 0);
+    assert (iter->cur_unit_reading_id_ >= 0);
+
+    if (iter->piid_ >= iter->wl_->num_of_pi_) {
+        fatal_log << "pi_unit_readings_iter has invalid piid";
+        abort();
+    }
+    if (iter->cur_round_id_ >= iter->wl_->rounds_) {
+        fatal_log << "pi_unit_readings_iter has invalid cur_round_id";
+        abort();
+    }
+    if (iter->cur_unit_reading_id_ >= iter->wl_->unit_readings_[iter->piid_][iter->cur_round_id_].size() ||
+        iter->cur_unit_reading_id_ < iter->wl_->warm_up_phase_len_[iter->piid_][iter->cur_round_id_]) {
+        fatal_log << "pi_unit_readings_iter has invalid cur_unit_reading_id";
+        abort();
+    }
+
+    return iter->wl_->unit_readings_[iter->piid_][iter->cur_round_id_][iter->cur_unit_reading_id_];
+}
+
+bool pilot_pi_unit_readings_iter_next(pilot_pi_unit_readings_iter_t* iter) {
+    bool round_has_changed = false;
+
+    if (iter->cur_round_id_ >= iter->wl_->rounds_) return false;
+    // find next non-empty round
+    while (iter->wl_->unit_readings_[iter->piid_][iter->cur_round_id_].size() == 0) {
+NEXT_ROUND:
+        ++iter->cur_round_id_;
+        round_has_changed = true;
+        iter->cur_unit_reading_id_ = 0;
+        if (iter->cur_round_id_ >= iter->wl_->rounds_) return false;
+    }
+    if (iter->cur_unit_reading_id_ < iter->wl_->warm_up_phase_len_[iter->piid_][iter->cur_round_id_]) {
+        iter->cur_unit_reading_id_ = iter->wl_->warm_up_phase_len_[iter->piid_][iter->cur_round_id_];
+        if (iter->cur_unit_reading_id_ >= iter->wl_->unit_readings_[iter->piid_][iter->cur_round_id_].size()) {
+            fatal_log << "workload's warm-up phase longer than total round length";
+            abort();
+        }
+        return true;
+    }
+    if (round_has_changed) return true;
+    if (iter->cur_unit_reading_id_ != iter->wl_->unit_readings_[iter->piid_][iter->cur_round_id_].size() - 1) {
+        ++iter->cur_unit_reading_id_;
+        return true;
+    }
+    goto NEXT_ROUND;
+}
+
+bool pilot_pi_unit_readings_iter_valid(const pilot_pi_unit_readings_iter_t* iter) {
+    if (iter->piid_ < 0 || iter->piid_ >= iter->wl_->num_of_pi_)
+        return false;
+
+    if (iter->cur_round_id_ < 0 || iter->cur_round_id_ >= iter->wl_->rounds_)
+        return false;
+
+    if (iter->cur_unit_reading_id_ >= iter->wl_->unit_readings_[iter->piid_][iter->cur_round_id_].size() ||
+        iter->cur_unit_reading_id_ < iter->wl_->warm_up_phase_len_[iter->piid_][iter->cur_round_id_])
+        return false;
+
+    return true;
+}
+
+void pilot_pi_unit_readings_iter_destroy(pilot_pi_unit_readings_iter_t* iter) {
+    ASSERT_VALID_POINTER(iter);
+    delete iter;
 }
 
 size_t default_calc_unit_readings_required_func(pilot_workload_t* wl, int piid) {

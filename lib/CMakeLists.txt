@@ -32,6 +32,8 @@ add_executable (unit_test_statistics test/unit_test_statistics.cc)
 target_link_libraries (unit_test_statistics ${PILOT_TESTS_LIBRARIES})
 add_executable (unit_test_session_duration test/unit_test_session_duration.cc)
 target_link_libraries (unit_test_session_duration ${PILOT_TESTS_LIBRARIES})
+add_executable (unit_test_unit_readings_iter test/unit_test_unit_readings_iter.cc)
+target_link_libraries (unit_test_unit_readings_iter ${PILOT_TESTS_LIBRARIES})
 
 add_test (NAME unit_test_statistics
 		  COMMAND unit_test_statistics)
@@ -41,6 +43,8 @@ add_test (NAME unit_test_run_workload_check_export
 		  COMMAND diff unit_test_run_workload_export.csv ${CMAKE_CURRENT_LIST_DIR}/test/unit_test_run_workload_export_expected.csv)
 add_test (NAME unit_test_session_duration
 		  COMMAND unit_test_session_duration)
+add_test (NAME unit_test_unit_readings_iter
+		  COMMAND unit_test_unit_readings_iter)
 #add_test (NAME func_test_seq_write
 #		  COMMAND func_test_seq_write /tmp/test_output_file)
 
