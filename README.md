@@ -8,7 +8,7 @@ provides the following features:
 *  handling the correlation between test runs,
 *  saving test results in a standard format for sharing and comparing results.
 
-Tutorials and more information can be found on the wiki: https://bitbucket.org/ssrc/pilot-tool/wiki/Home
+Tutorials and more information can be found on the wiki: https://github.com/mlogic/pilot-bench/wiki
 
 Join our Slack to give feedback and dicsuss your ideas:
 https://pilot-tool.slack.com/signup
