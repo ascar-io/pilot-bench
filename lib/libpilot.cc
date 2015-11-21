@@ -387,7 +387,7 @@ char* pilot_text_workload_summary(const pilot_workload_t *wl) {
     return wl->text_workload_summary();
 }
 
-void pilot_delete_dump_mem(char *dump) {
+void pilot_free_text_dump(char *dump) {
     ASSERT_VALID_POINTER(dump);
     delete[] dump;
 }

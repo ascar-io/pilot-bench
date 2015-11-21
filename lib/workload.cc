@@ -173,7 +173,7 @@ char* pilot_workload_t::text_round_summary(size_t round) const {
         s << "warm-up phase length: " << ri->warm_up_phase_lens[piid] << " units" << endl;
     }
     pilot_free_round_info(ri);
-    size_t len = s.str().size();
+    size_t len = s.str().size() + 1;
     char *result = new char[len];
     memcpy(result, s.str().c_str(), len);
     return result;
@@ -181,7 +181,7 @@ char* pilot_workload_t::text_round_summary(size_t round) const {
 
 char* pilot_workload_t::text_workload_summary(void) const {
     stringstream s;
-    unique_ptr<pilot_workload_info_t> i(workload_info());
+    pilot_workload_info_t *i = workload_info();
 
     // Keep the text in Markdown format
     s << setprecision(4);
@@ -231,7 +231,9 @@ char* pilot_workload_t::text_workload_summary(void) const {
 //    }
 //    cout << "]" << endl;
 
-    size_t len = s.str().size();
+    pilot_free_workload_info(i);
+
+    size_t len = s.str().size() + 1;
     char *result = new char[len];
     memcpy(result, s.str().c_str(), len);
     return result;

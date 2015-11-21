@@ -420,7 +420,7 @@ void pilot_free_round_info(pilot_round_info_t *info);
  * Dump the workload summary in Markdown text format
  * @param[in] wl pointer to the workload struct
  * @return a memory buffer of text dump that can be directly output.
- * Use pilot_delete_dump_mem() to free the buffer after using.
+ * Use pilot_free_text_dump() to free the buffer after using.
  */
 char* pilot_text_workload_summary(const pilot_workload_t *wl);
 
@@ -429,11 +429,11 @@ char* pilot_text_workload_summary(const pilot_workload_t *wl);
  * @param[in] wl pointer to the workload struct
  * @param round_id the round ID starting from 0
  * @return a memory buffer of text dump that can be directly output.
- * Use pilot_delete_dump_mem() to free the buffer after using.
+ * Use pilot_free_text_dump() to free the buffer after using.
  */
 char* pilot_text_round_summary(const pilot_workload_t *wl, size_t round_id);
 
-void pilot_delete_dump_mem(char *dump);
+void pilot_free_text_dump(char *dump);
 
 /**
  * \brief Calculate the optimal subsession size (q) so that autocorrelation coefficient doesn't exceed the limit

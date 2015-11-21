@@ -165,13 +165,13 @@ bool post_workload_run_hook(pilot_workload_t* wl) {
     cout << "============================" << endl;
     char *buf = pilot_text_round_summary(wl, pilot_get_num_of_rounds(wl) - 1);
     printf("%s\n", buf);
-    pilot_delete_dump_mem(buf);
+    pilot_free_text_dump(buf);
 
     cout << "Workload Summary So Far" << endl;
     cout << "============================" << endl;
     buf = pilot_text_workload_summary(wl);
     printf("%s\n", buf);
-    pilot_delete_dump_mem(buf);
+    pilot_free_text_dump(buf);
 
     return true;
 }
@@ -312,6 +312,6 @@ int main(int argc, char **argv) {
     }
     cout << "Benchmark results are saved to " << result_file_name << endl;
     assert(pilot_destroy_workload(wl) == 0);
-    delete g_io_buf;
+    delete[] g_io_buf;
     return 0;
 }

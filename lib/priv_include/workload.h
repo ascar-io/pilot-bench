@@ -132,8 +132,8 @@ struct pilot_workload_t {
      * be freed by using pilot_free_workload_info().
      * @param info (optional) if provided, it must point to a pilot_workload_info_t
      * that was returned by a previous call to pilot_workload_info()
-     * @return a pointer to a pilot_workload_info_t struct, you need to delete
-     * it after using.
+     * @return a pointer to a pilot_workload_info_t struct. You must use
+     * pilot_free_workload_info() to free it (you shall not use delete).
      */
     pilot_workload_info_t* workload_info(pilot_workload_info_t *winfo = NULL) const;
 
@@ -146,8 +146,8 @@ struct pilot_workload_t {
      * be freed by using pilot_free_round_info().
      * @param info (optional) if provided, it must point to a pilot_round_info_t
      * that was returned by a previous call to pilot_round_info()
-     * @return a pointer to a pilot_round_info_t struct, you need to delete
-     * it after using.
+     * @return a pointer to a pilot_round_info_t struct. You must use
+     * pilot_free_round_info() to free it (you shall not use delete).
      */
     pilot_round_info_t* round_info(size_t round, pilot_round_info_t *rinfo = NULL) const;
 
