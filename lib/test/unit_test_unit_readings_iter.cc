@@ -96,7 +96,7 @@ TEST(PilotUnitReadingsIterTest, ImportingAndIterating) {
     // test empty iterator
     pilot_pi_unit_readings_iter_t *iter;
     iter = pilot_pi_unit_readings_iter_new(wl, 0);
-    ASSERT_EQ(false, pilot_pi_unit_readings_iter_valid(iter));
+    ASSERT_FALSE(pilot_pi_unit_readings_iter_valid(iter));
     pilot_pi_unit_readings_iter_destroy(iter);
     ASSERT_EQ(0, pilot_get_total_num_of_unit_readings(wl, 0));
 
@@ -117,7 +117,7 @@ TEST(PilotUnitReadingsIterTest, ImportingAndIterating) {
     // awkwardly convert multi-dimentional array to double**
     const double *new_data_a[] = {_new_data_a};
     pilot_import_benchmark_results(wl, 0, sizeof(new_data_a)/sizeof(double), 0,
-                                   (double[]){42.0},
+                                   (const double[]){42.0},
                                    sizeof(_new_data_a)/sizeof(double),
                                    new_data_a);
     ASSERT_EQ(17, pilot_get_total_num_of_unit_readings(wl, 0));
@@ -130,7 +130,7 @@ TEST(PilotUnitReadingsIterTest, ImportingAndIterating) {
     // awkwardly convert multi-dimentional array to double**
     const double *new_data_b[] = {_new_data_b};
     pilot_import_benchmark_results(wl, 0, sizeof(new_data_b)/sizeof(double), 0,
-                                   (double[]){42.0},
+                                   (const double[]){42.0},
                                    sizeof(_new_data_b)/sizeof(double),
                                    new_data_b);
     ASSERT_EQ(14, pilot_get_total_num_of_unit_readings(wl, 0));
@@ -140,7 +140,7 @@ TEST(PilotUnitReadingsIterTest, ImportingAndIterating) {
 
     // replace the first round with empty unit_readings
     pilot_import_benchmark_results(wl, 0, 42, 0,
-                                   (double[]){42.0},
+                                   (const double[]){42.0},
                                    0,
                                    NULL);
     ASSERT_EQ(8, pilot_get_total_num_of_unit_readings(wl, 0));
