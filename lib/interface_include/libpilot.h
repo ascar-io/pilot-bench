@@ -50,6 +50,7 @@ extern "C" {
 enum pilot_error_t {
     NO_ERROR = 0,
     ERR_WRONG_PARAM = 2,
+    ERR_NOMEM = 3,
     ERR_IO = 5,
     ERR_UNKNOWN_HOOK = 6,
     ERR_NOT_INIT = 11,
@@ -90,6 +91,8 @@ typedef int pilot_workload_func_t(size_t total_work_amount,
  */
 struct pilot_workload_t;
 
+struct pilot_pi_unit_readings_iter_t;
+
 /**
  * \brief the function that calculates how many samples are needed for getting
  * the desired result (used mainly in test cases)
@@ -100,15 +103,16 @@ struct pilot_workload_t;
  * @param piid the Performance Index to calculate
  * @return
  */
-typedef size_t calc_readings_required_func_t(pilot_workload_t* wl, int piid);
+typedef ssize_t calc_readings_required_func_t(const pilot_workload_t* wl, int piid);
 
 /**
  * \brief The default function for calculating how many unit readings are needed to
  * be get a statistically sound result
  * @param[in] wl pointer to the workload struct
- * @return the number of readings needed
+ * @return the number of readings needed; a negative number if there is not
+ * enough data to calculate the required size
  */
-size_t default_calc_unit_readings_required_func(pilot_workload_t* wl, int piid);
+ssize_t default_calc_unit_readings_required_func(const pilot_workload_t* wl, int piid);
 
 /**
  * \brief The default function for calculating how many readings are needed to
@@ -116,7 +120,7 @@ size_t default_calc_unit_readings_required_func(pilot_workload_t* wl, int piid);
  * @param[in] wl pointer to the workload struct
  * @return the number of readings needed
  */
-size_t default_calc_readings_required_func(pilot_workload_t* wl, int piid);
+ssize_t default_calc_readings_required_func(const pilot_workload_t* wl, int piid);
 
 /**
  * \brief Set the function hook that calculates how many readings are needed
@@ -286,7 +290,7 @@ int pilot_est_sample_var_dist_unknown(const size_t n, const double *sample, size
 int pilot_get_num_of_rounds(const pilot_workload_t *wl);
 
 /**
- * \brief Return the read only copy of all readings of a performance index
+ * \brief Return the read only copy of all raw readings of a performance index
  * @param[in] wl pointer to the workload struct
  * @param piid Performance Index ID
  * @return a pointer to readings data, the length of which can be get by using pilot_get_num_of_rounds(); NULL on error.
@@ -294,7 +298,7 @@ int pilot_get_num_of_rounds(const pilot_workload_t *wl);
 const double* pilot_get_pi_readings(const pilot_workload_t *wl, size_t piid);
 
 /**
- * \brief Return the read only copy of all unit readings of a performance index in a certain round
+ * \brief Return the read only copy of all raw unit readings of a performance index in a certain round
  * @param[in] wl pointer to the workload struct
  * @param piid Performance Index ID
  * @param round Performance Index ID
@@ -347,10 +351,89 @@ void pilot_set_log_level(pilot_log_level_t log_level);
  */
 double pilot_set_confidence_interval(pilot_workload_t *wl, double ci);
 
-double pilot_subsession_mean(const double *data, size_t n);
-double pilot_subsession_cov(const double *data, size_t n, size_t q, double sample_mean);
-double pilot_subsession_var(const double *data, size_t n, size_t q, double sample_mean);
-double pilot_subsession_autocorrelation_coefficient(const double *data, size_t n, size_t q, double sample_mean);
+double pilot_subsession_mean_p(const double *data, size_t n);
+double pilot_subsession_cov_p(const double *data, size_t n, size_t q, double sample_mean);
+double pilot_subsession_var_p(const double *data, size_t n, size_t q, double sample_mean);
+double pilot_subsession_autocorrelation_coefficient_p(const double *data, size_t n, size_t q, double sample_mean);
+
+/**
+ * \brief Basic and statistics information of a workload round
+ */
+#pragma pack(push, 1)
+struct pilot_round_info_t {
+    size_t work_amount;
+    size_t* num_of_unit_readings;
+    size_t* warm_up_phase_lens;
+};
+#pragma pack(pop)
+
+/**
+ * \brief Get the basic and statistics information of a workload round
+ * \details If info is NULL, this function allocates memory for a
+ * pilot_round_info_t, fills information, and returns it. If
+ * info is provided, its information will be updated and no new
+ * memory will be allocated. The allocated memory must eventually
+ * be freed by using pilot_free_round_info().
+ * @param[in] wl pointer to the workload struct
+ * @param info (optional) if provided, it must point to a pilot_round_info_t
+ * that was returned by a previous call to pilot_round_info()
+ * @return a pointer to a pilot_round_info_t struct
+ */
+pilot_round_info_t* pilot_round_info(const pilot_workload_t *wl, size_t round, pilot_round_info_t *info = NULL);
+
+/**
+ * \brief Basic and statistics information of a workload
+ */
+#pragma pack(push, 1)
+struct pilot_workload_info_t {
+    size_t* total_num_of_unit_readings;
+    double* unit_readings_mean;
+    double* unit_readings_var;
+    double* unit_readings_autocorrelation_coefficient;
+    size_t* unit_readings_optimal_subsession_size;
+    double* unit_readings_optimal_subsession_var;
+    double* unit_readings_optimal_subsession_autocorrelation_coefficient;
+    double* unit_readings_optimal_subsession_confidence_interval;
+    size_t* unit_readings_required_sample_size;
+};
+#pragma pack(pop)
+
+/**
+ * \brief Get the basic and statistics information of a workload
+ * \details If info is NULL, this function allocates memory for a
+ * pilot_workload_info_t, fills information, and returns it. If
+ * info is provided, its information will be updated and no new
+ * memory will be allocated. The allocated memory must eventually
+ * be freed by using pilot_free_workload_info().
+ * @param[in] wl pointer to the workload struct
+ * @param info (optional) if provided, it must point to a pilot_workload_info_t
+ * that was returned by a previous call to pilot_workload_info()
+ * @return a pointer to a pilot_workload_info_t struct
+ */
+pilot_workload_info_t* pilot_workload_info(const pilot_workload_t *wl, pilot_workload_info_t *info = NULL);
+
+void pilot_free_workload_info(pilot_workload_info_t *info);
+
+void pilot_free_round_info(pilot_round_info_t *info);
+
+/**
+ * Dump the workload summary in Markdown text format
+ * @param[in] wl pointer to the workload struct
+ * @return a memory buffer of text dump that can be directly output.
+ * Use pilot_delete_dump_mem() to free the buffer after using.
+ */
+char* pilot_text_workload_summary(const pilot_workload_t *wl);
+
+/**
+ * Dump the summary of a round in Markdown text format
+ * @param[in] wl pointer to the workload struct
+ * @param round_id the round ID starting from 0
+ * @return a memory buffer of text dump that can be directly output.
+ * Use pilot_delete_dump_mem() to free the buffer after using.
+ */
+char* pilot_text_round_summary(const pilot_workload_t *wl, size_t round_id);
+
+void pilot_delete_dump_mem(char *dump);
 
 /**
  * \brief Calculate the optimal subsession size (q) so that autocorrelation coefficient doesn't exceed the limit
@@ -359,7 +442,7 @@ double pilot_subsession_autocorrelation_coefficient(const double *data, size_t n
  * @param max_autocorrelation_coefficient the maximal limit of the autocorrelation coefficient
  * @return the size of subsession (q); -1 if q can't be found (e.g. q would be larger than n)
  */
-int pilot_optimal_subsession_size(const double *data, size_t n, double max_autocorrelation_coefficient = 0.1);
+int pilot_optimal_subsession_size_p(const double *data, size_t n, double max_autocorrelation_coefficient = 0.1);
 
 /**
  * \brief Calculate the width of the confidence interval given subsession size q and confidence level
@@ -369,12 +452,13 @@ int pilot_optimal_subsession_size(const double *data, size_t n, double max_autoc
  * @param confidence_level the probability that the real mean falls within the confidence interval, e.g., .95
  * @return the width of the confidence interval
  */
-double pilot_subsession_confidence_interval(const double *data, size_t n, size_t q, double confidence_level);
+double pilot_subsession_confidence_interval_p(const double *data, size_t n, size_t q, double confidence_level);
 
 /**
  * \brief Calculate the optimal length of the benchmark session given observed
  *        data, confidence interval, confidence level, and maximal
- *        autocorrelation coefficient
+ *        autocorrelation coefficient. This function uses a pointer as data
+ *        source.
  * @param[in] data the input data
  * @param n size of the input data
  * @param confidence_interval_width
@@ -382,7 +466,7 @@ double pilot_subsession_confidence_interval(const double *data, size_t n, size_t
  * @param max_autocorrelation_coefficient
  * @return the recommended sample size; -1 if the max_autocorrelation_coefficient cannot be met
  */
-int pilot_optimal_length(const double *data, size_t n, double confidence_interval_width, double confidence_level = 0.95, double max_autocorrelation_coefficient = 0.1);
+ssize_t pilot_optimal_sample_size_p(const double *data, size_t n, double confidence_interval_width, double confidence_level = 0.95, double max_autocorrelation_coefficient = 0.1);
 
 struct pilot_pi_unit_readings_iter_t;
 
@@ -406,9 +490,8 @@ double pilot_pi_unit_readings_iter_get_val(const pilot_pi_unit_readings_iter_t* 
 /**
  * \brief Move the iterator to next value and return it
  * @param[in] iter a iterator get by using pilot_get_pi_unit_readings_iter()
- * @return true on success; false on end of data
  */
-bool pilot_pi_unit_readings_iter_next(pilot_pi_unit_readings_iter_t* iter);
+void pilot_pi_unit_readings_iter_next(pilot_pi_unit_readings_iter_t* iter);
 
 /**
  * \brief Check if the iterator points to a valid reading

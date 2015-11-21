@@ -5,6 +5,7 @@ if [ $# -eq 0 ]; then
     cat<<EOF
 This script accepts same options as func_test_seq_write does.
 EOF
+    exit 2
 fi
 
 OUTPUT_FILE_NAME=seq-write.csv

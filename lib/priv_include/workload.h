@@ -34,6 +34,7 @@
 #ifndef LIB_PRIV_INCLUDE_WORKLOAD_H_
 #define LIB_PRIV_INCLUDE_WORKLOAD_H_
 
+#include "common.h"
 #include "libpilot.h"
 
 struct pilot_workload_t {
@@ -52,7 +53,7 @@ struct pilot_workload_t {
     std::vector<boost::timer::nanosecond_type> round_durations_; //! The duration of each round
     std::vector<reading_data_t> readings_;       //! Reading data of each round. Format: readings_[piid][round_id].
     std::vector<unit_reading_data_t> unit_readings_; //! Unit reading data of each round. Format: unit_readings_[piid][round_id].
-    std::vector<std::vector<size_t> > warm_up_phase_len_;          //! The length of the warm-up phase of each PI per round. Format: warm_up_phase_len_[piid][round_id].
+    std::vector<std::vector<size_t> > warm_up_phase_len_;  //! The length of the warm-up phase of each PI per round. Format: warm_up_phase_len_[piid][round_id].
     std::vector<size_t> total_num_of_unit_readings_; //! Total number of unit readings per PI
     std::vector<size_t> total_num_of_readings_;      //! Total number of readings per PI
     std::vector<size_t> work_amount_per_round_;      //! The work amount we used in each round
@@ -84,7 +85,178 @@ struct pilot_workload_t {
                          hook_pre_workload_run_(NULL), hook_post_workload_run_(NULL) {
         if (wl_name) workload_name_ = wl_name;
     }
+
+    /**
+     * \brief Return the mean of the unit readings
+     * @param piid the PI ID to analyze
+     * @return the mean of the unit readings
+     */
+    double unit_readings_mean(int piid) const;
+
+    /**
+     * \brief Return the subsession variance of the unit readings
+     * @param piid the PI ID to analyze
+     * @param q subsession size
+     * @return the subsession variance of the unit readings
+     */
+    double unit_readings_var(int piid, size_t q) const;
+
+    double unit_readings_autocorrelation_coefficient(int piid, size_t q) const;
+
+    /**
+     * Calculate the required number of unit readings
+     * @return
+     */
+    ssize_t required_num_of_unit_readings(int piid) const;
+
+    size_t calc_next_round_work_amount(void) const;
+
+    inline double calc_avg_work_unit_per_amount(int piid) const {
+        size_t total_work_units = 0;
+        size_t total_work_amount = 0;
+        for (auto const & c : unit_readings_[piid])
+            total_work_units += c.size();
+        for (auto const & c : work_amount_per_round_)
+            total_work_amount += c;
+        double res = (double)total_work_amount / total_work_units;
+        info_log << "[PI " << piid << "] average work per unit reading: " << res;
+        return res;
+    }
+
+    /**
+     * \brief Get the basic and statistics information of a workload
+     * \details If info is NULL, this function allocates memory for a
+     * pilot_workload_info_t, fills information, and returns it. If
+     * info is provided, its information will be updated and no new
+     * memory will be allocated. The allocated memory must eventually
+     * be freed by using pilot_free_workload_info().
+     * @param info (optional) if provided, it must point to a pilot_workload_info_t
+     * that was returned by a previous call to pilot_workload_info()
+     * @return a pointer to a pilot_workload_info_t struct, you need to delete
+     * it after using.
+     */
+    pilot_workload_info_t* workload_info(pilot_workload_info_t *winfo = NULL) const;
+
+    /**
+     * \brief Get the basic and statistics information of a workload round
+     * \details If info is NULL, this function allocates memory for a
+     * pilot_round_info_t, fills information, and returns it. If
+     * info is provided, its information will be updated and no new
+     * memory will be allocated. The allocated memory must eventually
+     * be freed by using pilot_free_round_info().
+     * @param info (optional) if provided, it must point to a pilot_round_info_t
+     * that was returned by a previous call to pilot_round_info()
+     * @return a pointer to a pilot_round_info_t struct, you need to delete
+     * it after using.
+     */
+    pilot_round_info_t* round_info(size_t round, pilot_round_info_t *rinfo = NULL) const;
+
+    /**
+     * Dump the summary of a round in Markdown text format
+     * @param round_id the round ID starting from 0
+     * @return a memory buffer of text dump that can be directly output,
+     * you need to delete it after using.
+     */
+    char* text_round_summary(size_t round) const;
+
+    /**
+     * Dump the workload summary in Markdown text format
+     * @return a buffer of dumped text, you need to delete it after using.
+     */
+    char* text_workload_summary(void) const;
 };
 
+struct pilot_pi_unit_readings_iter_t {
+    const pilot_workload_t *wl_;
+    int piid_;
+    int cur_round_id_;
+    int cur_unit_reading_id_;
+
+    pilot_pi_unit_readings_iter_t (const pilot_workload_t *wl, int piid) :
+        wl_(wl), piid_(piid), cur_round_id_(0), cur_unit_reading_id_(0) {
+        ASSERT_VALID_POINTER(wl);
+        if (piid < 0 || piid >= wl->num_of_pi_) {
+            fatal_log << __func__ << "() piid has invalid value " << piid;
+            abort();
+        }
+
+        if (!pilot_pi_unit_readings_iter_valid(this))
+            pilot_pi_unit_readings_iter_next(this);
+    }
+
+    pilot_pi_unit_readings_iter_t (const pilot_pi_unit_readings_iter_t &a) :
+        wl_(a.wl_), piid_(a.piid_), cur_round_id_(a.cur_round_id_),
+        cur_unit_reading_id_(a.cur_unit_reading_id_) {}
+
+    inline double operator*() const {
+        assert (piid_ >= 0);
+        assert (cur_round_id_ >= 0);
+        assert (cur_unit_reading_id_ >= 0);
+
+        if (piid_ >= wl_->num_of_pi_) {
+            fatal_log << "pi_unit_readings_iter has invalid piid";
+            abort();
+        }
+        if (cur_round_id_ >= wl_->rounds_) {
+            fatal_log << "pi_unit_readings_iter has invalid cur_round_id";
+            abort();
+        }
+        if (cur_unit_reading_id_ >= wl_->unit_readings_[piid_][cur_round_id_].size() ||
+            cur_unit_reading_id_ < wl_->warm_up_phase_len_[piid_][cur_round_id_]) {
+            fatal_log << "pi_unit_readings_iter has invalid cur_unit_reading_id";
+            abort();
+        }
+
+        return wl_->unit_readings_[piid_][cur_round_id_][cur_unit_reading_id_];
+    }
+
+    inline pilot_pi_unit_readings_iter_t& operator++() {
+        bool round_has_changed = false;
+
+        if (cur_round_id_ >= wl_->rounds_) return *this; /*false*/
+        // find next non-empty round
+        while (wl_->unit_readings_[piid_][cur_round_id_].size() == 0) {
+    NEXT_ROUND:
+            ++cur_round_id_;
+            round_has_changed = true;
+            cur_unit_reading_id_ = 0;
+            if (cur_round_id_ >= wl_->rounds_) return *this; /*false*/
+        }
+        if (cur_unit_reading_id_ < wl_->warm_up_phase_len_[piid_][cur_round_id_]) {
+            cur_unit_reading_id_ = wl_->warm_up_phase_len_[piid_][cur_round_id_];
+            if (cur_unit_reading_id_ >= wl_->unit_readings_[piid_][cur_round_id_].size()) {
+                fatal_log << "workload's warm-up phase longer than total round length";
+                abort();
+            }
+            return *this; /*true*/
+        }
+        if (round_has_changed) return *this; /*true*/
+        if (cur_unit_reading_id_ != wl_->unit_readings_[piid_][cur_round_id_].size() - 1) {
+            ++cur_unit_reading_id_;
+            return *this; /*true*/
+        }
+        goto NEXT_ROUND;
+    }
+
+    inline pilot_pi_unit_readings_iter_t operator++(int) {
+        pilot_pi_unit_readings_iter_t res(*this);
+        ++(*this);
+        return res;
+    }
+
+    inline bool valid(void) const {
+        if (piid_ < 0 || piid_ >= wl_->num_of_pi_)
+            return false;
+
+        if (cur_round_id_ < 0 || cur_round_id_ >= wl_->rounds_)
+            return false;
+
+        if (cur_unit_reading_id_ >= wl_->unit_readings_[piid_][cur_round_id_].size() ||
+            cur_unit_reading_id_ < wl_->warm_up_phase_len_[piid_][cur_round_id_])
+            return false;
+
+        return true;
+    }
+};
 
 #endif /* LIB_PRIV_INCLUDE_WORKLOAD_H_ */

@@ -32,12 +32,11 @@
  */
 
 #include <algorithm>
-#include <boost/math/distributions/students_t.hpp>
-#include <cmath>
 #include "common.h"
 #include "config.h"
 #include <fstream>
 #include "libpilot.h"
+#include "libpilotcpp.h"
 #include <vector>
 #include "workload.h"
 
@@ -151,41 +150,6 @@ void pilot_set_short_workload_check(pilot_workload_t* wl, bool check_short_workl
     wl->short_workload_check_ = check_short_workload;
 }
 
-inline static double calc_avg_work_unit_per_amount(const pilot_workload_t *wl, int piid) {
-    size_t total_work_units = 0;
-    size_t total_work_amount = 0;
-    for (auto const & c : wl->unit_readings_[piid])
-        total_work_units += c.size();
-    for (auto const & c : wl->work_amount_per_round_)
-        total_work_amount += c;
-    return total_work_units / total_work_amount;
-}
-
-inline static size_t calc_next_round_work_amount(pilot_workload_t *wl) {
-    if (0 == wl->rounds_)
-        return 0 == wl->init_work_amount_ ? wl->work_amount_limit_ / 10 : wl->init_work_amount_;
-
-    size_t max_work_amount = 0;
-    size_t num_of_readings_needed;
-    size_t work_amount_needed;
-    for (int piid = 0; piid != wl->num_of_pi_; ++piid) {
-        if (0 != wl->unit_readings_[piid][0].size()) {
-            num_of_readings_needed = wl->calc_unit_readings_required_func_(wl, piid)
-                                   - wl->total_num_of_unit_readings_[piid];
-        } else {
-            // this PI has no unit readings, we have to use readings
-            num_of_readings_needed = wl->calc_readings_required_func_(wl, piid)
-                                   - wl->rounds_;
-        }
-        work_amount_needed = size_t(1.2 * num_of_readings_needed
-                                        * calc_avg_work_unit_per_amount(wl, piid));
-        if (work_amount_needed >= wl->work_amount_limit_)
-            return wl->work_amount_limit_;
-        max_work_amount = max(work_amount_needed, max_work_amount);
-    }
-    return max_work_amount;
-}
-
 int pilot_run_workload(pilot_workload_t *wl) {
     // sanity check
     ASSERT_VALID_POINTER(wl);
@@ -205,17 +169,19 @@ int pilot_run_workload(pilot_workload_t *wl) {
         unit_readings = NULL;
         readings = NULL;
 
+        work_amount = wl->calc_next_round_work_amount();
+        if (0 == work_amount) {
+            info_log << "enough readings collected, exiting";
+            break;
+        }
+
+        info_log << "starting workload round " << wl->rounds_ << " with work_amount=" << work_amount;
         if (wl->hook_pre_workload_run_ && !wl->hook_pre_workload_run_(wl)) {
             info_log << "pre_workload_run hook returns false, exiting";
             result = ERR_STOPPED_BY_HOOK;
             break;
         }
-        work_amount = calc_next_round_work_amount(wl);
-        if (0 == work_amount) {
-            info_log << "enough readings collected, exiting";
-            break;
-        }
-        info_log << "starting workload round " << wl->rounds_ << " with work_amount=" << work_amount;
+
         ptimer.reset(new cpu_timer);
         int rc =
         wl->workload_func_(work_amount, &pilot_malloc_func,
@@ -380,95 +346,86 @@ double pilot_set_confidence_interval(pilot_workload_t *wl, double ci) {
     return old_ci;
 }
 
+pilot_round_info_t* pilot_round_info(const pilot_workload_t *wl, size_t round, pilot_round_info_t *info) {
+    ASSERT_VALID_POINTER(wl);
+    return wl->round_info(round, info);
+}
+
+pilot_workload_info_t* pilot_workload_info(const pilot_workload_t *wl, pilot_workload_info_t *info) {
+    ASSERT_VALID_POINTER(wl);
+    return wl->workload_info(info);
+}
+
+void pilot_free_workload_info(pilot_workload_info_t *info) {
+    ASSERT_VALID_POINTER(info);
+    free(info->total_num_of_unit_readings);
+    free(info->unit_readings_mean);
+    free(info->unit_readings_var);
+    free(info->unit_readings_autocorrelation_coefficient);
+    free(info->unit_readings_optimal_subsession_size);
+    free(info->unit_readings_optimal_subsession_var);
+    free(info->unit_readings_optimal_subsession_autocorrelation_coefficient);
+    free(info->unit_readings_optimal_subsession_confidence_interval);
+    free(info->unit_readings_required_sample_size);
+    free(info);
+}
+
+void pilot_free_round_info(pilot_round_info_t *info) {
+    ASSERT_VALID_POINTER(info);
+    if (info->num_of_unit_readings) free(info->num_of_unit_readings);
+    if (info->warm_up_phase_lens)   free(info->warm_up_phase_lens);
+    free(info);
+}
+
+char* pilot_text_round_summary(const pilot_workload_t *wl, size_t round_id) {
+    ASSERT_VALID_POINTER(wl);
+    return wl->text_round_summary(round_id);
+}
+
+char* pilot_text_workload_summary(const pilot_workload_t *wl) {
+    ASSERT_VALID_POINTER(wl);
+    return wl->text_workload_summary();
+}
+
+void pilot_delete_dump_mem(char *dump) {
+    ASSERT_VALID_POINTER(dump);
+    delete[] dump;
+}
+
 using namespace boost::accumulators;
 
-double pilot_subsession_mean(const double *data, size_t n) {
-    using namespace std::placeholders;
-    accumulator_set< double, features<tag::mean > > acc;
-    for_each(data, data + n, bind<void>( ref(acc), _1 ) );
-    return mean(acc);
+double pilot_subsession_mean_p(const double *data, size_t n) {
+    return pilot_subsession_mean(data, n);
 }
 
-double pilot_subsession_cov(const double *data, size_t n, size_t q, double sample_mean) {
-    accumulator_set< double, features<tag::mean > > cov_acc;
-    size_t h = n/q;
-    assert (h >= 2);
-
-    double uae, ube;
-    accumulator_set< double, features<tag::mean > > ua_acc;
-    for (size_t a = 0; a < q; ++a)
-        ua_acc(data[a]);
-    uae = mean(ua_acc) - sample_mean;
-
-    for (size_t i = 1; i < h; ++i) {
-        accumulator_set< double, features<tag::mean > > ub_acc;
-        for (size_t b = 0; b < q; ++b)
-            ub_acc(data[i*q+b]);
-        ube = mean(ub_acc) - sample_mean;
-
-        cov_acc(uae * ube);
-        uae = ube;
-    }
-    return mean(cov_acc);
+double pilot_subsession_cov_p(const double *data, size_t n, size_t q, double sample_mean) {
+    return pilot_subsession_cov(data, n, q, sample_mean);
 }
 
-double pilot_subsession_var(const double *data, size_t n, size_t q, double sample_mean) {
-    double s = 0;
-    size_t h = n/q;
-    for (size_t i = 0; i < h; ++i) {
-        accumulator_set< double, features<tag::mean > > acc;
-        for (size_t j = 0; j < q; ++j)
-            acc(data[i*q + j]);
-
-        s += pow(mean(acc) - sample_mean, 2);
-    }
-    return s / (h - 1);
+double pilot_subsession_var_p(const double *data, size_t n, size_t q, double sample_mean) {
+    return pilot_subsession_var(data, n, q, sample_mean);
 }
 
-double pilot_subsession_autocorrelation_coefficient(const double *data, size_t n, size_t q, double sample_mean) {
-    return pilot_subsession_cov(data, n, q, sample_mean) /
-           pilot_subsession_var(data, n, q, sample_mean);
+double pilot_subsession_autocorrelation_coefficient_p(const double *data, size_t n, size_t q, double sample_mean) {
+    return pilot_subsession_autocorrelation_coefficient(data, n, q, sample_mean);
 }
 
-int pilot_optimal_subsession_size(const double *data, size_t n, double max_autocorrelation_coefficient) {
-    double sm = pilot_subsession_mean(data, n);
-    for (size_t q = 1; q != n + 1; ++q) {
-        if (pilot_subsession_autocorrelation_coefficient(data, n, q, sm) <= max_autocorrelation_coefficient)
-            return q;
-    }
-    return -1;
+int pilot_optimal_subsession_size_p(const double *data, size_t n, double max_autocorrelation_coefficient) {
+    return pilot_optimal_subsession_size(data, n, max_autocorrelation_coefficient);
 }
 
-double pilot_subsession_confidence_interval(const double *data, size_t n, size_t q, double confidence_level) {
-    // See http://www.boost.org/doc/libs/1_59_0/libs/math/doc/html/math_toolkit/stat_tut/weg/st_eg/tut_mean_intervals.html
-    // for explanation of the code
-    using namespace boost::math;
-
-    students_t dist(n-1);
-    // T is called z' in [Ferrari78], page 60.
-    double T = ::boost::math::quantile(complement(dist, (1 - confidence_level) / 2));
-
-    double sm = pilot_subsession_mean(data, n);
-    double var = pilot_subsession_var(data, n, q, sm);
-    return T * sqrt(var / double(n));
+double pilot_subsession_confidence_interval_p(const double *data, size_t n, size_t q, double confidence_level) {
+    return pilot_subsession_confidence_interval(data, n, q, confidence_level);
 }
 
-int pilot_optimal_length(const double *data, size_t n, double confidence_interval_width, double confidence_level, double max_autocorrelation_coefficient) {
-    using namespace boost::math;
-
-    int q = pilot_optimal_subsession_size(data, n, max_autocorrelation_coefficient);
-    if (q < 0) return q;
-    debug_log << "optimal subsession size (q) = " << q;
-
-    size_t h = n / q;
-    students_t dist(h-1);
-    // T is called z' in [Ferrari78], page 60.
-    double T = ::boost::math::quantile(complement(dist, (1 - confidence_level) / 2));
-    debug_log << "T score for " << 100*confidence_level << "% confidence level = " << T;
-
-    double sm = pilot_subsession_mean(data, n);
-    double var = pilot_subsession_var(data, n, q, sm);
-    return ceil(var * pow(T / confidence_interval_width, 2));
+ssize_t
+pilot_optimal_sample_size_p(const double *data, size_t n,
+                            double confidence_interval_width,
+                            double confidence_level,
+                            double max_autocorrelation_coefficient) {
+    return pilot_optimal_sample_size(data, n, confidence_interval_width,
+                                     confidence_level,
+                                     max_autocorrelation_coefficient);
 }
 
 ssize_t pilot_warm_up_removal_detect(const double *readings,
@@ -566,34 +523,18 @@ void pilot_import_benchmark_results(pilot_workload_t *wl, int round,
             // this round has no unit readings
             wl->warm_up_phase_len_[piid].push_back(0);
         } // if (unit_readings) for warm-up removal
-    } // for loop for PI
 
-    for (int piid = 0; piid < wl->num_of_pi_; ++piid) {
+        // handle readings
         if (round == wl->rounds_) {
             wl->readings_[piid].push_back(readings[piid]);
-            ++wl->rounds_;
-        } else
+        } else {
             wl->readings_[piid][round] = readings[piid];
-    }
-}
-
-struct pilot_pi_unit_readings_iter_t {
-    const pilot_workload_t *wl_;
-    int piid_;
-    int cur_round_id_;
-    int cur_unit_reading_id_;
-    pilot_pi_unit_readings_iter_t (const pilot_workload_t *wl, int piid) :
-        wl_(wl), piid_(piid), cur_round_id_(0), cur_unit_reading_id_(0) {
-        ASSERT_VALID_POINTER(wl);
-        if (piid < 0 || piid >= wl->num_of_pi_) {
-            fatal_log << __func__ << "() piid has invalid value " << piid;
-            abort();
         }
+    } // for loop for PI
 
-        if (!pilot_pi_unit_readings_iter_valid(this))
-            pilot_pi_unit_readings_iter_next(this);
-    }
-};
+    if (round == wl->rounds_)
+        ++wl->rounds_;
+}
 
 pilot_pi_unit_readings_iter_t*
 pilot_pi_unit_readings_iter_new(const pilot_workload_t *wl, int piid) {
@@ -601,67 +542,15 @@ pilot_pi_unit_readings_iter_new(const pilot_workload_t *wl, int piid) {
 }
 
 double pilot_pi_unit_readings_iter_get_val(const pilot_pi_unit_readings_iter_t* iter) {
-    assert (iter->piid_ >= 0);
-    assert (iter->cur_round_id_ >= 0);
-    assert (iter->cur_unit_reading_id_ >= 0);
-
-    if (iter->piid_ >= iter->wl_->num_of_pi_) {
-        fatal_log << "pi_unit_readings_iter has invalid piid";
-        abort();
-    }
-    if (iter->cur_round_id_ >= iter->wl_->rounds_) {
-        fatal_log << "pi_unit_readings_iter has invalid cur_round_id";
-        abort();
-    }
-    if (iter->cur_unit_reading_id_ >= iter->wl_->unit_readings_[iter->piid_][iter->cur_round_id_].size() ||
-        iter->cur_unit_reading_id_ < iter->wl_->warm_up_phase_len_[iter->piid_][iter->cur_round_id_]) {
-        fatal_log << "pi_unit_readings_iter has invalid cur_unit_reading_id";
-        abort();
-    }
-
-    return iter->wl_->unit_readings_[iter->piid_][iter->cur_round_id_][iter->cur_unit_reading_id_];
+    return *(*iter);
 }
 
-bool pilot_pi_unit_readings_iter_next(pilot_pi_unit_readings_iter_t* iter) {
-    bool round_has_changed = false;
-
-    if (iter->cur_round_id_ >= iter->wl_->rounds_) return false;
-    // find next non-empty round
-    while (iter->wl_->unit_readings_[iter->piid_][iter->cur_round_id_].size() == 0) {
-NEXT_ROUND:
-        ++iter->cur_round_id_;
-        round_has_changed = true;
-        iter->cur_unit_reading_id_ = 0;
-        if (iter->cur_round_id_ >= iter->wl_->rounds_) return false;
-    }
-    if (iter->cur_unit_reading_id_ < iter->wl_->warm_up_phase_len_[iter->piid_][iter->cur_round_id_]) {
-        iter->cur_unit_reading_id_ = iter->wl_->warm_up_phase_len_[iter->piid_][iter->cur_round_id_];
-        if (iter->cur_unit_reading_id_ >= iter->wl_->unit_readings_[iter->piid_][iter->cur_round_id_].size()) {
-            fatal_log << "workload's warm-up phase longer than total round length";
-            abort();
-        }
-        return true;
-    }
-    if (round_has_changed) return true;
-    if (iter->cur_unit_reading_id_ != iter->wl_->unit_readings_[iter->piid_][iter->cur_round_id_].size() - 1) {
-        ++iter->cur_unit_reading_id_;
-        return true;
-    }
-    goto NEXT_ROUND;
+void pilot_pi_unit_readings_iter_next(pilot_pi_unit_readings_iter_t* iter) {
+    ++(*iter);
 }
 
 bool pilot_pi_unit_readings_iter_valid(const pilot_pi_unit_readings_iter_t* iter) {
-    if (iter->piid_ < 0 || iter->piid_ >= iter->wl_->num_of_pi_)
-        return false;
-
-    if (iter->cur_round_id_ < 0 || iter->cur_round_id_ >= iter->wl_->rounds_)
-        return false;
-
-    if (iter->cur_unit_reading_id_ >= iter->wl_->unit_readings_[iter->piid_][iter->cur_round_id_].size() ||
-        iter->cur_unit_reading_id_ < iter->wl_->warm_up_phase_len_[iter->piid_][iter->cur_round_id_])
-        return false;
-
-    return true;
+    return iter->valid();
 }
 
 void pilot_pi_unit_readings_iter_destroy(pilot_pi_unit_readings_iter_t* iter) {
@@ -669,10 +558,11 @@ void pilot_pi_unit_readings_iter_destroy(pilot_pi_unit_readings_iter_t* iter) {
     delete iter;
 }
 
-size_t default_calc_unit_readings_required_func(pilot_workload_t* wl, int piid) {
-    abort();
+ssize_t default_calc_unit_readings_required_func(const pilot_workload_t* wl, int piid) {
+    return wl->required_num_of_unit_readings(piid);
 }
 
-size_t default_calc_readings_required_func(pilot_workload_t* wl, int piid) {
+ssize_t default_calc_readings_required_func(const pilot_workload_t* wl, int piid) {
+    fatal_log << __func__ << "() unimplemented yet";
     abort();
 }

@@ -73,7 +73,7 @@ int mock_workload_func(size_t work_amount,
     return 0;
 }
 
-size_t mock_calc_unit_readings_required_func(pilot_workload_t* wl, int piid) {
+ssize_t mock_calc_unit_readings_required_func(const pilot_workload_t* wl, int piid) {
     if (g_test_round >= g_required_sample_size_per_round->size()) {
         cerr << __func__ << "(): more rounds than expected" << endl;
         abort();

@@ -18,7 +18,7 @@ if (Boost_FOUND)
 endif ()
 
 # the main library
-add_library (libpilot libpilot.cc)
+add_library (libpilot libpilot.cc workload.cc)
 # used by boost 1.59+
 target_compile_features(libpilot PUBLIC cxx_nonstatic_member_init)
 
@@ -45,7 +45,7 @@ add_test (NAME unit_test_session_duration
 		  COMMAND unit_test_session_duration)
 add_test (NAME unit_test_unit_readings_iter
 		  COMMAND unit_test_unit_readings_iter)
-#add_test (NAME func_test_seq_write
-#		  COMMAND func_test_seq_write /tmp/test_output_file)
+add_test (NAME func_test_seq_write
+		  COMMAND func_test_seq_write -o /tmp/test_output_file)
 
 install (DIRECTORY interface_include DESTINATION include/pilot)
