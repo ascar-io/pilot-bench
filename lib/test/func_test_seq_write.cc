@@ -41,6 +41,7 @@
  */
 
 #include <boost/program_options.hpp>
+#include <boost/timer/timer.hpp>
 #include <fcntl.h>
 #include <iomanip>
 #include <iostream>
@@ -177,6 +178,7 @@ bool post_workload_run_hook(pilot_workload_t* wl) {
 }
 
 int main(int argc, char **argv) {
+    PILOT_LIB_SELF_CHECK;
     // Parsing the command line arguments
     po::options_description desc("Generates a non-zero sequential write I/O workload and demonstrates how to use libpilot");
     // Don't use po::value<>()->required() here or --help wouldn't work

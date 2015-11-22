@@ -124,6 +124,7 @@ TEST(PilotRunWorkloadTest, ChangingNumberOfReadings) {
 }
 
 int main(int argc, char **argv) {
-  ::testing::InitGoogleTest(&argc, argv);
-  return RUN_ALL_TESTS();
+    PILOT_LIB_SELF_CHECK;
+    ::testing::InitGoogleTest(&argc, argv);
+    return RUN_ALL_TESTS();
 }

@@ -45,9 +45,12 @@ using namespace std;
 using boost::timer::cpu_timer;
 using boost::timer::nanosecond_type;
 
-// all consts go here, they should be named either k_something, or SOMETHING
-nanosecond_type const ONE_SECOND = 1000000000LL;
-size_t const MEGABYTE = 1024*1024;
+void pilot_lib_self_check(int vmajor, int vminor, size_t nanosecond_type_size) {
+    die_if(vmajor != PILOT_VERSION_MAJOR || vminor != PILOT_VERSION_MINOR,
+            ERR_LINKED_WRONG_VER, "libpilot header files and library version mismatch");
+    die_if(nanosecond_type_size != sizeof(boost::timer::nanosecond_type),
+            ERR_LINKED_WRONG_VER, "size of current compiler's int_least64_t does not match the library");
+}
 
 pilot_workload_t* pilot_new_workload(const char *workload_name) {
     pilot_workload_t *wl = new pilot_workload_t(workload_name);
@@ -314,7 +317,7 @@ int pilot_export(const pilot_workload_t *wl, pilot_export_format_t format,
                     }
                 } /* round loop */
             of.close();
-        } catch (ofstream::failure e) {
+        } catch (ofstream::failure &e) {
             error_log << "I/O error: " << strerror(errno);
             return ERR_IO;
         }

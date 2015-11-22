@@ -37,6 +37,7 @@
 #include <boost/log/core.hpp>
 #include <boost/log/trivial.hpp>
 #include <boost/log/expressions.hpp>
+#include <boost/timer/timer.hpp>
 #include <iostream>
 #include <string>
 
@@ -47,6 +48,10 @@
 #define fatal_log   BOOST_LOG_TRIVIAL(fatal)
 
 namespace pilot {
+
+// all consts go here, they should be named either k_something, or ALL_UPPERCASE
+boost::timer::nanosecond_type const ONE_SECOND = 1000000000LL;
+size_t const MEGABYTE = 1024*1024;
 
 inline void die_if (bool condition, int error_code = 1, const char *error_msg = NULL) {
     if (!condition) return;

@@ -34,6 +34,12 @@
 #ifndef LIB_PRIV_INCLUDE_WORKLOAD_H_
 #define LIB_PRIV_INCLUDE_WORKLOAD_H_
 
+#include <boost/accumulators/accumulators.hpp>
+#include <boost/accumulators/statistics/stats.hpp>
+#include <boost/accumulators/statistics/mean.hpp>
+#include <boost/timer/timer.hpp>
+#include <functional>
+#include <vector>
 #include "common.h"
 #include "libpilot.h"
 

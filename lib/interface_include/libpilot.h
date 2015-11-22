@@ -35,13 +35,11 @@
 #ifndef LIBPILOT_HEADER_LIBPILOT_H_
 #define LIBPILOT_HEADER_LIBPILOT_H_
 
-#include <boost/timer/timer.hpp>
-#include <boost/accumulators/accumulators.hpp>
-#include <boost/accumulators/statistics/stats.hpp>
-#include <boost/accumulators/statistics/mean.hpp>
-#include <functional>
-#include <vector>
+// This file must retain C99-compatibility so do not include C++ header files
+// here.
+#include "config.h"
 #include "pilot_exports.h"
+#include <stdint.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -57,8 +55,20 @@ enum pilot_error_t {
     ERR_WL_FAIL = 12,
     ERR_NO_READING = 13,
     ERR_STOPPED_BY_HOOK = 14,
-    ERR_NOT_IMPL = 200
+    ERR_NOT_IMPL = 200,
+    ERR_LINKED_WRONG_VER = 201
 };
+
+typedef int_least64_t nanosecond_type;
+
+/**
+ * \brief Performance libpilot self check and initialization
+ * \details Include this macro at the beginning of your program.
+ */
+#define PILOT_LIB_SELF_CHECK pilot_lib_self_check(PILOT_VERSION_MAJOR, \
+        PILOT_VERSION_MINOR, sizeof(nanosecond_type))
+
+void pilot_lib_self_check(int vmajor, int vminor, size_t nanosecond_type_size);
 
 /**
  * \brief The type of memory allocation function, which is used by pilot_workload_func_t.
@@ -362,6 +372,7 @@ double pilot_subsession_autocorrelation_coefficient_p(const double *data, size_t
 #pragma pack(push, 1)
 struct pilot_round_info_t {
     size_t work_amount;
+    nanosecond_type round_duration;
     size_t* num_of_unit_readings;
     size_t* warm_up_phase_lens;
 };
@@ -522,7 +533,7 @@ void pilot_pi_unit_readings_iter_destroy(pilot_pi_unit_readings_iter_t* iter);
  */
 void pilot_import_benchmark_results(pilot_workload_t *wl, int round,
                                     size_t work_amount,
-                                    boost::timer::nanosecond_type round_duration,
+                                    nanosecond_type round_duration,
                                     const double *readings,
                                     size_t num_of_unit_readings,
                                     const double * const *unit_readings);

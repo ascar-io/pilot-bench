@@ -36,6 +36,7 @@
 #include "libpilot.h"
 #include "libpilotcpp.h"
 #include <sstream>
+#include "workload.h"
 
 using namespace std;
 using namespace pilot;
@@ -153,6 +154,7 @@ pilot_round_info_t* pilot_workload_t::round_info(size_t round, pilot_round_info_
     rinfo->warm_up_phase_lens = (size_t*)realloc(rinfo->warm_up_phase_lens, sizeof(size_t) * num_of_pi_);
 
     rinfo->work_amount = work_amount_per_round_[round];
+    rinfo->round_duration = round_durations_[round];
     for (int piid = 0; piid < num_of_pi_; ++piid) {
         rinfo->num_of_unit_readings[piid] = unit_readings_[piid][round].size();
         rinfo->warm_up_phase_lens[piid] = warm_up_phase_len_[piid][round];
@@ -169,6 +171,7 @@ char* pilot_workload_t::text_round_summary(size_t round) const {
         if (piid != 0) s << endl;
         s << "# Performance Index " << piid << " #" << endl;
         s << "work amount: " << ri->work_amount << endl;
+        s << "round duration: " << double(ri->round_duration) / ONE_SECOND << " s" << endl;
         s << "number of unit readings: " << ri->num_of_unit_readings[piid] << endl;
         s << "warm-up phase length: " << ri->warm_up_phase_lens[piid] << " units" << endl;
     }
@@ -215,6 +218,7 @@ char* pilot_workload_t::text_workload_summary(void) const {
             }
         }
         double ci = i->unit_readings_optimal_subsession_confidence_interval[piid];
+        s << "confidence interval: " << ci << endl;
         s << "confidence interval is " << ci*100/sm << "% of sample_mean" << endl;
     }
 
