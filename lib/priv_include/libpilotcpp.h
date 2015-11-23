@@ -71,7 +71,7 @@ template <typename InputIterator>
 double pilot_subsession_var(InputIterator first, size_t n, size_t q, double sample_mean) {
     using namespace boost::accumulators;
     double s = 0;
-    size_t h = n/q;
+    size_t h = n/q;  // subsession sample size
     for (size_t i = 0; i < h; ++i) {
         accumulator_set< double, features<tag::mean > > acc;
         for (size_t j = 0; j < q; ++j)
@@ -110,16 +110,18 @@ int pilot_optimal_subsession_size(InputIterator first, size_t n, double max_auto
 template <typename InputIterator>
 double pilot_subsession_confidence_interval(InputIterator first, size_t n, size_t q, double confidence_level) {
     // See http://www.boost.org/doc/libs/1_59_0/libs/math/doc/html/math_toolkit/stat_tut/weg/st_eg/tut_mean_intervals.html
-    // for explanation of the code
+    // for explanation of the code. The same formula can also be found at
+    // [Ferrari78], page 59 and [Le Boudec15], page 34.
     using namespace boost::math;
 
-    students_t dist(n-1);
+    size_t h = n / q;
+    students_t dist(h - 1);
     // T is called z' in [Ferrari78], page 60.
     double T = ::boost::math::quantile(complement(dist, (1 - confidence_level) / 2));
 
     double sm = pilot_subsession_mean(first, n);
     double var = pilot_subsession_var(first, n, q, sm);
-    return T * sqrt(var / double(n));
+    return T * sqrt(var / double(h)) * 2;
 }
 
 
@@ -138,10 +140,16 @@ pilot_optimal_sample_size(InputIterator first, size_t n, double confidence_inter
     // T is called z' in [Ferrari78], page 60.
     double T = ::boost::math::quantile(complement(dist, (1 - confidence_level) / 2));
     debug_log << "T score for " << 100*confidence_level << "% confidence level = " << T;
+    debug_log << "expected CI: " << confidence_interval_width;
+    double e = confidence_interval_width / 2;
 
     double sm = pilot_subsession_mean(first, n);
     double var = pilot_subsession_var(first, n, q, sm);
-    return ceil(var * pow(T / confidence_interval_width, 2)) * q;
+    size_t sample_size_req = ceil(var * pow(T / e, 2));
+    debug_log << "subsession sample size required: " << sample_size_req;
+    size_t ur_req = sample_size_req * q;
+    debug_log << "number of unit readings required: " << ur_req;
+    return ur_req;
 }
 
 

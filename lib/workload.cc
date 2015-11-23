@@ -63,7 +63,7 @@ ssize_t pilot_workload_t::required_num_of_unit_readings(int piid) const {
     double sm = pilot_subsession_mean(pilot_pi_unit_readings_iter_t(this, piid),
                                       total_num_of_unit_readings_[piid]);
     return pilot_optimal_sample_size(pilot_pi_unit_readings_iter_t(this, piid),
-                                     total_num_of_unit_readings_[piid], sm * 0.05);
+                                     total_num_of_unit_readings_[piid], sm * 0.1);
 }
 
 size_t pilot_workload_t::calc_next_round_work_amount(void) const {
@@ -195,9 +195,10 @@ char* pilot_workload_t::text_workload_summary(void) const {
         if (piid != 0) s << endl;
         s << "# Performance Index " << piid << " #" << endl;
         s << "sample size: " << total_num_of_unit_readings << endl;
-        s << "sample mean: " << sm << endl;
-        s << "sample variance: " << var << endl;
-        s << "sample variance to sample mean ratio: " << var * 100 / sm << "%" << endl;
+        s << "sample mean: " << format_unit_reading(piid, sm) << " " << pi_units_[piid] << endl;
+        double var_rt = var / sm;
+        s << "sample variance: " << format_unit_reading(piid, sm) * var_rt << " " << pi_units_[piid] << endl;
+        s << "sample variance to sample mean ratio: " << var_rt * 100 << "%" << endl;
         s << "sample autocorrelation coefficient: " << i->unit_readings_autocorrelation_coefficient[piid] << endl;
         size_t q = i->unit_readings_optimal_subsession_size[piid];
         s << "optimal subsession size (q): " << q << endl;
@@ -212,20 +213,19 @@ char* pilot_workload_t::text_workload_summary(void) const {
             s << "We have a large enough sample size." << endl;
         } else {
             if (cur_ss < min_ss) {
-                s << "sample size is not yet large enough to achieve a confidence interval of 0.05 * sample_mean." << endl;
+                s << "sample size is not yet large enough to achieve a confidence interval width of 0.1 * sample_mean." << endl;
             } else {
                 s << "sample size MIGHT NOT be large enough (>200 is recommended)" << endl;
             }
         }
         double ci = i->unit_readings_optimal_subsession_confidence_interval[piid];
-        s << "confidence interval: " << ci << endl;
-        s << "confidence interval is " << ci*100/sm << "% of sample_mean" << endl;
+        double ci_rt = ci / sm;
+        double ci_low = format_unit_reading(piid, sm) * (1 - ci_rt/2);
+        double ci_high = format_unit_reading(piid, sm) * (1 + ci_rt/2) ;
+        s << "95% confidence interval width: " << ci_high - ci_low << " " << pi_units_[piid] << endl;
+        s << "95% confidence interval width is " << ci_rt * 100 << "% of sample_mean" << endl;
+        s << "95% confidence interval: [" << ci_low << ", " << ci_high << "] " << pi_units_[piid] << endl;
     }
-
-//    cout << "calculated throughput is "
-//         << double(io_limit) / double(num_of_work_units) / MEGABYTE / sm
-//         << " +- " << ci << " MB/s with 95% confidence" << endl;
-//
 //    cout << "dumb throughput (io_limit / total_elapsed_time) (MB/s): [";
 //    const double* tp_readings = pilot_get_pi_readings(wl, tp_pi);
 //    size_t rounds = pilot_get_num_of_rounds(wl);

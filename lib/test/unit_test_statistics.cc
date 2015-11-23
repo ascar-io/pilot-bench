@@ -58,12 +58,12 @@ TEST(StatisticsUnitTest, AutocorrelationCoefficient) {
     ASSERT_DOUBLE_EQ(0.05264711174242424, pilot_subsession_var_p(g_mean_response_time.data(), g_mean_response_time.size(), 4, sample_mean)) << "Subsession var is wrong";
     ASSERT_DOUBLE_EQ(0.08230986644266707, pilot_subsession_autocorrelation_coefficient_p(g_mean_response_time.data(), g_mean_response_time.size(), 4, sample_mean)) << "Autocorrelation coefficient is wrong";
 
-    ASSERT_DOUBLE_EQ(0.066625214255877543, pilot_subsession_confidence_interval_p(g_mean_response_time.data(), g_mean_response_time.size(), 4, .95));
+    ASSERT_DOUBLE_EQ(0.29157062128900485, pilot_subsession_confidence_interval_p(g_mean_response_time.data(), g_mean_response_time.size(), 4, .95));
 
     size_t q = 4;
     ASSERT_DOUBLE_EQ(q, pilot_optimal_subsession_size_p(g_mean_response_time.data(), g_mean_response_time.size()));
 
-    ASSERT_DOUBLE_EQ(34 * q, pilot_optimal_sample_size_p(g_mean_response_time.data(), g_mean_response_time.size(), sample_mean * 0.05, .95, .1));
+    ASSERT_DOUBLE_EQ(34 * q, pilot_optimal_sample_size_p(g_mean_response_time.data(), g_mean_response_time.size(), sample_mean * 0.1, .95, .1));
 
     //! TODO Tests function pilot_est_sample_var_dist_unknown()
 }

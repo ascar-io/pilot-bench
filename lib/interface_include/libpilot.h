@@ -155,6 +155,64 @@ void pilot_set_calc_unit_readings_required_func(pilot_workload_t* wl, calc_readi
  */
 typedef bool general_hook_func_t(pilot_workload_t* wl);
 
+enum pilot_hook_t {
+    PRE_WORKLOAD_RUN,
+    POST_WORKLOAD_RUN
+};
+
+/**
+ * \brief Set a hook function
+ * @param[in] wl pointer to the workload struct
+ * @param hook the hook to change
+ * @param f the new hook function
+  * @return 0 on success; otherwise error code
+ */
+int pilot_set_hook_func(pilot_workload_t* wl, enum pilot_hook_t hook, general_hook_func_t *f);
+
+/**
+ * \brief Type for a function that formats a unit reading for output
+ * \details libpilots calls this function whenever it needs to format a unit
+ * reading for display. You can set a different function for each PI.
+ * @param[in] wl pointer to the workload struct
+ * @param unit_reading the unit reading to display
+ * @return a processed number for print
+ */
+typedef double pilot_pi_unit_reading_format_func_t(const pilot_workload_t* wl, double unit_reading);
+double pilot_default_pi_unit_reading_format_func(const pilot_workload_t* wl, double unit_reading);
+
+/**
+ * \brief Set the function for formatting a unit reading for print
+ * @param[in] wl pointer to the workload struct
+ * @param piid the piid of which to change the format function
+ * @param f the new function, omit this parameter to set it back to the default function
+ * @param[in] unit a NULL-terminated string of the unit of the PI
+ */
+void pilot_set_pi_unit_reading_format_func(pilot_workload_t* wl, int piid,
+        pilot_pi_unit_reading_format_func_t *f = &pilot_default_pi_unit_reading_format_func,
+        const char *unit = NULL);
+
+/**
+ * \brief Type for a function that formats a reading for output
+ * \details libpilots calls this function whenever it needs to format a
+ * reading for display. You can set a different function for each PI.
+ * @param[in] wl pointer to the workload struct
+ * @param reading the unit reading to display
+ * @return a processed number for print
+ */
+typedef double pilot_pi_reading_format_func_t(const pilot_workload_t* wl, double reading);
+double pilot_default_pi_reading_format_func(const pilot_workload_t* wl, double reading);
+
+/**
+ * \brief Set the function for formatting a reading for print
+ * @param[in] wl pointer to the workload struct
+ * @param piid the piid of which to change the format function
+ * @param f the new function, omit this parameter to set it back to the default function
+ * @param[in] unit a NULL-terminated string of the unit of the PI
+ */
+void pilot_set_pi_reading_format_func(pilot_workload_t* wl, int piid,
+        pilot_pi_reading_format_func_t *f = &pilot_default_pi_reading_format_func,
+        const char *unit = NULL);
+
 pilot_workload_t* pilot_new_workload(const char *workload_name);
 
 /**
@@ -211,20 +269,6 @@ void pilot_set_init_work_amount(pilot_workload_t* wl, size_t init_work_amount);
  * @return 0 on success; aborts if wl is NULL; otherwise error code
  */
 int pilot_get_init_work_amount(const pilot_workload_t* wl, size_t *p_init_work_amount);
-
-enum pilot_hook_t {
-    PRE_WORKLOAD_RUN,
-    POST_WORKLOAD_RUN
-};
-
-/**
- * \brief Set a hook function
- * @param[in] wl pointer to the workload struct
- * @param hook the hook to change
- * @param f the new hook function
-  * @return 0 on success; otherwise error code
- */
-int pilot_set_hook_func(pilot_workload_t* wl, enum pilot_hook_t hook, general_hook_func_t *f);
 
 enum pilot_warm_up_removal_detection_method_t {
     NO_WARM_UP_REMOVAL = 0,
@@ -537,6 +581,13 @@ void pilot_import_benchmark_results(pilot_workload_t *wl, int round,
                                     const double *readings,
                                     size_t num_of_unit_readings,
                                     const double * const *unit_readings);
+
+/**
+ * \brief Get the amount of work load that will be used for next round
+ * @param[in] wl pointer to the workload struct
+ * @return the work amount
+ */
+size_t pilot_next_round_work_amount(const pilot_workload_t *wl);
 
 #ifdef __cplusplus
 }

@@ -52,6 +52,28 @@ void pilot_lib_self_check(int vmajor, int vminor, size_t nanosecond_type_size) {
             ERR_LINKED_WRONG_VER, "size of current compiler's int_least64_t does not match the library");
 }
 
+double pilot_default_pi_unit_reading_format_func(const pilot_workload_t* wl, double unit_reading) {
+    return unit_reading;
+}
+
+double pilot_default_pi_reading_print_func(const pilot_workload_t* wl, double reading) {
+    return reading;
+}
+
+void pilot_set_pi_unit_reading_format_func(pilot_workload_t* wl, int piid, pilot_pi_unit_reading_format_func_t *f, const char *unit) {
+    ASSERT_VALID_POINTER(wl);
+    ASSERT_VALID_POINTER(f);
+    wl->unit_reading_format_funcs_[piid] = f;
+    wl->pi_units_[piid] = unit ? string(unit) : string("");
+}
+
+void pilot_set_pi_reading_print_func(pilot_workload_t* wl, int piid, pilot_pi_reading_format_func_t *f, const char *unit) {
+    ASSERT_VALID_POINTER(wl);
+    ASSERT_VALID_POINTER(f);
+    wl->reading_format_funcs_[piid] = f;
+    wl->pi_units_[piid] = unit ? string(unit) : string("");
+}
+
 pilot_workload_t* pilot_new_workload(const char *workload_name) {
     pilot_workload_t *wl = new pilot_workload_t(workload_name);
     return wl;
@@ -78,11 +100,14 @@ void pilot_set_num_of_pi(pilot_workload_t* wl, size_t num_of_readings) {
         abort();
     }
     wl->num_of_pi_ = num_of_readings;
+    wl->pi_units_.resize(num_of_readings);
     wl->readings_.resize(num_of_readings);
     wl->unit_readings_.resize(num_of_readings);
     wl->warm_up_phase_len_.resize(num_of_readings);
     wl->total_num_of_unit_readings_.resize(num_of_readings);
     wl->total_num_of_readings_.resize(num_of_readings);
+    wl->unit_reading_format_funcs_.resize(num_of_readings, &pilot_default_pi_unit_reading_format_func);
+    wl->reading_format_funcs_.resize(num_of_readings, &pilot_default_pi_reading_print_func);
 }
 
 int pilot_get_num_of_pi(const pilot_workload_t* wl, size_t *p_num_of_pi) {
@@ -568,4 +593,9 @@ ssize_t default_calc_unit_readings_required_func(const pilot_workload_t* wl, int
 ssize_t default_calc_readings_required_func(const pilot_workload_t* wl, int piid) {
     fatal_log << __func__ << "() unimplemented yet";
     abort();
+}
+
+size_t pilot_next_round_work_amount(const pilot_workload_t *wl) {
+    ASSERT_VALID_POINTER(wl);
+    return wl->calc_next_round_work_amount();
 }

@@ -156,7 +156,9 @@ int workload_func(size_t total_work_amount,
 static size_t g_current_round = 0;
 bool pre_workload_run_hook(pilot_workload_t* wl) {
     g_current_round = pilot_get_num_of_rounds(wl);
-    cout << "Round " << g_current_round << " started ... ";
+    cout << "Round " << g_current_round << " started with "
+         << pilot_next_round_work_amount(wl) / MEGABYTE << " MB/s work amount ... ";
+    cout.flush();
     return true;
 }
 
@@ -177,6 +179,10 @@ bool post_workload_run_hook(pilot_workload_t* wl) {
     return true;
 }
 
+double ur_format_func(const pilot_workload_t* wl, double ur) {
+    return double(g_io_size) / ur / MEGABYTE;
+}
+
 int main(int argc, char **argv) {
     PILOT_LIB_SELF_CHECK;
     // Parsing the command line arguments
@@ -186,7 +192,7 @@ int main(int argc, char **argv) {
             ("help", "produce help message")
             ("fsync,f", "call fsync() after each I/O request")
             ("io-size,s", po::value<size_t>(), "the size of I/O operations (default to 1 MB)")
-            ("length-limit,l", po::value<size_t>(), "the max. length of the workload in bytes (default to 100*1024*1024); "
+            ("length-limit,l", po::value<size_t>(), "the max. length of the workload in bytes (default to 800*1024*1024); "
                     "the workload will not write beyond this limit")
             ("init-length,i", po::value<size_t>(), "the initial length of workload in bytes (default to 1/10 of limitsize); "
                     "the workload will start from this length and be gradually repeated or increased until the desired "
@@ -224,7 +230,7 @@ int main(int argc, char **argv) {
         g_fsync = true;
     }
 
-    size_t io_limit = 100*1024*1024;
+    size_t io_limit = 800*1024*1024;
     if (vm.count("output")) {
         g_output_file_name = vm["output"].as<string>();
         cout << "Output file is set to " << g_output_file_name << endl;
@@ -289,6 +295,7 @@ int main(int argc, char **argv) {
     cout << "Running benchmark ..." << endl;
     pilot_workload_t *wl = pilot_new_workload("Sequential write");
     pilot_set_num_of_pi(wl, num_of_pi);
+    pilot_set_pi_unit_reading_format_func(wl, 0, &ur_format_func, "MB/s");
     pilot_set_work_amount_limit(wl, io_limit);
     pilot_set_init_work_amount(wl, init_length);
     pilot_set_workload_func(wl, &workload_func);

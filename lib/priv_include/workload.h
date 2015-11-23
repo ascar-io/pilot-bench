@@ -55,6 +55,7 @@ struct pilot_workload_t {
     size_t init_work_amount_;
     size_t work_amount_limit_;
     pilot_workload_func_t *workload_func_;
+    std::vector<std::string> pi_units_;
 
     std::vector<boost::timer::nanosecond_type> round_durations_; //! The duration of each round
     std::vector<reading_data_t> readings_;       //! Reading data of each round. Format: readings_[piid][round_id].
@@ -77,6 +78,8 @@ struct pilot_workload_t {
     calc_readings_required_func_t *calc_readings_required_func_;      //! The hook function that calculates how many readings (samples) are needed
     general_hook_func_t *hook_pre_workload_run_;
     general_hook_func_t *hook_post_workload_run_;
+    std::vector<pilot_pi_unit_reading_format_func_t*> unit_reading_format_funcs_;
+    std::vector<pilot_pi_reading_format_func_t*> reading_format_funcs_;
 
     pilot_workload_t(const char *wl_name) :
                          num_of_pi_(0), rounds_(0), init_work_amount_(0),
@@ -170,6 +173,13 @@ struct pilot_workload_t {
      * @return a buffer of dumped text, you need to delete it after using.
      */
     char* text_workload_summary(void) const;
+
+    inline double format_unit_reading(const int piid, const double ur) const {
+        return unit_reading_format_funcs_[piid](this, ur);
+    }
+    inline double format_reading(const int piid, const double ur) const {
+        return reading_format_funcs_[piid](this, ur);
+    }
 };
 
 struct pilot_pi_unit_readings_iter_t {

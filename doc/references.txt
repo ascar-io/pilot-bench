@@ -1,1 +1,6 @@
-[Ferrari78] Domenic Ferrari. Computer Systems Performance Evaluation.
+[Ferrari78] Domenic Ferrari. Computer Systems Performance
+Evaluation. Prentice-Hall, 1978.
+
+[Le Boudec15] Jean-Yves Le Boudec, Performance Evaluation of Computer
+and Communication Systems. EPFL, 2015.
+https://web.archive.org/web/20151123010849/http://infoscience.epfl.ch/record/146812/files/perfLastEdition_1.pdf
