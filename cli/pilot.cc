@@ -31,8 +31,172 @@
  * OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <algorithm>
 #include "config.h"
+#include <form.h>
+
+using namespace std;
+
+#define CTRL(x) ((x) & 0x1f)
+#define QUIT            CTRL('Q')
+#define ESCAPE          CTRL('[')
+
+class Window {
+public:
+    int x_;
+    int y_;
+    int width_;
+    int height_;
+    int y_cur_;
+    int y_end_;
+    WINDOW *wind_;
+    WINDOW *pad_;
+
+    void update(void);
+    void scroll_up(void);
+    void scroll_down(void);
+    void scroll_page_up(void);
+    void scroll_page_down(void);
+    void scroll_home(void);
+    void scroll_end(void);
+    Window(int x, int y, int w, int h) : x_(x), y_(y), width_(w), height_(h),
+            y_cur_(0) {
+        wind_ = newwin(height_, width_, y_, x_);
+        pad_ = newpad(height_ - 2, width_ - 2);
+
+        //keypad(wind_, TRUE);
+        //keypad(pad_, TRUE);
+
+        waddstr(pad_, "Defined form edit/traversal keys:\n");
+        for (int n = 0; n < 5; ++n) {
+            wprintw(pad_, "Line %d\n", n);
+        }
+        waddstr(pad_, "Arrow keys move within a field as you would expect.");
+        y_end_ = getcury(pad_);
+    }
+    ~Window() {
+        werase(wind_);
+        wrefresh(wind_);
+        delwin(wind_);
+        delwin(pad_);
+    }
+};
+
+class SummaryWindow {
+    int x_;
+    int y_;
+    int width_;
+    int height_;
+    int y1_ = 0;
+    int y2_ = 0;
+
+    SummaryWindow (int x, int y) : x_(x), y_(y), width_(30), y1_(0), y2_(0),
+            height_(LINES - y_ - 2) {
+    }
+};
 
 int main(int argc, char** argv) {
+    initscr();
+    cbreak();
+    noecho();
+    raw();
+    nonl();			/* lets us read ^M's */
+    intrflush(stdscr, FALSE);
+    keypad(stdscr, TRUE);
+
+    if (has_colors()) {
+        start_color();
+        init_pair(1, COLOR_WHITE, COLOR_BLUE);
+        init_pair(2, COLOR_GREEN, COLOR_BLACK);
+        init_pair(3, COLOR_CYAN, COLOR_BLACK);
+        bkgd((chtype) COLOR_PAIR(1));
+        refresh();
+    }
+
+    Window task_window(0, 0, 30, 15);
+    Window summary_window(0, 14, 30, 15);
+
+    int ch = ERR;
+    do {
+        switch (ch) {
+        case KEY_HOME:
+            task_window.scroll_home();
+            break;
+        case KEY_END:
+            task_window.scroll_end();
+            break;
+        case KEY_PREVIOUS:
+        case KEY_PPAGE:
+            task_window.scroll_page_up();
+            break;
+        case KEY_NEXT:
+        case KEY_NPAGE:
+            task_window.scroll_page_down();
+            break;
+        case CTRL('P'):
+        case KEY_UP:
+            task_window.scroll_up();
+            break;
+        case CTRL('N'):
+        case KEY_DOWN:
+            task_window.scroll_down();
+            break;
+        default:
+            beep();
+            break;
+        case ERR:
+            break;
+        }
+        task_window.update();
+        summary_window.update();
+    } while ((ch = getch()) != ERR && ch != QUIT && ch != ESCAPE);
+
+    endwin();
     return 0;
+}
+
+void Window::update(void) {
+    werase(wind_);
+    box(wind_, 0, 0);
+    wnoutrefresh(wind_);
+    pnoutrefresh(pad_, y_cur_, 0, y_ + 1, x_ + 1, height_, width_);
+    doupdate();
+}
+
+void Window::scroll_up(void) {
+    if (y_cur_ > 0)
+        --y_cur_;
+    else
+        beep();
+}
+
+void Window::scroll_down(void) {
+    if (y_cur_ < y_end_)
+        ++y_cur_;
+    else
+        beep();
+}
+
+void Window::scroll_page_up(void) {
+    if (y_cur_ > 0) {
+        y_cur_ -= height_ / 2;
+        y_cur_ = max(0, y_cur_);
+    } else
+        beep();
+}
+
+void Window::scroll_page_down(void) {
+    if (y_cur_ < y_end_) {
+        y_cur_ += height_ / 2;
+        y_cur_ = min(y_cur_, y_end_);
+    } else
+        beep();
+}
+
+void Window::scroll_home(void) {
+    y_cur_ = 0;
+}
+
+void Window::scroll_end(void) {
+    y_cur_ = y_end_;
 }
