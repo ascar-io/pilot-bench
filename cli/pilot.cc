@@ -33,11 +33,11 @@
 
 #include <algorithm>
 #include "config.h"
-#include <form.h>
+#include <cdk.h>
+#include <string>
 
 using namespace std;
 
-#define CTRL(x) ((x) & 0x1f)
 #define QUIT            CTRL('Q')
 #define ESCAPE          CTRL('[')
 
@@ -51,38 +51,47 @@ public:
     int y_end_;
     WINDOW *wind_;
     WINDOW *pad_;
+    const string title_;
 
-    void update(void);
+    void redraw(void);
     void scroll_up(void);
     void scroll_down(void);
     void scroll_page_up(void);
     void scroll_page_down(void);
     void scroll_home(void);
     void scroll_end(void);
-    Window(int x, int y, int w, int h) : x_(x), y_(y), width_(w), height_(h),
-            y_cur_(0) {
-        wind_ = newwin(height_, width_, y_, x_);
-        pad_ = newpad(height_ - 2, width_ - 2);
+    Window(int height, int width, int y, int x, const string &title)
+    : x_(x), y_(y), width_(width), height_(height),
+            y_cur_(0), title_(title) {
+        static DLG_KEYS_BINDING binding[] = {
+                HELPKEY_BINDINGS,
+                ENTERKEY_BINDINGS,
+                NAVIGATE_BINDINGS,
+                END_KEYS_BINDING
+        };
 
-        //keypad(wind_, TRUE);
-        //keypad(pad_, TRUE);
-
-        waddstr(pad_, "Defined form edit/traversal keys:\n");
-        for (int n = 0; n < 5; ++n) {
-            wprintw(pad_, "Line %d\n", n);
-        }
-        waddstr(pad_, "Arrow keys move within a field as you would expect.");
-        y_end_ = getcury(pad_);
+        wind_ = dlg_new_window(height_, width_, y_, x_);
+        dlg_register_window(wind_, title_.c_str(), binding);
+        //dlg_register_buttons(dialog, "formbox", buttons);
+        dlg_draw_box2(wind_, 0, 0, height_, width_, dialog_attr, border_attr, border2_attr);
+        //dlg_draw_bottom_box2(wind_, border_attr, border2_attr, dialog_attr);
+        dlg_draw_title(wind_, title_.c_str());
+        wattrset(wind_, dialog_attr);
     }
     ~Window() {
-        werase(wind_);
-        wrefresh(wind_);
-        delwin(wind_);
-        delwin(pad_);
+        dlg_del_window(wind_);
     }
 };
 
-class SummaryWindow {
+class TaskWindow : public Window {
+public:
+    TaskWindow(int height, int width, int y, int x)
+    : Window(height, width, y, x, "Task") {
+
+    }
+};
+
+class SummaryWindow : public Window {
     int x_;
     int y_;
     int width_;
@@ -90,77 +99,101 @@ class SummaryWindow {
     int y1_ = 0;
     int y2_ = 0;
 
-    SummaryWindow (int x, int y) : x_(x), y_(y), width_(30), y1_(0), y2_(0),
-            height_(LINES - y_ - 2) {
+public:
+    SummaryWindow(int height, int width, int y, int x)
+    : Window(height, width, y, x, "Summary") {
+
+    }
+};
+
+class MsgWindow : public Window {
+
+public:
+    MsgWindow(int height, int width, int y, int x)
+    : Window(height, width, y, x, "Messages") {
+    }
+    void add_msg(const char *msg);
+};
+
+class PilotTUI {
+private:
+    unique_ptr<TaskWindow>    task_window_;
+    unique_ptr<SummaryWindow> summary_window_;
+    unique_ptr<MsgWindow>     msg_window_;
+    const int left_col_width_;
+    const int task_window_height_;
+
+public:
+    PilotTUI() : left_col_width_(30), task_window_height_(30) {
+  cursesWin = initscr();
+  cdkscreen = initCDKScreen(cursesWin);
+  // Now, set up color.
+  initCDKColor();
+        init_dialog(stdin, stdout);
+        task_window_.reset(new TaskWindow(task_window_height_, left_col_width_, 1, 0));
+        summary_window_.reset(new SummaryWindow(LINES - task_window_height_ - 2, left_col_width_, task_window_height_ + 1, 0));
+        msg_window_.reset(new MsgWindow(LINES - 2, COLS - left_col_width_, 1, left_col_width_));
+    }
+    ~PilotTUI() {
+        end_dialog();
+    }
+    void redraw() {
+        task_window_->redraw();
+        summary_window_->redraw();
+        msg_window_->redraw();
+    }
+    void event_loop() {
+        int ch = ERR;
+        do {
+            switch (ch) {
+            case KEY_HOME:
+                msg_window_->scroll_home();
+                break;
+            case KEY_END:
+                msg_window_->scroll_end();
+                break;
+            case KEY_PREVIOUS:
+                case KEY_PPAGE:
+                msg_window_->scroll_page_up();
+                break;
+            case KEY_NEXT:
+                case KEY_NPAGE:
+                msg_window_->scroll_page_down();
+                break;
+            case CTRL('P'):
+                case KEY_UP:
+                msg_window_->scroll_up();
+                break;
+            case CTRL('N'):
+                case KEY_DOWN:
+                msg_window_->scroll_down();
+                break;
+            default:
+                beep();
+                break;
+            case ERR:
+                break;
+            }
+            redraw();
+        } while ((ch = getch()) != ERR && ch != QUIT && ch != ESCAPE && ch != 'Q' && ch != 'q');
     }
 };
 
 int main(int argc, char** argv) {
-    initscr();
-    cbreak();
-    noecho();
-    raw();
-    nonl();			/* lets us read ^M's */
-    intrflush(stdscr, FALSE);
-    keypad(stdscr, TRUE);
+    PilotTUI pilot_tui;
 
-    if (has_colors()) {
-        start_color();
-        init_pair(1, COLOR_WHITE, COLOR_BLUE);
-        init_pair(2, COLOR_GREEN, COLOR_BLACK);
-        init_pair(3, COLOR_CYAN, COLOR_BLACK);
-        bkgd((chtype) COLOR_PAIR(1));
-        refresh();
-    }
-
-    Window task_window(0, 0, 30, 15);
-    Window summary_window(0, 14, 30, 15);
-
-    int ch = ERR;
-    do {
-        switch (ch) {
-        case KEY_HOME:
-            task_window.scroll_home();
-            break;
-        case KEY_END:
-            task_window.scroll_end();
-            break;
-        case KEY_PREVIOUS:
-        case KEY_PPAGE:
-            task_window.scroll_page_up();
-            break;
-        case KEY_NEXT:
-        case KEY_NPAGE:
-            task_window.scroll_page_down();
-            break;
-        case CTRL('P'):
-        case KEY_UP:
-            task_window.scroll_up();
-            break;
-        case CTRL('N'):
-        case KEY_DOWN:
-            task_window.scroll_down();
-            break;
-        default:
-            beep();
-            break;
-        case ERR:
-            break;
-        }
-        task_window.update();
-        summary_window.update();
-    } while ((ch = getch()) != ERR && ch != QUIT && ch != ESCAPE);
-
-    endwin();
+    pilot_tui.event_loop();
     return 0;
 }
 
-void Window::update(void) {
-    werase(wind_);
-    box(wind_, 0, 0);
-    wnoutrefresh(wind_);
-    pnoutrefresh(pad_, y_cur_, 0, y_ + 1, x_ + 1, height_, width_);
-    doupdate();
+void Window::redraw(void) {
+    wbkgdset(wind_, menubox_attr | ' ');
+    //wclrtobot(wind_);
+    //refresh();
+    wrefresh(wind_);
+    //wsyncup(wind_);
+    //wcursyncup(wind_);
+    dlg_trace_win(wind_);
 }
 
 void Window::scroll_up(void) {

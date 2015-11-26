@@ -13,8 +13,8 @@ find_program( MEMORYCHECK_COMMAND valgrind )
 set( MEMORYCHECK_COMMAND_OPTIONS "--trace-children=yes --leak-check=full" )
 include( CTest )
 
-include( ExternalProject )
-ExternalProject_Add(gtest
+include (ExternalProject)
+ExternalProject_Add (gtest
   URL https://googletest.googlecode.com/files/gtest-1.7.0.zip
   # Comment above line, and uncomment line below to use subversion.
   # SVN_REPOSITORY http://googletest.googlecode.com/svn/trunk/
