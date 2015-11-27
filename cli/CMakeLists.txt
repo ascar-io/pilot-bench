@@ -19,6 +19,7 @@ include_directories (${CDK_INCLUDE_DIR})
 
 add_executable (pilot pilot.cc)
 add_dependencies (pilot cdk)
+target_compile_features (pilot PRIVATE cxx_auto_type)
 target_link_libraries (pilot ${CDK_LIBRARIES})
 
 install (TARGETS pilot DESTINATION bin)
