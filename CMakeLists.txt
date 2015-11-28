@@ -37,6 +37,22 @@ configure_file (
 # so that we will find TutorialConfig.h
 include_directories("${PROJECT_BINARY_DIR}")
 
+# Enable Boost
+# default is off (using dynamic libraries)
+#set (Boost_USE_STATIC_LIBS        ON)
+#set (Boost_USE_STATIC_RUNTIME     ON)
+
+set (Boost_USE_MULTITHREADED      ON)
+find_package (Boost COMPONENTS log program_options system timer chrono thread REQUIRED)
+if (Boost_FOUND)
+    add_definitions ("-DHAS_BOOST")
+    if (NOT Boost_USE_STATIC_LIBS)
+		add_definitions ("-DBOOST_ALL_DYN_LINK")
+    endif ()
+    include_directories (${Boost_INCLUDE_DIRS})
+    link_directories (${Boost_LIBRARY_DIRS})
+endif ()
+
 # libpilot
 add_subdirectory (lib)
 # pilot command line tool

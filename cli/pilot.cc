@@ -32,13 +32,21 @@
  */
 
 #include <algorithm>
-#include "config.h"
+#include "benchmark_worker.h"
+#include <boost/program_options.hpp>
 #include <cassert>
 #include <cdk.h>
+#include <common.h>
+#include "config.h"
+#include <iostream>
+#include "libpilot.h"
+#include <mutex>
 #include <string>
 #include <vector>
 
 using namespace std;
+using namespace pilot;
+namespace po = boost::program_options;
 
 #define QUIT            CTRL('Q')
 #define ESCAPE          CTRL('[')
@@ -53,12 +61,12 @@ private:
     vector<char*> tasks_;
 public:
     TaskList() {
-        tasks_.push_back(strdup("Task1"));
-        tasks_.push_back(strdup("Task2"));
-        tasks_.push_back(strdup("Task3"));
-        tasks_.push_back(strdup("Task4"));
-        tasks_.push_back(strdup("Task5"));
-        tasks_.push_back(strdup("Task6"));
+        tasks_.push_back(strdup("[ ] Warm-up detection"));
+        tasks_.push_back(strdup("[ ] Overhead detection"));
+        tasks_.push_back(strdup("[ ] Confid. interv. calc"));
+        tasks_.push_back(strdup("[ ] Percentile calc"));
+        tasks_.push_back(strdup("[ ] Refining results"));
+        tasks_.push_back(strdup("[ ] Save results"));
     }
     ~TaskList() {
         for (auto s : tasks_)
@@ -85,34 +93,23 @@ private:
         cdk_screen_ = initCDKScreen(wind_);
         wbkgd(wind_, DEFAULT_COLOR | A_BOLD);
         box (wind_, ACS_VLINE, ACS_HLINE);
-        //wrefresh (wind_);
         writeChar(cdk_screen_->window,
                   (w_ - title_.size()) / 2,
                   0,
                   const_cast<char*>(title_.c_str()),
                   HORIZONTAL, 0,
                   title_.size());
-        //wattrset(wind_, dialog_attr);
     }
 protected:
     CDKSCREEN *cdk_screen_;
     int inner_w_; //! the width of the space for the inner widget
     int inner_h_; //! the height of the space for the inner widget
 public:
-    //int y_cur_;
-    //int y_end_;
     const string title_;
 
     virtual void refresh(void) {
-        //wrefresh(wind_);
         refreshCDKScreen(cdk_screen_);
     }
-//    void scroll_up(void);
-//    void scroll_down(void);
-//    void scroll_page_up(void);
-//    void scroll_page_down(void);
-//    void scroll_home(void);
-//    void scroll_end(void);
 
     BoxedWidget(int h, int w, int y, int x, const string &title)
     : x_(x), y_(y), w_(w), h_(h), title_(title), wind_(NULL) {
@@ -121,7 +118,6 @@ public:
         draw();
     }
     virtual ~BoxedWidget() {
-        //eraseCursesWindow(wind_);
         if (cdk_screen_) destroyCDKScreen(cdk_screen_);
         if (wind_) delwin(wind_);
     }
@@ -206,7 +202,7 @@ private:
                                  500,
                                  TRUE,
                                  FALSE);
-        setCDKSwindowBackgroundAttrib(swindow_, DEFAULT_COLOR + 14 | A_BOLD);
+        setCDKSwindowBackgroundAttrib(swindow_, DEFAULT_COLOR | A_BOLD);
         title_label_ = newCDKLabel(cdk_screen_, x_ + (w_ - strlen(title_[0])) / 2, y_,
                                    const_cast<char**>(title_), 1, FALSE, FALSE);
         setCDKLabelBackgroundAttrib(title_label_, DEFAULT_COLOR | A_BOLD);
@@ -227,9 +223,12 @@ public:
 
 /**
  * \brief This is the view class as in the MVC architecture
+ * \details This class is thread-safe
  */
 class PilotTUI {
 private:
+    mutex      lock_;
+
     TaskList   *task_list_;
 
     WINDOW     *curses_win_;
@@ -245,8 +244,30 @@ private:
     const int  left_col_width_;
     const int  task_box_height_;
     const char *_title[1] = {"</57> PILOT v0.2 <#VL> "};
-    const char *bottom_txt_[1] = {"</57> <!57></9>Q<!9></57> Quit<!57>"};
-    int         bottom_txt_len_ = 7;
+    const char *bottom_txt_[1] = {"</57> <!57></9>F1<!9></57> Help  <!57></9>Q<!9></57> Quit<!57>"};
+    int         bottom_txt_len_ = 16;
+
+    stringstream msg_ss_buf_; // used by the << operator
+
+    // this function must not be called in parallel
+    void _flush_msg_ss_buf_nonlock(void) {
+        if (msg_ss_buf_.str().size() == 0)
+            return;
+        // here we use a prefix to add some color if the output has no color yet
+        if (msg_ss_buf_.str()[0] != '<' ) {
+            static const char prefix[] = "</21>";
+            char *buf = new char[sizeof(prefix) + msg_ss_buf_.str().size()];
+            strcpy(buf, prefix);
+            strcpy(buf + sizeof(prefix) - 1, msg_ss_buf_.str().c_str());
+            msg_box_->add_msg(buf);
+            delete[] buf;
+        } else {
+            msg_box_->add_msg(msg_ss_buf_.str().c_str());
+        }
+        // clear msg_ss_buf_
+        msg_ss_buf_.str(std::string());
+        msg_ss_buf_.clear();
+    }
 public:
     PilotTUI(TaskList *task_list) : task_list_(task_list),
         left_col_width_(30), task_box_height_(task_list->size() + 2),
@@ -271,6 +292,8 @@ public:
         endCDK();
     }
     void draw() {
+        lock_guard<mutex> lock(lock_);
+
         if (title_bar_) {
             // this is a redraw
             destroyCDKLabel(title_bar_);
@@ -308,37 +331,17 @@ public:
         msg_box_ = new MsgBox(cdk_screen_, LINES - 2, COLS - left_col_width_, 1, left_col_width_);
     }
     void refresh() {
+        lock_guard<mutex> lock(lock_);
         refreshCDKScreen(cdk_screen_);
         summary_box_->refresh();
     }
+
     void event_loop() {
         int ch = ERR;
         do {
             switch (ch) {
-//            case KEY_HOME:
-//                msg_BoxedWidget_->scroll_home();
-//                break;
-//            case KEY_END:
-//                msg_BoxedWidget_->scroll_end();
-//                break;
-//            case KEY_PREVIOUS:
-//                case KEY_PPAGE:
-//                msg_BoxedWidget_->scroll_page_up();
-//                break;
-//            case KEY_NEXT:
-//                case KEY_NPAGE:
-//                msg_BoxedWidget_->scroll_page_down();
-//                break;
-//            case CTRL('P'):
-//                case KEY_UP:
-//                msg_BoxedWidget_->scroll_up();
-//                break;
-//            case CTRL('N'):
-//                case KEY_DOWN:
-//                msg_BoxedWidget_->scroll_down();
-//                break;
             default:
-                msg_box_->add_msg("a key is pressed\na key is pressed");
+                msg_box_->add_msg("a key is pressed\n");
                 beep();
                 break;
             case ERR:
@@ -348,60 +351,162 @@ public:
         } while ((ch = getch()) != ERR && ch != QUIT && ch != ESCAPE && ch != 'Q' && ch != 'q');
         printf ("%d\n", ch);
     }
+    void flush(void) {
+        lock_guard<mutex> lock(lock_);
+        _flush_msg_ss_buf_nonlock();
+    }
+    /**
+     * \brief Flush the message stringstream buffer
+     */
+    template <typename R>
+    PilotTUI& operator<<(const R &t) {
+        lock_guard<mutex> lock(lock_);
+        msg_ss_buf_ << t;
+        return *this;
+    }
+    PilotTUI& operator<<(const stringstream &s) {
+        *this << s.str().c_str();
+        return *this;
+    }
+    PilotTUI& operator<<(char *t) {
+        return (*this) << const_cast<const char*>(t);
+    }
+    PilotTUI& operator<<(const char *t) {
+        lock_guard<mutex> lock(lock_);
+        while (*t != 0) {
+            if ('\n' == *t || '\r' == *t) {
+                msg_ss_buf_ << std::endl;
+                _flush_msg_ss_buf_nonlock();
+            } else {
+                msg_ss_buf_ << *t;
+            }
+            ++t;
+        }
+        return *this;
+    }
+    // for endl
+    PilotTUI& operator<<(std::ostream& (*pf)(std::ostream&)) {
+        lock_guard<mutex> lock(lock_);
+        msg_ss_buf_ << std::endl;
+        _flush_msg_ss_buf_nonlock();
+        return *this;
+    }
 };
 
 int main(int argc, char** argv) {
+    PILOT_LIB_SELF_CHECK;
+    stringstream ss;
+    // Parsing the command line arguments
+    po::options_description desc("Generates a non-zero sequential write I/O workload and demonstrates how to use libpilot");
+    // Don't use po::value<>()->required() here or --help wouldn't work
+    desc.add_options()
+            ("help", "produce help message")
+            ("fsync,f", "call fsync() after each I/O request")
+            ("io-size,s", po::value<size_t>(), "the size of I/O operations (default to 1 MB)")
+            ("length-limit,l", po::value<size_t>(), "the max. length of the workload in bytes (default to 800*1024*1024); "
+                    "the workload will not write beyond this limit")
+            ("init-length,i", po::value<size_t>(), "the initial length of workload in bytes (default to 1/10 of limitsize); "
+                    "the workload will start from this length and be gradually repeated or increased until the desired "
+                    "confidence level is reached")
+            ("output,o", po::value<string>(), "set output file name, can be a device. WARNING: the file will be overwritten if it exists.")
+            ("result,r", po::value<string>(), "set result file name, (default to seq-write.csv)")
+            ("warm-up-io,w", po::value<size_t>(), "the number of I/O operations that will be removed from the beginning as the warm-up phase (default to 1/10 of total IO ops)")
+            ("verbose,v", "print more debug information")
+            ;
+
+    po::variables_map vm;
+    try {
+        po::store(po::parse_command_line(argc, argv, desc), vm);
+        po::notify(vm);
+    } catch (po::error &e) {
+        cout << e.what() << endl;
+        return 1;
+    }
+
+    if (vm.count("help")) {
+        cout << desc << endl;
+        return 2;
+    }
+
+    // verbose
+    pilot_set_log_level(lv_warning);
+    bool verbose = false;
+    if (vm.count("verbose")) {
+        pilot_set_log_level(lv_trace);
+        verbose = true;
+    }
+
+    // fsync
+    bool fsync = false;
+    if (vm.count("fsync")) {
+        fsync = true;
+    }
+
+    string output_file;
+    if (vm.count("output")) {
+        output_file = vm["output"].as<string>();
+        ss << "Output file is set to " << output_file << endl;
+    } else {
+        cout << "Error: output file was not set." << endl;
+        cout << desc << endl;
+        return 2;
+    }
+
+    size_t io_size = 1*1024*1024;
+    if (vm.count("io-size")) {
+        if (vm["io-size"].as<size_t>() <= 0) {
+            cout << "I/O size must be larger than 0" << endl;
+            return 1;
+        }
+        io_size = vm["io-size"].as<size_t>();
+        ss << "I/O size is set to ";
+    } else {
+        ss << "Using default IO size: 1";
+    }
+    if (io_size >= MEGABYTE) {
+        ss << io_size / MEGABYTE << " MB" << endl;
+    } else {
+        ss << io_size << " bytes" << endl;
+    }
+
+    string result_file("seq-write.csv");
+    if (vm.count("result")) {
+        result_file = vm["result"].as<string>();
+    }
+
+    size_t io_limit = 800*1024*1024;
+    if (vm.count("length-limit")) {
+        if (vm["length-limit"].as<size_t>() <= 0) {
+            cout << "I/O limit must be larger than 0" << endl;
+            return 1;
+        }
+        io_limit = vm["length-limit"].as<size_t>();
+    }
+    ss << "I/O limit is set to ";
+    if (io_limit >= MEGABYTE) {
+        ss << io_limit / MEGABYTE << " MB"<< endl;
+    } else {
+        ss << io_limit << " bytes" << endl;
+    }
+
+    size_t init_length;
+    if (vm.count("init-length"))
+        init_length = vm["init-length"].as<size_t>();
+    else
+        init_length = io_limit / 5;
+
     TaskList task_list;
     PilotTUI pilot_tui(&task_list);
-    getchar();
+    pilot_tui << ss;
+    BenchmarkWorker<PilotTUI> benchmark_worker(io_size, io_limit, init_length,
+                                               output_file, result_file, fsync,
+                                               pilot_tui);
+    benchmark_worker.start();
     pilot_tui.event_loop();
+    benchmark_worker.join();
+
+    //const double* time_readings = pilot_get_pi_unit_readings(wl, time_pi, 0, &num_of_work_units) + warmupio;
+    //num_of_work_units -= warmupio;
+
     return 0;
 }
-
-//void BoxedWidget::redraw(void) {
-//    wbkgdset(wind_, menubox_attr | ' ');
-//    //wclrtobot(wind_);
-//    //refresh();
-//    wrefresh(wind_);
-//    //wsyncup(wind_);
-//    //wcursyncup(wind_);
-//    dlg_trace_win(wind_);
-//}
-//
-//void BoxedWidget::scroll_up(void) {
-//    if (y_cur_ > 0)
-//        --y_cur_;
-//    else
-//        beep();
-//}
-//
-//void BoxedWidget::scroll_down(void) {
-//    if (y_cur_ < y_end_)
-//        ++y_cur_;
-//    else
-//        beep();
-//}
-//
-//void BoxedWidget::scroll_page_up(void) {
-//    if (y_cur_ > 0) {
-//        y_cur_ -= height_ / 2;
-//        y_cur_ = max(0, y_cur_);
-//    } else
-//        beep();
-//}
-//
-//void BoxedWidget::scroll_page_down(void) {
-//    if (y_cur_ < y_end_) {
-//        y_cur_ += height_ / 2;
-//        y_cur_ = min(y_cur_, y_end_);
-//    } else
-//        beep();
-//}
-//
-//void BoxedWidget::scroll_home(void) {
-//    y_cur_ = 0;
-//}
-//
-//void BoxedWidget::scroll_end(void) {
-//    y_cur_ = y_end_;
-//}

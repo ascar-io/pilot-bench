@@ -153,7 +153,7 @@ TEST(PilotUnitReadingsIterTest, ImportingAndIterating) {
 
 int main(int argc, char **argv) {
     PILOT_LIB_SELF_CHECK;
-    pilot_set_log_level(fatal);
+    pilot_set_log_level(lv_fatal);
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
 }

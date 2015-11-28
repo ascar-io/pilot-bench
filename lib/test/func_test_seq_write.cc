@@ -218,10 +218,10 @@ int main(int argc, char **argv) {
     }
 
     // verbose
-    pilot_set_log_level(warning);
+    pilot_set_log_level(lv_warning);
     bool verbose = false;
     if (vm.count("verbose")) {
-        pilot_set_log_level(trace);
+        pilot_set_log_level(lv_trace);
         verbose = true;
     }
 

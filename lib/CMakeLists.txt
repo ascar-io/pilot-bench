@@ -6,21 +6,6 @@ include_directories (${CMAKE_SOURCE_DIR}/include)
 include_directories (interface_include)
 include_directories (priv_include)
 
-# default is off (using dynamic libraries)
-#set (Boost_USE_STATIC_LIBS        ON)
-#set (Boost_USE_STATIC_RUNTIME     ON)
-
-set (Boost_USE_MULTITHREADED      ON)
-find_package (Boost COMPONENTS log program_options system timer chrono thread REQUIRED)
-if (Boost_FOUND)
-    add_definitions ("-DHAS_BOOST")
-    if (NOT Boost_USE_STATIC_LIBS)
-		add_definitions ("-DBOOST_ALL_DYN_LINK")
-    endif ()
-    include_directories (${Boost_INCLUDE_DIRS})
-    link_directories (${Boost_LIBRARY_DIRS})
-endif ()
-
 # the main library
 add_library (libpilot libpilot.cc workload.cc)
 # used by boost 1.59+

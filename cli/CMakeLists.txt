@@ -15,11 +15,18 @@ ExternalProject_Get_Property(cdk SOURCE_DIR BINARY_DIR)
 set (CDK_INCLUDE_DIR "${SOURCE_DIR}/include" "${BINARY_DIR}/include")
 set (CDK_LIBRARIES "${BINARY_DIR}/libcdk.a" ${CURSES_LIBRARIES})
 
-include_directories (${CDK_INCLUDE_DIR})
+find_library(LIBPILOT_LIBRARIES
+	NAMES libpilot
+	PATHS ${CMAKE_CURRENT_BINARY_DIR}/../lib
+)
 
-add_executable (pilot pilot.cc)
+include_directories (${CDK_INCLUDE_DIR})
+include_directories (${CMAKE_SOURCE_DIR}/include)
+include_directories (${CMAKE_SOURCE_DIR}/lib/interface_include)
+
+add_executable (pilot pilot.cc benchmark_worker.cc)
 add_dependencies (pilot cdk)
 target_compile_features (pilot PRIVATE cxx_auto_type)
-target_link_libraries (pilot ${CDK_LIBRARIES})
+target_link_libraries (pilot ${CDK_LIBRARIES} ${LIBPILOT_LIBRARIES} ${Boost_LIBRARIES})
 
 install (TARGETS pilot DESTINATION bin)

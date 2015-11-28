@@ -90,9 +90,9 @@ bool post_workload_hook(pilot_workload_t* wl) {
 TEST(PilotRunWorkloadTest, RunWorkload) {
     pilot_workload_t *wl = pilot_new_workload("Test workload");
     size_t num_of_pi;
-    pilot_set_log_level(fatal);
+    pilot_set_log_level(lv_fatal);
     ASSERT_EQ(ERR_NOT_INIT, pilot_get_num_of_pi(wl, &num_of_pi));
-    pilot_set_log_level(warning);
+    pilot_set_log_level(lv_warning);
     pilot_set_num_of_pi(wl, 1);
     ASSERT_EQ(0, pilot_get_num_of_pi(wl, &num_of_pi));
     ASSERT_EQ(1, num_of_pi);

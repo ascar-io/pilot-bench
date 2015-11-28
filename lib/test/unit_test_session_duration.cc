@@ -118,7 +118,7 @@ TEST(PilotRunWorkloadTest, CalculatingOptimalSessionDuration) {
     // required_sample_size_per_round[0]). Now we have 5 samples so 10 more samples
     // are required. We expect the next round to have 10*(1+.2)=12 samples (as in
     // expected_work_amount_per_round[1], .2 is the ratio of safety buffer).
-    pilot_set_log_level(warning);
+    pilot_set_log_level(lv_warning);
     test_opt_session_duration(
             50,          // work_amount_limit
             { 5, 12},    // expected_work_amount_per_round

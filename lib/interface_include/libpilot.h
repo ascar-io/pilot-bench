@@ -38,8 +38,11 @@
 // This file must retain C99-compatibility so do not include C++ header files
 // here.
 #include "config.h"
+#include <fcntl.h>
 #include "pilot_exports.h"
+#include <stdlib.h>
 #include <stdint.h>
+#include <sys/types.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -384,12 +387,12 @@ int pilot_destroy_workload(pilot_workload_t *wl);
 
 enum pilot_log_level_t
 {
-    trace,
-    debug,
-    info,
-    warning,
-    error,
-    fatal
+    lv_trace,
+    lv_debug,
+    lv_info,
+    lv_warning,
+    lv_error,
+    lv_fatal
 };
 /**
  * \brief Set the logging level of the library
