@@ -15,10 +15,7 @@ ExternalProject_Get_Property(cdk SOURCE_DIR BINARY_DIR)
 set (CDK_INCLUDE_DIR "${SOURCE_DIR}/include" "${BINARY_DIR}/include")
 set (CDK_LIBRARIES "${BINARY_DIR}/libcdk.a" ${CURSES_LIBRARIES})
 
-find_library(LIBPILOT_LIBRARIES
-	NAMES libpilot
-	PATHS ${CMAKE_CURRENT_BINARY_DIR}/../lib
-)
+set (LIBPILOT_LIBRARIES libpilot)
 
 include_directories (${CDK_INCLUDE_DIR})
 include_directories (${CMAKE_SOURCE_DIR}/include)
