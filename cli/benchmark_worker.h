@@ -207,7 +207,7 @@ private:
     void thread_func(void) {
         int res = pilot_run_workload(wl_);
         if (res != 0) {
-            logger_ << pilot_strerror(res) << std::endl;
+            logger_ << "</13>" << pilot_strerror(res) << std::endl;
             benchmark_err_ = res;
             return;
         }
@@ -215,7 +215,7 @@ private:
 
         res = pilot_export(wl_, CSV, g_result_file_name.c_str());
         if (res != 0) {
-            logger_ << pilot_strerror(res) << std::endl;
+            logger_ << "</13>" << pilot_strerror(res) << std::endl;
             benchmark_err_ = res;
             return;
         }

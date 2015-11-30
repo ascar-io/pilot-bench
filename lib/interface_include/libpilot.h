@@ -58,6 +58,7 @@ enum pilot_error_t {
     ERR_WL_FAIL = 12,
     ERR_NO_READING = 13,
     ERR_STOPPED_BY_HOOK = 14,
+    ERR_TOO_MANY_REJECTED_ROUNDS = 15,
     ERR_NOT_IMPL = 200,
     ERR_LINKED_WRONG_VER = 201
 };
@@ -290,11 +291,13 @@ void pilot_set_warm_up_removal_method(pilot_workload_t* wl, pilot_warm_up_remova
  * \brief Detect the ending location of the warm-up phase
  * @param[in] readings input data (readings)
  * @param num_of_readings size of input data
+ * @param round_duration the duration of the round
  * @param method the detection method
  * @return location of the end of the warm-up phase; negative value on detection failure
  */
 ssize_t pilot_warm_up_removal_detect(const double *readings,
                                      size_t num_of_readings,
+                                     nanosecond_type round_duration,
                                      pilot_warm_up_removal_detection_method_t method);
 
 

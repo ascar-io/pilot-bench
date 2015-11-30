@@ -205,6 +205,7 @@ private:
             die_if(!wi_, ERR_NOMEM, string(__func__) + "() cannot allocate memory");
             memset(wi_, 0, sizeof(*wi_));
         }
+        wi_->num_of_rounds = wi->num_of_rounds;
 
 #define COPY_FIELD(field) wi_->field = (typeof(wi->field[0])*)realloc(wi_->field, sizeof(wi->field[0]) * kNumOfPI); \
     memcpy(wi_->field, wi->field, sizeof(wi->field[0]) * kNumOfPI)
@@ -300,6 +301,7 @@ private:
                 flush_buf_new_line();
 
                 draw_data_line("sample size: ", wi_->total_num_of_unit_readings[piid], "");
+                if (0 == wi_->total_num_of_unit_readings[piid]) continue;
                 double sm = wi_->unit_readings_mean[piid];
                 double var = wi_->unit_readings_var[piid];
                 double var_rt = var / sm;
@@ -389,20 +391,20 @@ private:
                 use_default_color();
                 draw_buf_ << tail;
                 flush_buf_new_line();
+            } /* loop for all PI */
 
-                // if this refresh cycle has fewer lines than previous cycle,
-                // we need to clear the rest of the lines from previous cycle
-                int this_max_lines = next_draw_pos_y_;
-                while (next_draw_pos_y_ < prev_max_lines_) {
-                    draw_buf_ << setw(inner_w_) << " ";
-                    flush_buf_new_line();
-                }
-                prev_max_lines_ = this_max_lines;
+            // if this refresh cycle has fewer lines than previous cycle,
+            // we need to clear the rest of the lines from previous cycle
+            int this_max_lines = next_draw_pos_y_;
+            while (next_draw_pos_y_ < prev_max_lines_) {
+                draw_buf_ << setw(inner_w_) << " ";
+                flush_buf_new_line();
+            }
+            prev_max_lines_ = this_max_lines;
 
-                refresh();
-             }
-         }
-     }
+            refresh();
+        }
+    }
 public:
 
     void show_workload_info(const pilot_workload_info_t *wi) {
@@ -483,7 +485,7 @@ private:
     TaskBox    *task_box_;
     SummaryBox *summary_box_;
     MsgBox     *msg_box_;
-    const int  left_col_width_;
+    int         left_col_width_;
     const int  task_box_height_;
     const char *_title[1] = {"</57> PILOT v0.2 <#VL> "};
     const char *bottom_txt_[1] = {"</57> <!57></9>F1<!9></57> Help  <!57></9>Q<!9></57> Quit<!57>"};
@@ -513,9 +515,13 @@ private:
 public:
     PilotTUI(TaskList *task_list, const std::vector<PIInfo> &pi_info_vec) : task_list_(task_list),
         num_of_pi_(pi_info_vec.size()), pi_info_vec_(pi_info_vec),
-        left_col_width_(35), task_box_height_(task_list->size() + 2),
+        task_box_height_(task_list->size() + 2),
         title_bar_(NULL), progress_bar_(NULL), task_box_(NULL),
         summary_box_(NULL), msg_box_(NULL) {
+        // the width of the left column is [35, 50]
+        left_col_width_ = max(COLS / 3, 35);
+        left_col_width_ = min(50, left_col_width_);
+
         curses_win_ = initscr();
         // Hide the cursor
         curs_set(0);
@@ -635,6 +641,7 @@ public:
         return *this;
     }
     PilotTUI& operator<<(const pilot_workload_info_t *wi) {
+        lock_guard<mutex> lock(lock_);
         assert (summary_box_);
         summary_box_->show_workload_info(wi);
         return *this;

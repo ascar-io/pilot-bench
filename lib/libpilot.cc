@@ -202,6 +202,11 @@ int pilot_run_workload(pilot_workload_t *wl) {
             info_log << "enough readings collected, exiting";
             break;
         }
+        if (wl->wholly_rejected_rounds_ > 10) {
+            info_log << "Too many rounds are wholly rejected. Stopping. Check the workload.";
+            result = ERR_TOO_MANY_REJECTED_ROUNDS;
+            break;
+        }
 
         info_log << "starting workload round " << wl->rounds_ << " with work_amount=" << work_amount;
         if (wl->hook_pre_workload_run_ && !wl->hook_pre_workload_run_(wl)) {
@@ -270,6 +275,7 @@ const char *pilot_strerror(int errnum) {
     case ERR_WL_FAIL:     return "Workload failure";
     case ERR_NO_READING:  return "Workload did not return readings";
     case ERR_STOPPED_BY_HOOK: return "Execution is stopped by a hook function";
+    case ERR_TOO_MANY_REJECTED_ROUNDS: return "Too many rounds are wholly rejected. Stopping. Check the workload.";
     case ERR_NOT_IMPL:    return "Not implemented";
     default:              return "Unknown error code";
     }
@@ -458,10 +464,19 @@ pilot_optimal_sample_size_p(const double *data, size_t n,
 
 ssize_t pilot_warm_up_removal_detect(const double *readings,
                                      size_t num_of_readings,
+                                     boost::timer::nanosecond_type round_duration,
                                      pilot_warm_up_removal_detection_method_t method) {
-    switch (method) {
-    case NO_WARM_UP_REMOVAL:
+    if (NO_WARM_UP_REMOVAL == method)
         return 0;
+
+    // We reject any round that is shorter than 1 second. Need to parameterize
+    // this threshold
+    if (round_duration < 1 * ONE_SECOND) {
+        info_log << "Round duration shorter than 1 second, rejecting";
+        return num_of_readings;
+    }
+
+    switch (method) {
     case FIXED_PERCENTAGE:
         if (num_of_readings == 1)
             return 0;
@@ -534,6 +549,7 @@ void pilot_import_benchmark_results(pilot_workload_t *wl, int round,
             ssize_t wul; // warm-up phase len
             wul = pilot_warm_up_removal_detect(unit_readings[piid],
                                                num_of_unit_readings,
+                                               round_duration,
                                                wl->warm_up_removal_detection_method_);
             if (wul < 0) {
                 warning_log << "warm-up phase detection failed on PI "
@@ -545,6 +561,7 @@ void pilot_import_benchmark_results(pilot_workload_t *wl, int round,
             } else {
                 wl->warm_up_phase_len_[piid][round] = wul;
             }
+            if (wul == num_of_unit_readings) ++wl->wholly_rejected_rounds_;
             // update total number of unit readings
             wl->total_num_of_unit_readings_[piid] += num_of_unit_readings - wul;
         } else {

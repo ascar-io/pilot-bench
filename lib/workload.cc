@@ -78,7 +78,7 @@ size_t pilot_workload_t::calc_next_round_work_amount(void) const {
             error_log << "[PI " << piid << "] average work per unit reading is 0, using work_amount_limit instead (you probably need to report a bug)";
             return work_amount_limit_;
         }
-        if (0 != unit_readings_[piid][0].size()) {
+        if (0 != total_num_of_unit_readings_[piid]) {
             ssize_t req = calc_unit_readings_required_func_(this, piid);
             debug_log << "[PI " << piid << "] required unit readings sample size: " << req;
             if (req > 0)
@@ -91,8 +91,15 @@ size_t pilot_workload_t::calc_next_round_work_amount(void) const {
             }
         } else {
             // this PI has no unit readings, we have to use readings
-            num_of_readings_needed = calc_readings_required_func_(this, piid)
-                                   - rounds_;
+            if (0 != total_num_of_readings_[piid] ) {
+                num_of_readings_needed = calc_readings_required_func_(this, piid)
+                                         - rounds_;
+            } else {
+                info_log << "[PI " << piid << "] has no usable data readings, "
+                        "using using work_amount_limit instead (workload is "
+                        "probably too short so all readings are considered warm-up)";
+                return work_amount_limit_;
+            }
         }
         work_amount_needed = size_t(1.2 * num_of_readings_needed
                                         * calc_avg_work_unit_per_amount(piid));
@@ -129,6 +136,10 @@ pilot_workload_info_t* pilot_workload_t::workload_info(pilot_workload_info_t *in
     for (int piid = 0; piid < num_of_pi_; ++piid) {
         double sm = unit_readings_mean(piid);
         info->total_num_of_unit_readings[piid] = total_num_of_unit_readings_[piid];
+        if (0 == total_num_of_unit_readings_[piid]) {
+            // no data for the following calculation
+            continue;
+        }
         info->unit_readings_mean[piid] = sm;
         info->unit_readings_var[piid] = unit_readings_var(piid, 1);
         info->unit_readings_autocorrelation_coefficient[piid] = unit_readings_autocorrelation_coefficient(piid, 1);
@@ -196,6 +207,8 @@ char* pilot_workload_t::text_workload_summary(void) const {
         if (piid != 0) s << endl;
         s << "# Performance Index " << piid << " #" << endl;
         s << "sample size: " << total_num_of_unit_readings << endl;
+        if (0 == total_num_of_unit_readings)
+            continue;
         s << "sample mean: " << format_unit_reading(piid, sm) << " " << pi_units_[piid] << endl;
         double var_rt = var / sm;
         s << "sample variance: " << format_unit_reading(piid, sm) * var_rt << " " << pi_units_[piid] << endl;

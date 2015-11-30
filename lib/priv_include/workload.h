@@ -72,6 +72,7 @@ struct pilot_workload_t {
     bool short_workload_check_;
     pilot_warm_up_removal_detection_method_t warm_up_removal_detection_method_;
     double warm_up_removal_moving_average_window_size_in_seconds_;
+    size_t wholly_rejected_rounds_;  //! number of rounds that are wholly rejected due to too short a duration
 
     // Hook functions
     calc_readings_required_func_t *calc_unit_readings_required_func_; //! The hook function that calculates how many unit readings (samples) are needed
@@ -87,11 +88,12 @@ struct pilot_workload_t {
                          confidence_interval_(0.05), confidence_level_(.95),
                          autocorrelation_coefficient_limit_(0.1),
                          short_workload_check_(true),
-                         warm_up_removal_detection_method_(NO_WARM_UP_REMOVAL),
+                         warm_up_removal_detection_method_(FIXED_PERCENTAGE),
                          warm_up_removal_moving_average_window_size_in_seconds_(3),
                          calc_unit_readings_required_func_(&default_calc_unit_readings_required_func),
                          calc_readings_required_func_(&default_calc_readings_required_func),
-                         hook_pre_workload_run_(NULL), hook_post_workload_run_(NULL) {
+                         hook_pre_workload_run_(NULL), hook_post_workload_run_(NULL),
+                         wholly_rejected_rounds_(0) {
         if (wl_name) workload_name_ = wl_name;
     }
 
@@ -231,7 +233,8 @@ struct pilot_pi_unit_readings_iter_t {
 
         if (cur_round_id_ >= wl_->rounds_) return *this; /*false*/
         // find next non-empty round
-        while (wl_->unit_readings_[piid_][cur_round_id_].size() == 0) {
+        while (wl_->unit_readings_[piid_][cur_round_id_].size()
+               - wl_->warm_up_phase_len_[piid_][cur_round_id_] == 0) {
     NEXT_ROUND:
             ++cur_round_id_;
             round_has_changed = true;
