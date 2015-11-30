@@ -109,6 +109,7 @@ pilot_workload_info_t* pilot_workload_t::workload_info(pilot_workload_info_t *in
         die_if(!info, ERR_NOMEM, string(__func__) + "() cannot allocate memory");
         memset(info, 0, sizeof(*info));
     }
+    info->num_of_rounds = rounds_;
     info->total_num_of_unit_readings =
             (size_t*)realloc(info->total_num_of_unit_readings, sizeof(info->total_num_of_unit_readings[0]) * num_of_pi_);
     info->unit_readings_mean = (double*)realloc(info->unit_readings_mean, sizeof(info->unit_readings_mean[0]) * num_of_pi_);

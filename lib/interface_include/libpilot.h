@@ -444,6 +444,7 @@ pilot_round_info_t* pilot_round_info(const pilot_workload_t *wl, size_t round, p
  */
 #pragma pack(push, 1)
 struct pilot_workload_info_t {
+    size_t  num_of_rounds;
     size_t* total_num_of_unit_readings;
     double* unit_readings_mean;
     double* unit_readings_var;

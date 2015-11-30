@@ -38,6 +38,7 @@
 #include <cdk.h>
 #include <common.h>
 #include "config.h"
+#include <iomanip>
 #include <iostream>
 #include "libpilot.h"
 #include <mutex>
@@ -82,8 +83,6 @@ public:
 
 class BoxedWidget {
 private:
-    int x_;      //! the X of the box
-    int y_;      //! the Y of the box
     int w_;      //! the width of the box
     int h_;      //! the height of the box
     WINDOW    *wind_;
@@ -102,6 +101,8 @@ private:
     }
 protected:
     CDKSCREEN *cdk_screen_;
+    int x_;      //! the X of the box
+    int y_;      //! the Y of the box
     int inner_w_; //! the width of the space for the inner widget
     int inner_h_; //! the height of the space for the inner widget
 public:
@@ -113,7 +114,7 @@ public:
 
     BoxedWidget(int h, int w, int y, int x, const string &title)
     : x_(x), y_(y), w_(w), h_(h), title_(title), wind_(NULL) {
-        inner_w_ = w_ - 3;
+        inner_w_ = w_ - 2;
         inner_h_ = h_ - 2;
         draw();
     }
@@ -168,16 +169,245 @@ public:
     }
 };
 
+struct PIInfo {
+    std::string pi_name;
+    std::string pi_unit;
+    pilot_pi_unit_reading_format_func_t *pi_format_func;
+};
+
 class SummaryBox : public BoxedWidget {
 private:
-    void draw(void) {
+    const std::vector<PIInfo> * const pi_info_vec_p_;
+    static const int kLinesPerPI = 2;
+
+    pilot_workload_info_t *wi_;
+    void free_my_workload_info(void) {
+        if (!wi_) return;
+        free(wi_->total_num_of_unit_readings);
+        free(wi_->unit_readings_mean);
+        free(wi_->unit_readings_var);
+        free(wi_->unit_readings_autocorrelation_coefficient);
+        free(wi_->unit_readings_optimal_subsession_size);
+        free(wi_->unit_readings_optimal_subsession_var);
+        free(wi_->unit_readings_optimal_subsession_autocorrelation_coefficient);
+        free(wi_->unit_readings_optimal_subsession_confidence_interval);
+        free(wi_->unit_readings_required_sample_size);
+        free(wi_);
+        wi_ = NULL;
     }
+    /**
+     * \brief Duplicate wi into wi_ so we can redraw everything later
+     * @param wi
+     */
+    void dup_workload_info(const pilot_workload_info_t *wi) {
+        if (!wi_) {
+            wi_ = (pilot_workload_info_t*)malloc(sizeof(pilot_workload_info_t));
+            die_if(!wi_, ERR_NOMEM, string(__func__) + "() cannot allocate memory");
+            memset(wi_, 0, sizeof(*wi_));
+        }
+
+#define COPY_FIELD(field) wi_->field = (typeof(wi->field[0])*)realloc(wi_->field, sizeof(wi->field[0]) * kNumOfPI); \
+    memcpy(wi_->field, wi->field, sizeof(wi->field[0]) * kNumOfPI)
+
+        COPY_FIELD(total_num_of_unit_readings);
+        COPY_FIELD(unit_readings_mean);
+        COPY_FIELD(unit_readings_var);
+        COPY_FIELD(unit_readings_autocorrelation_coefficient);
+        COPY_FIELD(unit_readings_optimal_subsession_size);
+        COPY_FIELD(unit_readings_optimal_subsession_var);
+        COPY_FIELD(unit_readings_optimal_subsession_autocorrelation_coefficient);
+        COPY_FIELD(unit_readings_optimal_subsession_confidence_interval);
+        COPY_FIELD(unit_readings_required_sample_size);
+
+#undef COPY_FIELD
+    }
+
+    stringstream draw_buf_;
+    int next_draw_pos_x_;
+    int next_draw_pos_y_; //! used by draw_data_line to track the location of the next line
+
+    void use_default_color(void) {
+        wbkgd(cdk_screen_->window, DEFAULT_COLOR | A_BOLD);
+    }
+
+    void use_highlight_color(void) {
+        wbkgd(cdk_screen_->window, COLOR_PAIR(29) | A_BOLD);
+    }
+    void flush_buf(void) {
+        writeChar(cdk_screen_->window,
+                  1 + next_draw_pos_x_,
+                  next_draw_pos_y_,
+                  const_cast<char*>(draw_buf_.str().c_str()),
+                  HORIZONTAL, 0,
+                  draw_buf_.str().size());
+        next_draw_pos_x_ += draw_buf_.str().size();
+        draw_buf_.str(string()); draw_buf_.clear();
+    }
+
+    void flush_buf_new_line(void) {
+        flush_buf();
+        next_draw_pos_x_ = 0;
+        ++next_draw_pos_y_;
+    }
+
+    template <typename T>
+    void draw_data_line(std::string label, T data, std::string tail) {
+        // draw label
+        use_default_color();
+        draw_buf_ << label;
+        flush_buf();
+        // draw data
+        int data_width = inner_w_ - label.size();
+        if (tail.size() != 0) data_width -= tail.size();
+        use_highlight_color();
+        draw_buf_ << setw(data_width) << setprecision(3) << data;
+        // does the data fill in one line
+        if (draw_buf_.str().size() > inner_w_ - label.size()) {
+            ++next_draw_pos_y_;
+            next_draw_pos_x_ = 0;
+            // clear buf and redraw to make sure we draw all space before the
+            // data to clear old characters
+            draw_buf_.str(std::string()); draw_buf_.clear();
+            draw_buf_ << setw(data_width + label.size()) << data;
+        }
+        flush_buf();
+        //draw tail
+        use_default_color();
+        draw_buf_ << tail;
+        flush_buf_new_line();
+    }
+    void draw(void) {
+        next_draw_pos_y_ = 1;
+        if (wi_) {
+            draw_data_line("total rounds: ", wi_->num_of_rounds, "");
+            for (int piid = 0; piid < kNumOfPI; ++piid) {
+                const char pi_separator[] = " Perf. Index ";
+                const string &pi_name = (*pi_info_vec_p_)[piid].pi_name;
+                const string &pi_unit = std::string(" ") + (*pi_info_vec_p_)[piid].pi_unit;
+                pilot_pi_unit_reading_format_func_t *pi_format_func =
+                        (*pi_info_vec_p_)[piid].pi_format_func;
+
+                // draw the PI name as the separator
+                // decor is the ====== in the PI separator
+                int decor_len = (inner_w_ - pi_name.size() - 2/*spaces*/) / 2;
+                for (int i = 0; i < decor_len; ++i) draw_buf_ << '=';
+                draw_buf_ << " " << pi_name << " ";
+                for (int i = decor_len + pi_name.size() + 2; i < inner_w_; ++i) {
+                    draw_buf_ << '=';
+                }
+                use_default_color();
+                flush_buf_new_line();
+
+                draw_data_line("sample size: ", wi_->total_num_of_unit_readings[piid], "");
+                double sm = wi_->unit_readings_mean[piid];
+                double var = wi_->unit_readings_var[piid];
+                double var_rt = var / sm;
+                draw_data_line("sample mean: ", pi_format_func(NULL, sm), pi_unit);
+                draw_data_line("variance: ", var_rt * pi_format_func(NULL, sm), pi_unit);
+
+                use_default_color();
+                std::string label = "variance to mean ratio: ";
+                draw_buf_ << label;
+                flush_buf();
+                use_highlight_color();
+                draw_buf_ << setprecision(3)
+                          << setw(inner_w_ - label.size() - 1)
+                          << pi_format_func(NULL, var_rt * 100) << "%";
+                flush_buf_new_line();
+
+                draw_data_line("autocorrelation coefficient: ",
+                               wi_->unit_readings_autocorrelation_coefficient[piid],
+                               "");
+                size_t q = wi_->unit_readings_optimal_subsession_size[piid];
+                draw_data_line("optimal subsession size (q): ", q, "");
+                double subvar = wi_->unit_readings_optimal_subsession_var[piid];
+                double subvar_rt = subvar / sm;
+                draw_data_line("subsession variance: ", subvar_rt * pi_format_func(NULL, sm), "");
+
+                use_default_color();
+                label = "subvar. to mean ratio: ";
+                draw_buf_ << label;
+                flush_buf();
+                use_highlight_color();
+                draw_buf_ << setw(inner_w_ - label.size() - 1) << subvar_rt * 100 / sm << "%";
+                flush_buf_new_line();
+
+                size_t min_ss = wi_->unit_readings_required_sample_size[piid];
+                draw_data_line("min. sample size:", min_ss, "");
+                size_t cur_ss = wi_->total_num_of_unit_readings[piid] / q;
+                draw_data_line("current subsample size: ", cur_ss, "");
+
+                use_highlight_color();
+                if (cur_ss >= min_ss && cur_ss >= 200) {
+                    draw_buf_ << "Sample size large enough";
+                } else {
+                    if (cur_ss < min_ss) {
+                        draw_buf_ << "Sample size too small";
+                    } else {
+                        draw_buf_ << "Sample size MIGHT be too small" << endl;
+                    }
+                }
+                flush_buf_new_line();
+
+                double ci = wi_->unit_readings_optimal_subsession_confidence_interval[piid];
+                double ci_rt = ci / sm;
+                double ci_low = pi_format_func(NULL, sm) * (1 - ci_rt/2);
+                double ci_high = pi_format_func(NULL, sm) * (1 + ci_rt/2) ;
+                use_default_color();
+                draw_buf_ << "95% confidence interval (CI): ";
+                flush_buf_new_line();
+
+                // calculate the len of the CI line
+                stringstream buf;
+                buf << setprecision(4);
+                buf << "[" << ci_low << ", " << ci_high << "]" << pi_unit;
+                int ci_width = buf.str().size();
+                next_draw_pos_x_ = inner_w_ - ci_width;
+
+                draw_buf_ << setprecision(4);
+                draw_buf_ << "[";
+                flush_buf();
+                use_highlight_color();
+                draw_buf_ << ci_low;
+                flush_buf();
+                use_default_color();
+                draw_buf_ << ", ";
+                flush_buf();
+                use_highlight_color();
+                draw_buf_ << ci_high;
+                flush_buf();
+                use_default_color();
+                draw_buf_ << "]" << pi_unit;
+                flush_buf_new_line();
+
+                draw_data_line("CI width: ", ci_high - ci_low, pi_unit);
+
+                use_highlight_color();
+                string tail = " of mean";
+                draw_buf_ << setw(inner_w_ - tail.size() - 1) << ci_rt * 100 << "%";
+                flush_buf();
+                use_default_color();
+                draw_buf_ << tail;
+                flush_buf_new_line();
+
+                refresh();
+             }
+         }
+     }
 public:
-    SummaryBox(int h, int w, int y, int x)
-    : BoxedWidget(h, w, y, x, " WORKLOAD SUMMARY ") {
+
+    void show_workload_info(const pilot_workload_info_t *wi) {
+        dup_workload_info(wi);
+        draw();
+    }
+    SummaryBox(int h, int w, int y, int x, const std::vector<PIInfo> *pi_info_vec_p)
+        : wi_(NULL), pi_info_vec_p_(pi_info_vec_p),
+          BoxedWidget(h, w, y, x, " WORKLOAD SUMMARY "),
+          next_draw_pos_x_(0), next_draw_pos_y_(0) {
         draw();
     }
     ~SummaryBox() {
+        free_my_workload_info();
     }
 };
 
@@ -230,6 +460,8 @@ private:
     mutex      lock_;
 
     TaskList   *task_list_;
+    std::vector<PIInfo> pi_info_vec_;
+    const int   num_of_pi_;
 
     WINDOW     *curses_win_;
     CDKSCREEN  *cdk_screen_;
@@ -269,8 +501,9 @@ private:
         msg_ss_buf_.clear();
     }
 public:
-    PilotTUI(TaskList *task_list) : task_list_(task_list),
-        left_col_width_(30), task_box_height_(task_list->size() + 2),
+    PilotTUI(TaskList *task_list, const std::vector<PIInfo> &pi_info_vec) : task_list_(task_list),
+        num_of_pi_(pi_info_vec.size()), pi_info_vec_(pi_info_vec),
+        left_col_width_(35), task_box_height_(task_list->size() + 2),
         title_bar_(NULL), progress_bar_(NULL), task_box_(NULL),
         summary_box_(NULL), msg_box_(NULL) {
         curses_win_ = initscr();
@@ -327,7 +560,7 @@ public:
         summary_box_ = new SummaryBox(LINES - task_box_height_ - 2,
                                       left_col_width_,
                                       task_box_height_ + 1,
-                                      0);
+                                      0, &pi_info_vec_);
         msg_box_ = new MsgBox(cdk_screen_, LINES - 2, COLS - left_col_width_, 1, left_col_width_);
     }
     void refresh() {
@@ -390,6 +623,14 @@ public:
         msg_ss_buf_ << std::endl;
         _flush_msg_ss_buf_nonlock();
         return *this;
+    }
+    PilotTUI& operator<<(const pilot_workload_info_t *wi) {
+        assert (summary_box_);
+        summary_box_->show_workload_info(wi);
+        return *this;
+    }
+    PilotTUI& operator<<(pilot_workload_info_t *wi) {
+        return (*this) << const_cast<const pilot_workload_info_t*>(wi);
     }
 };
 
@@ -496,7 +737,7 @@ int main(int argc, char** argv) {
         init_length = io_limit / 5;
 
     TaskList task_list;
-    PilotTUI pilot_tui(&task_list);
+    PilotTUI pilot_tui(&task_list, std::vector<PIInfo>{{"Write throughput", "MB/s", &ur_format_func}});
     pilot_tui << ss;
     BenchmarkWorker<PilotTUI> benchmark_worker(io_size, io_limit, init_length,
                                                output_file, result_file, fsync,

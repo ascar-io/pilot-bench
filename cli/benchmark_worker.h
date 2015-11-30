@@ -1,5 +1,7 @@
 /*
- * benchmark_worker.h
+ * benchmark_worker.h: the adaptor for running a sequential write workload.
+ * Later we will make it universal and be able to load and run workloads
+ * from a dynamic library.
  *
  * Copyright (c) 2015, University of California, Santa Cruz, CA, USA.
  * Created by Yan Li <yanli@ucsc.edu, elliot.li.tech@gmail.com>,
@@ -162,19 +164,25 @@ bool pre_workload_run_hook(pilot_workload_t* wl) {
 
 template <typename Logger>
 bool post_workload_run_hook(pilot_workload_t* wl) {
+    using namespace std;
     Logger &logger = *static_cast<Logger*>(g_logger);
-    logger << "Round " << g_current_round << " finished" << std::endl;
-    logger << "Round " << g_current_round << " Summary" << std::endl;
-    logger << "============================" << std::endl;
+
+    logger << "Round " << g_current_round << " finished" << endl;
+    logger << "Round " << g_current_round << " Summary" << endl;
+    logger << "============================" << endl;
     char *buf = pilot_text_round_summary(wl, pilot_get_num_of_rounds(wl) - 1);
-    logger << buf;
+    logger << buf << endl;
     pilot_free_text_dump(buf);
 
-    logger << "Workload Summary So Far" << std::endl;
-    logger << "============================" << std::endl;
+    logger << "Workload Summary So Far" << endl;
+    logger << "============================" << endl;
     buf = pilot_text_workload_summary(wl);
-    logger << buf;
+    logger << buf << std::endl;
     pilot_free_text_dump(buf);
+
+    pilot_workload_info_t *wi = pilot_workload_info(wl);
+    logger << wi;  // logger decides how to interpret and display workload info
+    pilot_free_workload_info(wi);
 
     return true;
 }
