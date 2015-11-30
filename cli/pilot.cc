@@ -225,6 +225,7 @@ private:
     stringstream draw_buf_;
     int next_draw_pos_x_;
     int next_draw_pos_y_; //! used by draw_data_line to track the location of the next line
+    int prev_max_lines_;  //! the maximum number of lines reached so far; next draw needs to do screen clear up to this mark
 
     void use_default_color(void) {
         wbkgd(cdk_screen_->window, DEFAULT_COLOR | A_BOLD);
@@ -362,10 +363,9 @@ private:
                 buf << setprecision(4);
                 buf << "[" << ci_low << ", " << ci_high << "]" << pi_unit;
                 int ci_width = buf.str().size();
-                next_draw_pos_x_ = inner_w_ - ci_width;
 
                 draw_buf_ << setprecision(4);
-                draw_buf_ << "[";
+                draw_buf_ << setw(inner_w_ - ci_width + 1) << right << "[";
                 flush_buf();
                 use_highlight_color();
                 draw_buf_ << ci_low;
@@ -390,6 +390,15 @@ private:
                 draw_buf_ << tail;
                 flush_buf_new_line();
 
+                // if this refresh cycle has fewer lines than previous cycle,
+                // we need to clear the rest of the lines from previous cycle
+                int this_max_lines = next_draw_pos_y_;
+                while (next_draw_pos_y_ < prev_max_lines_) {
+                    draw_buf_ << setw(inner_w_) << " ";
+                    flush_buf_new_line();
+                }
+                prev_max_lines_ = this_max_lines;
+
                 refresh();
              }
          }
@@ -403,7 +412,8 @@ public:
     SummaryBox(int h, int w, int y, int x, const std::vector<PIInfo> *pi_info_vec_p)
         : wi_(NULL), pi_info_vec_p_(pi_info_vec_p),
           BoxedWidget(h, w, y, x, " WORKLOAD SUMMARY "),
-          next_draw_pos_x_(0), next_draw_pos_y_(0) {
+          next_draw_pos_x_(0), next_draw_pos_y_(0),
+          prev_max_lines_(0) {
         draw();
     }
     ~SummaryBox() {
