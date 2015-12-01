@@ -90,6 +90,7 @@ void test_opt_session_duration(size_t work_amount_limit,
     pilot_set_work_amount_limit(wl, work_amount_limit);
     pilot_set_num_of_pi(wl, 1);
     pilot_set_calc_unit_readings_required_func(wl, &mock_calc_unit_readings_required_func);
+    pilot_set_warm_up_removal_method(wl, NO_WARM_UP_REMOVAL);
 
     g_expected_work_amount_per_round = &expected_work_amount_per_round;
     g_required_sample_size_per_round = &required_sample_size_per_round;

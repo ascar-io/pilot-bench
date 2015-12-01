@@ -462,16 +462,16 @@ pilot_optimal_sample_size_p(const double *data, size_t n,
                                      max_autocorrelation_coefficient);
 }
 
-ssize_t pilot_warm_up_removal_detect(const double *readings,
+ssize_t pilot_warm_up_removal_detect(const pilot_workload_t *wl,
+                                     const double *readings,
                                      size_t num_of_readings,
                                      boost::timer::nanosecond_type round_duration,
                                      pilot_warm_up_removal_detection_method_t method) {
     if (NO_WARM_UP_REMOVAL == method)
         return 0;
 
-    // We reject any round that is shorter than 1 second. Need to parameterize
-    // this threshold
-    if (round_duration < 1 * ONE_SECOND) {
+    // we reject any round that is too short
+    if (round_duration < wl->short_round_detection_threshold_) {
         info_log << "Round duration shorter than 1 second, rejecting";
         return num_of_readings;
     }
@@ -521,7 +521,8 @@ void pilot_import_benchmark_results(pilot_workload_t *wl, int round,
 
     if (!unit_readings) num_of_unit_readings = 0;
     for (int piid = 0; piid < wl->num_of_pi_; ++piid) {
-        // update total number of unit readings
+        // first subtract the number of the old unit readings from total_num_of_unit_readings_
+        // before updating the data
         if (round != wl->rounds_) {
             // remove old total_num_of_unit_readings
             wl->total_num_of_unit_readings_[piid] -= wl->unit_readings_[piid][round].size()
@@ -544,10 +545,10 @@ void pilot_import_benchmark_results(pilot_workload_t *wl, int round,
                 memcpy(wl->unit_readings_[piid][round].data(), unit_readings[piid], sizeof(double) * num_of_unit_readings);
         }
 
+        // warm-up removal
+        ssize_t wul; // warm-up phase len
         if (unit_readings) {
-            // warm-up removal
-            ssize_t wul; // warm-up phase len
-            wul = pilot_warm_up_removal_detect(unit_readings[piid],
+            wul = pilot_warm_up_removal_detect(wl, unit_readings[piid],
                                                num_of_unit_readings,
                                                round_duration,
                                                wl->warm_up_removal_detection_method_);
@@ -556,18 +557,20 @@ void pilot_import_benchmark_results(pilot_workload_t *wl, int round,
                             << piid << " at round " << wl->rounds_;
                 wul = 0;
             }
-            if (round == wl->rounds_) {
-                wl->warm_up_phase_len_[piid].push_back(wul);
-            } else {
-                wl->warm_up_phase_len_[piid][round] = wul;
-            }
-            if (wul == num_of_unit_readings) ++wl->wholly_rejected_rounds_;
-            // update total number of unit readings
-            wl->total_num_of_unit_readings_[piid] += num_of_unit_readings - wul;
         } else {
             // this round has no unit readings
-            wl->warm_up_phase_len_[piid].push_back(0);
-        } // if (unit_readings) for warm-up removal
+            wul = 0;
+        }
+        if (round == wl->rounds_) {
+            wl->warm_up_phase_len_[piid].push_back(wul);
+        } else {
+            wl->warm_up_phase_len_[piid][round] = wul;
+        }
+        if (num_of_unit_readings != 0 && wul == num_of_unit_readings)
+            ++wl->wholly_rejected_rounds_;
+        // increase total number of unit readings (the number of old unit readings are
+        // subtracted at the beginning of the for loop).
+        wl->total_num_of_unit_readings_[piid] += num_of_unit_readings - wul;
 
         // handle readings
         if (round == wl->rounds_) {
@@ -615,4 +618,9 @@ ssize_t default_calc_readings_required_func(const pilot_workload_t* wl, int piid
 size_t pilot_next_round_work_amount(const pilot_workload_t *wl) {
     ASSERT_VALID_POINTER(wl);
     return wl->calc_next_round_work_amount();
+}
+
+void pilot_set_short_round_detection_threshold(pilot_workload_t *wl, nanosecond_type threshold) {
+    ASSERT_VALID_POINTER(wl);
+    wl->short_round_detection_threshold_ = threshold;
 }

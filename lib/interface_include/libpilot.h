@@ -596,6 +596,14 @@ void pilot_import_benchmark_results(pilot_workload_t *wl, int round,
  */
 size_t pilot_next_round_work_amount(const pilot_workload_t *wl);
 
+/**
+ * \brief Set the threshold for short round detection
+ * \details Any round that is shorter than this threshold will not be used
+ * @param[in] wl pointer to the workload struct
+ * @param threshold the threshold in nanoseconds
+ */
+void pilot_set_short_round_detection_threshold(pilot_workload_t *wl, nanosecond_type threshold);
+
 #ifdef __cplusplus
 }
 #endif

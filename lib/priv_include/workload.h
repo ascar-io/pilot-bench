@@ -69,6 +69,7 @@ struct pilot_workload_t {
     double confidence_level_;
     double autocorrelation_coefficient_limit_;
 
+    nanosecond_type short_round_detection_threshold_;
     bool short_workload_check_;
     pilot_warm_up_removal_detection_method_t warm_up_removal_detection_method_;
     double warm_up_removal_moving_average_window_size_in_seconds_;
@@ -93,7 +94,8 @@ struct pilot_workload_t {
                          calc_unit_readings_required_func_(&default_calc_unit_readings_required_func),
                          calc_readings_required_func_(&default_calc_readings_required_func),
                          hook_pre_workload_run_(NULL), hook_post_workload_run_(NULL),
-                         wholly_rejected_rounds_(0) {
+                         wholly_rejected_rounds_(0),
+                         short_round_detection_threshold_(1 * pilot::ONE_SECOND) {
         if (wl_name) workload_name_ = wl_name;
     }
 

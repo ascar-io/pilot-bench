@@ -92,6 +92,8 @@ TEST(PilotUnitReadingsIterTest, ImportingAndIterating) {
     pilot_set_num_of_pi(wl, 1);
     // remove the first one tenth of unit readings
     pilot_set_warm_up_removal_method(wl, FIXED_PERCENTAGE);
+    // disable short round detection
+    pilot_set_short_round_detection_threshold(wl, 0);
 
     // test empty iterator
     pilot_pi_unit_readings_iter_t *iter;
