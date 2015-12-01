@@ -300,7 +300,8 @@ private:
                 use_default_color();
                 flush_buf_new_line();
 
-                draw_data_line("sample size: ", wi_->total_num_of_unit_readings[piid], "");
+                size_t cur_ur = wi_->total_num_of_unit_readings[piid];
+                draw_data_line("sample size: ", cur_ur, "");
                 if (0 == wi_->total_num_of_unit_readings[piid]) continue;
                 double sm = wi_->unit_readings_mean[piid];
                 double var = wi_->unit_readings_var[piid];
@@ -335,16 +336,15 @@ private:
                 draw_buf_ << setw(inner_w_ - label.size() - 1) << subvar_rt * 100 / sm << "%";
                 flush_buf_new_line();
 
-                size_t min_ss = wi_->unit_readings_required_sample_size[piid];
-                draw_data_line("min. sample size:", min_ss, "");
-                size_t cur_ss = wi_->total_num_of_unit_readings[piid] / q;
-                draw_data_line("current subsample size: ", cur_ss, "");
+                size_t min_ur = wi_->unit_readings_required_sample_size[piid];
+                draw_data_line("min. sample size:", min_ur, "");
+                draw_data_line("current sample size: ", cur_ur, "");
 
                 use_highlight_color();
-                if (cur_ss >= min_ss && cur_ss >= 200) {
+                if (cur_ur >= min_ur && cur_ur / q >= 200) {
                     draw_buf_ << "Sample size large enough";
                 } else {
-                    if (cur_ss < min_ss) {
+                    if (cur_ur < min_ur) {
                         draw_buf_ << "Sample size too small";
                     } else {
                         draw_buf_ << "Sample size MIGHT be too small" << endl;

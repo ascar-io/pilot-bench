@@ -80,17 +80,21 @@ size_t pilot_workload_t::calc_next_round_work_amount(void) const {
         }
         if (0 != total_num_of_unit_readings_[piid]) {
             ssize_t req = calc_unit_readings_required_func_(this, piid);
-            debug_log << "[PI " << piid << "] required unit readings sample size: " << req;
-            if (req > 0)
+            info_log << "[PI " << piid << "] required unit readings sample size: " << req;
+            if (req > 0) {
+                if (req < total_num_of_unit_readings_[piid]) {
+                    info_log << "[PI " << piid << "] already has enough samples";
+                    return 0;
+                }
                 num_of_readings_needed = req - total_num_of_unit_readings_[piid];
-            else {
+            } else {
                 // in case when there's not enough data to calculate the number of UR,
                 // we try to double the total number of unit readings
                 info_log << "[PI " << piid << "] doesn't have enough information for calculating required sample size, using the current total sample size instead";
                 num_of_readings_needed = total_num_of_unit_readings_[piid];
             }
         } else {
-            // this PI has no unit readings, we have to use readings
+            // this PI has no unit readings, try readings
             if (0 != total_num_of_readings_[piid] ) {
                 num_of_readings_needed = calc_readings_required_func_(this, piid)
                                          - rounds_;
@@ -203,11 +207,11 @@ char* pilot_workload_t::text_workload_summary(void) const {
     for (int piid = 0; piid < num_of_pi_; ++piid) {
         double sm = i->unit_readings_mean[piid];
         double var = i->unit_readings_var[piid];
-        size_t total_num_of_unit_readings = i->total_num_of_unit_readings[piid];
+        size_t cur_ur = i->total_num_of_unit_readings[piid];
         if (piid != 0) s << endl;
         s << "# Performance Index " << piid << " #" << endl;
-        s << "sample size: " << total_num_of_unit_readings << endl;
-        if (0 == total_num_of_unit_readings)
+        s << "sample size: " << cur_ur << endl;
+        if (0 == cur_ur)
             continue;
         s << "sample mean: " << format_unit_reading(piid, sm) << " " << pi_units_[piid] << endl;
         double var_rt = var / sm;
@@ -219,17 +223,16 @@ char* pilot_workload_t::text_workload_summary(void) const {
         double subvar = i->unit_readings_optimal_subsession_var[piid];
         s << "subsession variance (q=" << q << "): " << subvar << endl;
         s << "subsession variance (q=" << q << ") to sample mean ratio: " << subvar * 100 / sm << "%" << endl;
-        size_t min_ss = i->unit_readings_required_sample_size[piid];
-        s << "minimum sample size according to t-distribution (q=" << q << "): " << min_ss << endl;
-        size_t cur_ss = total_num_of_unit_readings / q;
-        s << "current sample size (q=" << q << "): " << cur_ss << endl;
-        if (cur_ss >= min_ss && cur_ss >= 200) {
+        size_t min_ur = i->unit_readings_required_sample_size[piid];
+        s << "minimum numbers of unit readings according to t-distribution (q=" << q << "): " << min_ur << endl;
+        s << "current number of significant unit readings: " << cur_ur << endl;
+        if (cur_ur >= min_ur && cur_ur / q >= 200) {
             s << "We have a large enough sample size." << endl;
         } else {
-            if (cur_ss < min_ss) {
+            if (cur_ur < min_ur) {
                 s << "sample size is not yet large enough to achieve a confidence interval width of 0.1 * sample_mean." << endl;
             } else {
-                s << "sample size MIGHT NOT be large enough (>200 is recommended)" << endl;
+                s << "sample size MIGHT NOT be large enough (subsample size >200 is recommended)" << endl;
             }
         }
         double ci = i->unit_readings_optimal_subsession_confidence_interval[piid];

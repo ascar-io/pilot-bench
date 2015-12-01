@@ -158,7 +158,7 @@ bool pre_workload_run_hook(pilot_workload_t* wl) {
     Logger &logger = *static_cast<Logger*>(g_logger);
     g_current_round = pilot_get_num_of_rounds(wl);
     logger << "Round " << g_current_round << " started with "
-         << pilot_next_round_work_amount(wl) / pilot::MEGABYTE << " MB/s work amount ... " << std::endl;
+         << pilot_next_round_work_amount(wl) / pilot::MEGABYTE << " MB work amount ... " << std::endl;
     return true;
 }
 
