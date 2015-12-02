@@ -144,6 +144,8 @@ pilot_workload_info_t* pilot_workload_t::workload_info(pilot_workload_info_t *in
             (double*)realloc(info->unit_readings_optimal_subsession_confidence_interval, sizeof(info->unit_readings_optimal_subsession_confidence_interval[0]) * num_of_pi_);
     info->unit_readings_required_sample_size =
             (size_t*)realloc(info->unit_readings_required_sample_size, sizeof(info->unit_readings_required_sample_size[0]) * num_of_pi_);
+    info->dumb_results_from_readings =
+            (double*)realloc(info->dumb_results_from_readings, sizeof(info->dumb_results_from_readings[0]) * num_of_pi_);
     for (int piid = 0; piid < num_of_pi_; ++piid) {
         double sm = unit_readings_mean(piid);
         info->total_num_of_unit_readings[piid] = total_num_of_unit_readings_[piid];
@@ -162,6 +164,12 @@ pilot_workload_info_t* pilot_workload_t::workload_info(pilot_workload_info_t *in
         info->unit_readings_optimal_subsession_confidence_interval[piid] =
                 pilot_subsession_confidence_interval(pilot_pi_unit_readings_iter_t(this, piid), total_num_of_unit_readings_[piid], q, .95);
         info->unit_readings_required_sample_size[piid] = required_num_of_unit_readings(piid);
+
+        double sum_of_work_amount = 0;
+        for (auto s : work_amount_per_round_) sum_of_work_amount += s;
+        double sum_of_readings = 0;
+        for (auto r : readings_[piid]) sum_of_readings += r;
+        info->dumb_results_from_readings[piid] = sum_of_work_amount / sum_of_readings;
     }
     return info;
 }

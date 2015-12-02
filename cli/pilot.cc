@@ -206,6 +206,7 @@ private:
         free(wi_->unit_readings_optimal_subsession_autocorrelation_coefficient);
         free(wi_->unit_readings_optimal_subsession_confidence_interval);
         free(wi_->unit_readings_required_sample_size);
+        free(wi_->dumb_results_from_readings);
         free(wi_);
         wi_ = NULL;
     }
@@ -233,6 +234,7 @@ private:
         COPY_FIELD(unit_readings_optimal_subsession_autocorrelation_coefficient);
         COPY_FIELD(unit_readings_optimal_subsession_confidence_interval);
         COPY_FIELD(unit_readings_required_sample_size);
+        COPY_FIELD(dumb_results_from_readings);
 
 #undef COPY_FIELD
     }
@@ -405,6 +407,8 @@ private:
                 use_default_color();
                 draw_buf_ << tail;
                 flush_buf_new_line();
+
+                draw_data_line("naive result: ", wi_->dumb_results_from_readings[piid] / MEGABYTE, pi_unit);
             } /* loop for all PI */
 
             // if this refresh cycle has fewer lines than previous cycle,

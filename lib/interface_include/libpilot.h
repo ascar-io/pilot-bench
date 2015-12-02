@@ -457,6 +457,7 @@ struct pilot_workload_info_t {
     double* unit_readings_optimal_subsession_autocorrelation_coefficient;
     double* unit_readings_optimal_subsession_confidence_interval;
     size_t* unit_readings_required_sample_size;
+    double* dumb_results_from_readings;
 };
 #pragma pack(pop)
 

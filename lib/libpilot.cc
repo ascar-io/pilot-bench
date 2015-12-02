@@ -401,6 +401,7 @@ void pilot_free_workload_info(pilot_workload_info_t *info) {
     free(info->unit_readings_optimal_subsession_autocorrelation_coefficient);
     free(info->unit_readings_optimal_subsession_confidence_interval);
     free(info->unit_readings_required_sample_size);
+    free(info->dumb_results_from_readings);
     free(info);
 }
 
