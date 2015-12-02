@@ -60,14 +60,21 @@ const chtype DEFAULT_COLOR = COLOR_PAIR(5);
 class TaskList {
 private:
     vector<char*> tasks_;
+    vector<bool> enabled_;
 public:
     TaskList() {
-        tasks_.push_back(strdup("[ ] Warm-up detection"));
-        tasks_.push_back(strdup("[ ] Overhead detection"));
-        tasks_.push_back(strdup("[ ] Confid. interv. calc"));
-        tasks_.push_back(strdup("[ ] Percentile calc"));
-        tasks_.push_back(strdup("[ ] Refining results"));
-        tasks_.push_back(strdup("[ ] Save results"));
+        tasks_.push_back(strdup("Warm-up removal"));
+        tasks_.push_back(strdup("Overhead detection"));
+        tasks_.push_back(strdup("Confid. interv. calc"));
+        tasks_.push_back(strdup("Percentile calc"));
+        tasks_.push_back(strdup("Refining results"));
+        tasks_.push_back(strdup("Save results"));
+        enabled_.push_back(true);
+        enabled_.push_back(false);
+        enabled_.push_back(true);
+        enabled_.push_back(false);
+        enabled_.push_back(false);
+        enabled_.push_back(true);
     }
     ~TaskList() {
         for (auto s : tasks_)
@@ -76,6 +83,7 @@ public:
     char** data(void) {
         return tasks_.data();
     }
+    const vector<bool>& enabled(void) { return enabled_; }
     size_t size(void) {
         return tasks_.size();
     }
@@ -131,27 +139,33 @@ private:
     int w_;      //! the width of the box
     int h_;      //! the height of the box
     CDKSCREEN *cdk_screen_;
-    CDKSCROLL *scroll_list_;
+    CDKSELECTION *selection_list_;
     CDKLABEL  *title_label_;
     vector<char*> items_;
     TaskList *task_list_;
     const char *title_[1] = {" TASK LIST "};
 
+    const char *choice_list_[2] = {"   ", " X "};
+
     void draw(void) {
-        scroll_list_ = newCDKScroll(cdk_screen_,
+        selection_list_ = newCDKSelection(cdk_screen_,
                                     x_,
                                     y_,
-                                    RIGHT,
+                                    NONE,
                                     h_,
                                     w_,
                                     NULL,
                                     task_list_->data(),
                                     task_list_->size(),
-                                    FALSE,
+                                    const_cast<char**>(choice_list_),
+                                    2,
                                     A_REVERSE,
                                     TRUE,
                                     FALSE);
-        setCDKScrollBackgroundAttrib(scroll_list_, DEFAULT_COLOR | A_BOLD);
+        for (int i = 0; i < task_list_->enabled().size(); ++i) {
+            selection_list_->selections[i] = task_list_->enabled()[i] ? 1 : 0;
+        }
+        setCDKScrollBackgroundAttrib(selection_list_, DEFAULT_COLOR | A_BOLD);
         title_label_ = newCDKLabel(cdk_screen_, x_ + (w_ - strlen(title_[0])) / 2, y_,
                                    const_cast<char**>(title_), 1, FALSE, FALSE);
         setCDKLabelBackgroundAttrib(title_label_, DEFAULT_COLOR | A_BOLD);
@@ -164,7 +178,7 @@ public:
     }
 
     ~TaskBox() {
-        if (scroll_list_) destroyCDKScroll(scroll_list_);
+        if (selection_list_) destroyCDKScroll(selection_list_);
         if (title_label_) destroyCDKLabel(title_label_);
     }
 };
@@ -590,7 +604,6 @@ public:
         do {
             switch (ch) {
             default:
-                msg_box_->add_msg("a key is pressed\n");
                 beep();
                 break;
             case ERR:
