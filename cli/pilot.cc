@@ -600,6 +600,7 @@ public:
     }
 
     void event_loop() {
+        fd_set fds;
         int ch = ERR;
         do {
             switch (ch) {
@@ -609,8 +610,35 @@ public:
             case ERR:
                 break;
             }
-            // no need to refresh every time
-        } while ((ch = getch()) != ERR && ch != QUIT && ch != ESCAPE && ch != 'Q' && ch != 'q');
+            while (true) {
+                /*  select() modifies the fd_sets passed to it,
+                 *  so zero and set them prior to each call.     */
+                FD_ZERO(&fds);
+                FD_SET(STDIN_FILENO, &fds);
+
+                int status = select(STDIN_FILENO + 1, &fds, NULL, NULL, NULL);
+                if (status == -1) {
+                    if ( errno != EINTR) {
+                        perror("error calling select()");
+                        exit(-status);
+                    }
+                    continue;
+                }
+                else if (FD_ISSET(STDIN_FILENO, &fds)) {
+                    /*  Only call getch() if input is ready.
+                     *  getch() will not block when we do it this way.  */
+                    lock_guard<mutex> lock(lock_);
+                    if ((ch = getch()) == ERR) {
+                        cerr << "ERR returned from getch()" << endl;
+                        exit(EXIT_FAILURE);
+                    }
+                    break;
+                } else {
+                    cerr << "Internal error with select()" << endl;
+                    exit(EXIT_FAILURE);
+                }
+            } /* unbusy loop until a key is pressed */
+        } while (ch != QUIT && ch != ESCAPE && ch != 'Q' && ch != 'q');
         printf ("%d\n", ch);
     }
     void flush(void) {

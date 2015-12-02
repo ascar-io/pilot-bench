@@ -60,10 +60,17 @@ double pilot_workload_t::unit_readings_autocorrelation_coefficient(int piid, siz
 }
 
 ssize_t pilot_workload_t::required_num_of_unit_readings(int piid) const {
-    double sm = pilot_subsession_mean(pilot_pi_unit_readings_iter_t(this, piid),
-                                      total_num_of_unit_readings_[piid]);
+    double ci_width;
+    if (required_ci_percent_of_mean_ > 0) {
+        double sm = pilot_subsession_mean(pilot_pi_unit_readings_iter_t(this, piid),
+                                          total_num_of_unit_readings_[piid]);
+        ci_width = sm * required_ci_percent_of_mean_;
+    } else {
+        ci_width = required_ci_absolute_value_;
+    }
+
     return pilot_optimal_sample_size(pilot_pi_unit_readings_iter_t(this, piid),
-                                     total_num_of_unit_readings_[piid], sm * 0.1);
+                                     total_num_of_unit_readings_[piid], ci_width);
 }
 
 size_t pilot_workload_t::calc_next_round_work_amount(void) const {
@@ -230,7 +237,7 @@ char* pilot_workload_t::text_workload_summary(void) const {
             s << "We have a large enough sample size." << endl;
         } else {
             if (cur_ur < min_ur) {
-                s << "sample size is not yet large enough to achieve a confidence interval width of 0.1 * sample_mean." << endl;
+                s << "sample size is not yet large enough to achieve a confidence interval width of " << required_ci_percent_of_mean_ << " * sample_mean." << endl;
             } else {
                 s << "sample size MIGHT NOT be large enough (subsample size >200 is recommended)" << endl;
             }

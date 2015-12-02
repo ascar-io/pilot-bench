@@ -299,6 +299,7 @@ int main(int argc, char **argv) {
     pilot_set_work_amount_limit(wl, io_limit);
     pilot_set_init_work_amount(wl, init_length);
     pilot_set_workload_func(wl, &workload_func);
+    pilot_set_required_confidence_interval(wl, 0.3, -1);
     // Set up hooks for displaying progress information
     pilot_set_hook_func(wl, PRE_WORKLOAD_RUN, &pre_workload_run_hook);
     pilot_set_hook_func(wl, POST_WORKLOAD_RUN, &post_workload_run_hook);

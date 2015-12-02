@@ -624,3 +624,9 @@ void pilot_set_short_round_detection_threshold(pilot_workload_t *wl, nanosecond_
     ASSERT_VALID_POINTER(wl);
     wl->short_round_detection_threshold_ = threshold;
 }
+
+void pilot_set_required_confidence_interval(pilot_workload_t *wl, double percent_of_mean, double absolute_value) {
+    ASSERT_VALID_POINTER(wl);
+    wl->required_ci_percent_of_mean_ = percent_of_mean;
+    wl->required_ci_absolute_value_ = absolute_value;
+}

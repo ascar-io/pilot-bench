@@ -68,6 +68,8 @@ struct pilot_workload_t {
     double confidence_interval_;
     double confidence_level_;
     double autocorrelation_coefficient_limit_;
+    double required_ci_percent_of_mean_;
+    double required_ci_absolute_value_;
 
     nanosecond_type short_round_detection_threshold_;
     bool short_workload_check_;
@@ -95,7 +97,8 @@ struct pilot_workload_t {
                          calc_readings_required_func_(&default_calc_readings_required_func),
                          hook_pre_workload_run_(NULL), hook_post_workload_run_(NULL),
                          wholly_rejected_rounds_(0),
-                         short_round_detection_threshold_(1 * pilot::ONE_SECOND) {
+                         short_round_detection_threshold_(1 * pilot::ONE_SECOND),
+                         required_ci_percent_of_mean_(0.1), required_ci_absolute_value_(-1) {
         if (wl_name) workload_name_ = wl_name;
     }
 

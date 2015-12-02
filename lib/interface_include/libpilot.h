@@ -604,6 +604,16 @@ size_t pilot_next_round_work_amount(const pilot_workload_t *wl);
  */
 void pilot_set_short_round_detection_threshold(pilot_workload_t *wl, nanosecond_type threshold);
 
+/**
+ * \brief Set the required width of confidence interval
+ * @param[in] wl pointer to the workload struct
+ * @param percent_of_medium set the requirement to a percent of mean, set
+ *        this to -1 (or any negative value) to use absolute_value instead
+ * @param absolute_value use an absolute value, set this to -1 (or any negative
+ *        value to use percent_of_medium instead
+ */
+void pilot_set_required_confidence_interval(pilot_workload_t *wl, double percent_of_mean, double absolute_value);
+
 #ifdef __cplusplus
 }
 #endif
