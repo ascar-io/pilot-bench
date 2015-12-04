@@ -321,7 +321,10 @@ int main(int argc, char **argv) {
         return res;
     }
     cout << "Benchmark results are saved to " << result_file_name << endl;
-    assert(pilot_destroy_workload(wl) == 0);
+    if (pilot_destroy_workload(wl) != 0) {
+        cerr << ("pilot_destroy_workload failed");
+        abort();
+    }
     delete[] g_io_buf;
     return 0;
 }
