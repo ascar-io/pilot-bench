@@ -192,7 +192,7 @@ int main(int argc, char **argv) {
             ("help", "produce help message")
             ("fsync,f", "call fsync() after each I/O request")
             ("io-size,s", po::value<size_t>(), "the size of I/O operations (default to 1 MB)")
-            ("length-limit,l", po::value<size_t>(), "the max. length of the workload in bytes (default to 1024*1024*1024); "
+            ("length-limit,l", po::value<size_t>(), "the max. length of the workload in bytes (default to 2048*1024*1024); "
                     "the workload will not write beyond this limit")
             ("init-length,i", po::value<size_t>(), "the initial length of workload in bytes (default to 1/10 of limitsize); "
                     "the workload will start from this length and be gradually repeated or increased until the desired "
@@ -230,7 +230,7 @@ int main(int argc, char **argv) {
         g_fsync = true;
     }
 
-    size_t io_limit = 1024*1024*1024;
+    size_t io_limit = 2048*1024*1024;
     if (vm.count("output")) {
         g_output_file_name = vm["output"].as<string>();
         cout << "Output file is set to " << g_output_file_name << endl;
