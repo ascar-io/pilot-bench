@@ -310,7 +310,7 @@ static void _pilot_ui_printf(pilot_workload_t *wl, const char* prefix, const cha
     size_t size = vsnprintf(buf.get(), 0, format, args_copy);
     va_end(args_copy);
     buf.reset(new char[size + 1]);
-    vsnprintf(buf.get(), size, format, args);
+    vsnprintf(buf.get(), size + 1, format, args);
 
     if (NULL == wl->tui_) {
         cout << prefix << buf.get();
@@ -328,15 +328,13 @@ void pilot_ui_printf(pilot_workload_t *wl, const char* format, ...) {
 
 void pilot_ui_printf_hl(pilot_workload_t *wl, const char* format, ...) {
     va_list args;
+    va_start(args, format);
     if (NULL == wl->tui_) {
-        va_start(args, format);
         _pilot_ui_printf(wl, "", format, args);
-        va_end(args);
     } else {
-        va_start(args, format);
         _pilot_ui_printf(wl, "</13>", format, args);
-        va_end(args);
     }
+    va_end(args);
 }
 
 size_t pilot_get_total_num_of_unit_readings(const pilot_workload_t *wl, int piid) {
