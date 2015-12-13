@@ -40,7 +40,9 @@
 #include <boost/math/distributions/students_t.hpp>
 #include <cmath>
 #include "libpilot.h"
-#include <workload.h>
+#include "workload.hpp"
+
+namespace pilot {
 
 template <typename InputIterator>
 double pilot_subsession_cov(InputIterator first, size_t n, size_t q, double sample_mean) {
@@ -152,5 +154,6 @@ pilot_optimal_sample_size(InputIterator first, size_t n, double confidence_inter
     return ur_req;
 }
 
+} // namespace pilot
 
 #endif /* LIB_PRIV_INCLUDE_LIBPILOTCPP_H_ */

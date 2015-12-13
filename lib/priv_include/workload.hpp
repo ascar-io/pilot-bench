@@ -1,5 +1,5 @@
 /*
- * workload.h: functions for workload manipulation
+ * workload.hpp: functions for workload manipulation
  *
  * Copyright (c) 2015, University of California, Santa Cruz, CA, USA.
  * Created by Yan Li <yanli@ucsc.edu, elliot.li.tech@gmail.com>,
@@ -31,8 +31,8 @@
  * OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef LIB_PRIV_INCLUDE_WORKLOAD_H_
-#define LIB_PRIV_INCLUDE_WORKLOAD_H_
+#ifndef LIB_PRIV_INCLUDE_WORKLOAD_HPP_
+#define LIB_PRIV_INCLUDE_WORKLOAD_HPP_
 
 #include <boost/accumulators/accumulators.hpp>
 #include <boost/accumulators/statistics/stats.hpp>
@@ -42,6 +42,9 @@
 #include <vector>
 #include "common.h"
 #include "libpilot.h"
+#include "pilot_tui.hpp"
+
+namespace pilot {
 
 struct pilot_workload_t {
     std::string workload_name_;
@@ -55,7 +58,9 @@ struct pilot_workload_t {
     size_t init_work_amount_;
     size_t work_amount_limit_;
     pilot_workload_func_t *workload_func_;
+    std::vector<std::string> pi_names_;
     std::vector<std::string> pi_units_;
+    PilotTUI *tui_;
 
     std::vector<boost::timer::nanosecond_type> round_durations_; //! The duration of each round
     std::vector<reading_data_t> readings_;       //! Reading data of each round. Format: readings_[piid][round_id].
@@ -98,7 +103,8 @@ struct pilot_workload_t {
                          hook_pre_workload_run_(NULL), hook_post_workload_run_(NULL),
                          wholly_rejected_rounds_(0),
                          short_round_detection_threshold_(1 * pilot::ONE_SECOND),
-                         required_ci_percent_of_mean_(0.1), required_ci_absolute_value_(-1) {
+                         required_ci_percent_of_mean_(0.1), required_ci_absolute_value_(-1),
+                         tui_(NULL) {
         if (wl_name) workload_name_ = wl_name;
     }
 
@@ -283,4 +289,6 @@ struct pilot_pi_unit_readings_iter_t {
     }
 };
 
-#endif /* LIB_PRIV_INCLUDE_WORKLOAD_H_ */
+} // namespace pilot
+
+#endif /* LIB_PRIV_INCLUDE_WORKLOAD_HPP_ */

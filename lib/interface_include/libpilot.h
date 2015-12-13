@@ -46,6 +46,7 @@
 
 #ifdef __cplusplus
 extern "C" {
+namespace pilot {
 #endif
 
 enum pilot_error_t {
@@ -185,17 +186,6 @@ typedef double pilot_pi_unit_reading_format_func_t(const pilot_workload_t* wl, d
 double pilot_default_pi_unit_reading_format_func(const pilot_workload_t* wl, double unit_reading);
 
 /**
- * \brief Set the function for formatting a unit reading for print
- * @param[in] wl pointer to the workload struct
- * @param piid the piid of which to change the format function
- * @param f the new function, omit this parameter to set it back to the default function
- * @param[in] unit a NULL-terminated string of the unit of the PI
- */
-void pilot_set_pi_unit_reading_format_func(pilot_workload_t* wl, int piid,
-        pilot_pi_unit_reading_format_func_t *f = &pilot_default_pi_unit_reading_format_func,
-        const char *unit = NULL);
-
-/**
  * \brief Type for a function that formats a reading for output
  * \details libpilots calls this function whenever it needs to format a
  * reading for display. You can set a different function for each PI.
@@ -207,15 +197,19 @@ typedef double pilot_pi_reading_format_func_t(const pilot_workload_t* wl, double
 double pilot_default_pi_reading_format_func(const pilot_workload_t* wl, double reading);
 
 /**
- * \brief Set the function for formatting a reading for print
+ * \brief Set the information of a PI
  * @param[in] wl pointer to the workload struct
- * @param piid the piid of which to change the format function
- * @param f the new function, omit this parameter to set it back to the default function
- * @param[in] unit a NULL-terminated string of the unit of the PI
+ * @param piid the piid of the PI to change
+ * @param[in] pi_name the name of the PI
+ * @param[in] pi_unit the unit of the for displaying a reading, like "MB/s"
+ * @param rf the function for formatting a reading. Omitting this parameter sets it back to the default function.
+ * @param urf the function for formatting a unit reading. Omitting this parameter sets it back to the default function.
  */
-void pilot_set_pi_reading_format_func(pilot_workload_t* wl, int piid,
-        pilot_pi_reading_format_func_t *f = &pilot_default_pi_reading_format_func,
-        const char *unit = NULL);
+void pilot_set_pi_info(pilot_workload_t* wl, int piid,
+        const char *pi_name,
+        const char *pi_unit = NULL,
+        pilot_pi_reading_format_func_t *rf = &pilot_default_pi_reading_format_func,
+        pilot_pi_unit_reading_format_func_t *urf = &pilot_default_pi_unit_reading_format_func);
 
 pilot_workload_t* pilot_new_workload(const char *workload_name);
 
@@ -315,6 +309,30 @@ void pilot_set_short_workload_check(pilot_workload_t* wl, bool check_short_workl
  * get a pointer to the error message.
  */
 int pilot_run_workload(pilot_workload_t *wl);
+
+/**
+ * \brief Run the workload as specified in wl using the text user interface
+ * \details Call pilot_set_pi_info() prior to running TUI to set up the PI information that
+ * will be used in the TUI display.
+ * @param[in] wl pointer to the workload struct
+ * @return 0 on success, otherwise error code. On error, call pilot_strerror to
+ * get a pointer to the error message.
+ */
+int pilot_run_workload_tui(pilot_workload_t *wl);
+
+/**
+ * \brief Print a message into the UI's message box
+ * @param[in] wl pointer to the workload struct
+ * @param format a format string using the same format as plain printf
+ */
+void pilot_ui_printf(pilot_workload_t *wl, const char* format, ...);
+
+/**
+ * \brief Print a message into the UI's message box using highlight font
+ * @param[in] wl pointer to the workload struct
+ * @param format a format string using the same format as plain printf
+ */
+void pilot_ui_printf_hl(pilot_workload_t *wl, const char* format, ...);
 
 /**
  * \brief Get the number of total valid unit readings after warm-up removal
@@ -447,6 +465,7 @@ pilot_round_info_t* pilot_round_info(const pilot_workload_t *wl, size_t round, p
  */
 #pragma pack(push, 1)
 struct pilot_workload_info_t {
+    size_t  num_of_pi;
     size_t  num_of_rounds;
     size_t* total_num_of_unit_readings;
     double* unit_readings_mean;
@@ -458,6 +477,14 @@ struct pilot_workload_info_t {
     double* unit_readings_optimal_subsession_confidence_interval;
     size_t* unit_readings_required_sample_size;
     double* dumb_results_from_readings;
+#ifdef __cplusplus
+    inline void _free_all_field();
+    inline void _copyfrom(const pilot_workload_info_t &a);
+    pilot_workload_info_t();
+    pilot_workload_info_t(const pilot_workload_info_t &a);
+    ~pilot_workload_info_t();
+    pilot_workload_info_t& operator=(const pilot_workload_info_t &a);
+#endif
 };
 #pragma pack(pop)
 
@@ -616,7 +643,8 @@ void pilot_set_short_round_detection_threshold(pilot_workload_t *wl, nanosecond_
 void pilot_set_required_confidence_interval(pilot_workload_t *wl, double percent_of_mean, double absolute_value);
 
 #ifdef __cplusplus
-}
+} // namespace pilot
+} // extern C
 #endif
 
 #endif /* LIBPILOT_HEADER_LIBPILOT_H_ */

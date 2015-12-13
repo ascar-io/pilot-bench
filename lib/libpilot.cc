@@ -34,16 +34,21 @@
 #include <algorithm>
 #include "common.h"
 #include "config.h"
+#include <cstdio>
 #include <fstream>
 #include "libpilot.h"
 #include "libpilotcpp.h"
+#include "pilot_tui.hpp"
+#include "pilot_workload_runner.hpp"
 #include <vector>
-#include "workload.h"
+#include "workload.hpp"
 
 using namespace pilot;
 using namespace std;
 using boost::timer::cpu_timer;
 using boost::timer::nanosecond_type;
+
+namespace pilot {
 
 void pilot_lib_self_check(int vmajor, int vminor, size_t nanosecond_type_size) {
     die_if(vmajor != PILOT_VERSION_MAJOR || vminor != PILOT_VERSION_MINOR,
@@ -56,22 +61,24 @@ double pilot_default_pi_unit_reading_format_func(const pilot_workload_t* wl, dou
     return unit_reading;
 }
 
-double pilot_default_pi_reading_print_func(const pilot_workload_t* wl, double reading) {
+double pilot_default_pi_reading_format_func(const pilot_workload_t* wl, double reading) {
     return reading;
 }
 
-void pilot_set_pi_unit_reading_format_func(pilot_workload_t* wl, int piid, pilot_pi_unit_reading_format_func_t *f, const char *unit) {
+void pilot_set_pi_info(pilot_workload_t* wl, int piid,
+        const char *pi_name,
+        const char *pi_unit,
+        pilot_pi_reading_format_func_t *rf,
+        pilot_pi_unit_reading_format_func_t *urf) {
     ASSERT_VALID_POINTER(wl);
-    ASSERT_VALID_POINTER(f);
-    wl->unit_reading_format_funcs_[piid] = f;
-    wl->pi_units_[piid] = unit ? string(unit) : string("");
-}
-
-void pilot_set_pi_reading_print_func(pilot_workload_t* wl, int piid, pilot_pi_reading_format_func_t *f, const char *unit) {
-    ASSERT_VALID_POINTER(wl);
-    ASSERT_VALID_POINTER(f);
-    wl->reading_format_funcs_[piid] = f;
-    wl->pi_units_[piid] = unit ? string(unit) : string("");
+    ASSERT_VALID_POINTER(pi_name);
+    // we allow pi_unit be NULL
+    ASSERT_VALID_POINTER(rf);
+    ASSERT_VALID_POINTER(urf);
+    wl->pi_names_[piid] = pi_name ? string(pi_name) : string("");
+    wl->pi_units_[piid] = pi_unit ? string(pi_unit) : string("");
+    wl->reading_format_funcs_[piid] = rf;
+    wl->unit_reading_format_funcs_[piid] = urf;
 }
 
 pilot_workload_t* pilot_new_workload(const char *workload_name) {
@@ -93,21 +100,22 @@ void pilot_set_calc_unit_readings_required_func(pilot_workload_t* wl,
     wl->calc_unit_readings_required_func_ = f;
 }
 
-void pilot_set_num_of_pi(pilot_workload_t* wl, size_t num_of_readings) {
+void pilot_set_num_of_pi(pilot_workload_t* wl, size_t num_of_pi) {
     ASSERT_VALID_POINTER(wl);
     if (wl->num_of_pi_ != 0) {
         fatal_log << "Changing the number of performance indices is not supported";
         abort();
     }
-    wl->num_of_pi_ = num_of_readings;
-    wl->pi_units_.resize(num_of_readings);
-    wl->readings_.resize(num_of_readings);
-    wl->unit_readings_.resize(num_of_readings);
-    wl->warm_up_phase_len_.resize(num_of_readings);
-    wl->total_num_of_unit_readings_.resize(num_of_readings);
-    wl->total_num_of_readings_.resize(num_of_readings);
-    wl->unit_reading_format_funcs_.resize(num_of_readings, &pilot_default_pi_unit_reading_format_func);
-    wl->reading_format_funcs_.resize(num_of_readings, &pilot_default_pi_reading_print_func);
+    wl->num_of_pi_ = num_of_pi;
+    wl->pi_names_.resize(num_of_pi);
+    wl->pi_units_.resize(num_of_pi);
+    wl->readings_.resize(num_of_pi);
+    wl->unit_readings_.resize(num_of_pi);
+    wl->warm_up_phase_len_.resize(num_of_pi);
+    wl->total_num_of_unit_readings_.resize(num_of_pi);
+    wl->total_num_of_readings_.resize(num_of_pi);
+    wl->unit_reading_format_funcs_.resize(num_of_pi, &pilot_default_pi_unit_reading_format_func);
+    wl->reading_format_funcs_.resize(num_of_pi, &pilot_default_pi_reading_format_func);
 }
 
 int pilot_get_num_of_pi(const pilot_workload_t* wl, size_t *p_num_of_pi) {
@@ -251,6 +259,13 @@ int pilot_run_workload(pilot_workload_t *wl) {
             free(unit_readings);
         }
 
+        // refresh TUI
+        if (wl->tui_) {
+            unique_ptr<pilot_workload_info_t> wi(wl->workload_info());
+            *(wl->tui_) << *wi;
+        }
+
+        // handle hooks
         if (wl->hook_post_workload_run_ && !wl->hook_post_workload_run_(wl)) {
             info_log << "post_workload_run hook returns false, exiting";
             result = ERR_STOPPED_BY_HOOK;
@@ -258,6 +273,70 @@ int pilot_run_workload(pilot_workload_t *wl) {
         }
     }
     return result;
+}
+
+int pilot_run_workload_tui(pilot_workload_t *wl) {
+    std::vector<PIInfo> piinfo;
+    for (int piid = 0; piid < wl->num_of_pi_; ++piid) {
+        piinfo.emplace_back(wl->pi_names_[piid], wl->pi_units_[piid],
+                            wl->reading_format_funcs_[piid],
+                            wl->unit_reading_format_funcs_[piid]);
+    }
+
+    unique_ptr<PilotTUI> pilot_tui;
+    try {
+        pilot_tui.reset(new PilotTUI(piinfo));
+    } catch (const tui_exception &ex) {
+        // when TUI can't be constructed, switch back to old plain cout
+        cerr << ex.what() << endl;
+        cerr << "TUI disabled" << endl;
+        return pilot_run_workload(wl);
+    }
+    wl->tui_ = pilot_tui.get();
+    WorkloadRunner<PilotTUI> workload_runner(wl, *pilot_tui);
+    workload_runner.start();
+    pilot_tui->event_loop();
+    workload_runner.join();
+    wl->tui_ = NULL;
+    return workload_runner.get_workload_result();
+}
+
+static void _pilot_ui_printf(pilot_workload_t *wl, const char* prefix, const char* format, va_list args) {
+    ASSERT_VALID_POINTER(prefix);
+    unique_ptr<char[]> buf;
+    va_list args_copy;
+    va_copy(args_copy, args);
+
+    size_t size = vsnprintf(buf.get(), 0, format, args_copy);
+    va_end(args_copy);
+    buf.reset(new char[size + 1]);
+    vsnprintf(buf.get(), size, format, args);
+
+    if (NULL == wl->tui_) {
+        cout << prefix << buf.get();
+    } else {
+        *(wl->tui_) << prefix << buf.get();
+    }
+}
+
+void pilot_ui_printf(pilot_workload_t *wl, const char* format, ...) {
+    va_list args;
+    va_start(args, format);
+    _pilot_ui_printf(wl, "", format, args);
+    va_end(args);
+}
+
+void pilot_ui_printf_hl(pilot_workload_t *wl, const char* format, ...) {
+    va_list args;
+    if (NULL == wl->tui_) {
+        va_start(args, format);
+        _pilot_ui_printf(wl, "", format, args);
+        va_end(args);
+    } else {
+        va_start(args, format);
+        _pilot_ui_printf(wl, "</13>", format, args);
+        va_end(args);
+    }
 }
 
 size_t pilot_get_total_num_of_unit_readings(const pilot_workload_t *wl, int piid) {
@@ -392,17 +471,64 @@ pilot_workload_info_t* pilot_workload_info(const pilot_workload_t *wl, pilot_wor
 
 void pilot_free_workload_info(pilot_workload_info_t *info) {
     ASSERT_VALID_POINTER(info);
-    free(info->total_num_of_unit_readings);
-    free(info->unit_readings_mean);
-    free(info->unit_readings_var);
-    free(info->unit_readings_autocorrelation_coefficient);
-    free(info->unit_readings_optimal_subsession_size);
-    free(info->unit_readings_optimal_subsession_var);
-    free(info->unit_readings_optimal_subsession_autocorrelation_coefficient);
-    free(info->unit_readings_optimal_subsession_confidence_interval);
-    free(info->unit_readings_required_sample_size);
-    free(info->dumb_results_from_readings);
-    free(info);
+    delete info;
+}
+
+void pilot_workload_info_t::_free_all_field() {
+#define FREE_AND_NULL(field) free(field); field = NULL
+
+    FREE_AND_NULL(total_num_of_unit_readings);
+    FREE_AND_NULL(unit_readings_mean);
+    FREE_AND_NULL(unit_readings_var);
+    FREE_AND_NULL(unit_readings_autocorrelation_coefficient);
+    FREE_AND_NULL(unit_readings_optimal_subsession_size);
+    FREE_AND_NULL(unit_readings_optimal_subsession_var);
+    FREE_AND_NULL(unit_readings_optimal_subsession_autocorrelation_coefficient);
+    FREE_AND_NULL(unit_readings_optimal_subsession_confidence_interval);
+    FREE_AND_NULL(unit_readings_required_sample_size);
+    FREE_AND_NULL(dumb_results_from_readings);
+
+#undef FREE_AND_NULL
+}
+
+void pilot_workload_info_t::_copyfrom(const pilot_workload_info_t &a) {
+    num_of_pi = a.num_of_pi;
+    num_of_rounds = a.num_of_rounds;
+
+#define COPY_FIELD(field) field = (typeof(field[0])*)realloc(field, sizeof(field[0]) * num_of_pi); \
+    memcpy(field, a.field, sizeof(field[0]) * num_of_pi)
+
+    COPY_FIELD(total_num_of_unit_readings);
+    COPY_FIELD(unit_readings_mean);
+    COPY_FIELD(unit_readings_var);
+    COPY_FIELD(unit_readings_autocorrelation_coefficient);
+    COPY_FIELD(unit_readings_optimal_subsession_size);
+    COPY_FIELD(unit_readings_optimal_subsession_var);
+    COPY_FIELD(unit_readings_optimal_subsession_autocorrelation_coefficient);
+    COPY_FIELD(unit_readings_optimal_subsession_confidence_interval);
+    COPY_FIELD(unit_readings_required_sample_size);
+    COPY_FIELD(dumb_results_from_readings);
+
+#undef COPY_FIELD
+}
+
+pilot_workload_info_t::pilot_workload_info_t() {
+    memset(this, 0, sizeof(*this));
+}
+
+pilot_workload_info_t::pilot_workload_info_t(const pilot_workload_info_t &a) {
+    memset(this, 0, sizeof(*this));
+    _copyfrom(a);
+}
+
+pilot_workload_info_t::~pilot_workload_info_t() {
+    _free_all_field();
+}
+
+pilot_workload_info_t& pilot_workload_info_t::operator=(const pilot_workload_info_t &a) {
+    _free_all_field();
+    _copyfrom(a);
+    return *this;
 }
 
 void pilot_free_round_info(pilot_round_info_t *info) {
@@ -631,3 +757,5 @@ void pilot_set_required_confidence_interval(pilot_workload_t *wl, double percent
     wl->required_ci_percent_of_mean_ = percent_of_mean;
     wl->required_ci_absolute_value_ = absolute_value;
 }
+
+} // namespace pilot

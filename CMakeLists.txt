@@ -1,13 +1,36 @@
 cmake_minimum_required (VERSION 2.6)
 project (pilot)
+
+###############################################################################
+## VERSION
+
 set (PILOT_VERSION_MAJOR 0)
 set (PILOT_VERSION_MINOR 1)
+
+# configure a header file to pass some of the CMake settings
+# to the source code
+configure_file (
+  "${PROJECT_SOURCE_DIR}/include/config.h.in"
+  "${PROJECT_BINARY_DIR}/config.h"
+  )
+
+# add the binary tree to the search path for include files
+# so that we will find config.h
+include_directories("${PROJECT_BINARY_DIR}")
+
+
+###############################################################################
+## CONFIG BUILD TYPE
 
 if (NOT CMAKE_BUILD_TYPE)
   set (CMAKE_BUILD_TYPE RelWithDebInfo CACHE STRING
       "Choose the type of build, options are: None Debug Release RelWithDebInfo MinSizeRel."
       FORCE)
 endif (NOT CMAKE_BUILD_TYPE)
+
+
+###############################################################################
+## TEST RELATED
 
 find_program( MEMORYCHECK_COMMAND valgrind )
 set( MEMORYCHECK_COMMAND_OPTIONS "--trace-children=yes --leak-check=full" )
@@ -24,20 +47,32 @@ ExternalProject_Add (gtest
   PREFIX ${CMAKE_CURRENT_BINARY_DIR}/gtest
   INSTALL_COMMAND ""
 )
-ExternalProject_Get_Property(gtest source_dir binary_dir)
+ExternalProject_Get_Property(gtest SOURCE_DIR BINARY_DIR)
+set (GTEST_INCLUDE_DIR ${SOURCE_DIR})
+set (GTEST_BINARY_DIR ${BINARY_DIR})
 
-# configure a header file to pass some of the CMake settings
-# to the source code
-configure_file (
-  "${PROJECT_SOURCE_DIR}/include/config.h.in"
-  "${PROJECT_BINARY_DIR}/config.h"
-  )
 
-# add the binary tree to the search path for include files
-# so that we will find TutorialConfig.h
-include_directories("${PROJECT_BINARY_DIR}")
+###############################################################################
+## TUI LIBRARIES
 
-# Enable Boost
+find_package (Curses REQUIRED)
+ExternalProject_Add (cdk
+  URL ftp://invisible-island.net/cdk/cdk.tar.gz
+  PREFIX ${CMAKE_CURRENT_BINARY_DIR}/cdk
+  SOURCE_DIR ${CMAKE_CURRENT_BINARY_DIR}/cdk/src/cdk
+  CONFIGURE_COMMAND "${CMAKE_CURRENT_BINARY_DIR}/cdk/src/cdk/configure"
+  BUILD_COMMAND "make"
+  INSTALL_COMMAND ""
+)
+ExternalProject_Get_Property(cdk SOURCE_DIR BINARY_DIR)
+# BINARY_DIR/include has CDK's cdk_config.h
+set (CDK_INCLUDE_DIR "${SOURCE_DIR}/include" "${BINARY_DIR}/include")
+set (CDK_LIBRARIES "${BINARY_DIR}/libcdk.a" ${CURSES_LIBRARIES})
+
+
+###############################################################################
+## BOOST LIBRARIES
+
 # default is off (using dynamic libraries)
 #set (Boost_USE_STATIC_LIBS        ON)
 #set (Boost_USE_STATIC_RUNTIME     ON)

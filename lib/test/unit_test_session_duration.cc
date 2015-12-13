@@ -38,6 +38,7 @@
 #include "libpilot.h"
 #include <vector>
 
+using namespace pilot;
 using namespace std;
 
 static int g_test_round = 0;

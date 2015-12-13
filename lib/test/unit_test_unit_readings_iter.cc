@@ -38,6 +38,7 @@
 #include "libpilot.h"
 #include <vector>
 
+using namespace pilot;
 using namespace std;
 
 void assert_eq(const vector<double> &exp, pilot_pi_unit_readings_iter_t *iter,

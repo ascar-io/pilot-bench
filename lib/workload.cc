@@ -36,7 +36,7 @@
 #include "libpilot.h"
 #include "libpilotcpp.h"
 #include <sstream>
-#include "workload.h"
+#include "workload.hpp"
 
 using namespace std;
 using namespace pilot;
@@ -123,10 +123,9 @@ size_t pilot_workload_t::calc_next_round_work_amount(void) const {
 
 pilot_workload_info_t* pilot_workload_t::workload_info(pilot_workload_info_t *info) const {
     if (!info) {
-        info = (pilot_workload_info_t*)malloc(sizeof(pilot_workload_info_t));
-        die_if(!info, ERR_NOMEM, string(__func__) + "() cannot allocate memory");
-        memset(info, 0, sizeof(*info));
+        info = new pilot_workload_info_t;
     }
+    info->num_of_pi = num_of_pi_;
     info->num_of_rounds = rounds_;
     info->total_num_of_unit_readings =
             (size_t*)realloc(info->total_num_of_unit_readings, sizeof(info->total_num_of_unit_readings[0]) * num_of_pi_);

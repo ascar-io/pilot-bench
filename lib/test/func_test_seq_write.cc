@@ -49,6 +49,7 @@
 #include <vector>
 #include "../interface_include/libpilot.h"
 
+using namespace pilot;
 using namespace std;
 namespace po = boost::program_options;
 using boost::timer::cpu_timer;
@@ -153,29 +154,31 @@ int workload_func(size_t total_work_amount,
     return 0;
 }
 
-static size_t g_current_round = 0;
+static int g_current_round = 0;
 bool pre_workload_run_hook(pilot_workload_t* wl) {
     g_current_round = pilot_get_num_of_rounds(wl);
-    cout << "Round " << g_current_round << " started with "
-         << pilot_next_round_work_amount(wl) / MEGABYTE << " MB/s work amount ... ";
-    cout.flush();
+    pilot_ui_printf(wl, "Round %d started with %zu MB/s work amount ...\n",
+                    g_current_round, pilot_next_round_work_amount(wl) / MEGABYTE);
     return true;
 }
 
 bool post_workload_run_hook(pilot_workload_t* wl) {
-    cout << "finished" << endl;
-    cout << "Round " << g_current_round << " Summary" << endl;
-    cout << "============================" << endl;
-    char *buf = pilot_text_round_summary(wl, pilot_get_num_of_rounds(wl) - 1);
-    printf("%s\n", buf);
+    stringstream ss;
+    char *buf;
+    ss << "Round finished" << endl;
+    ss << "Round " << g_current_round << " Summary" << endl;
+    ss << "============================" << endl;
+    buf = pilot_text_round_summary(wl, pilot_get_num_of_rounds(wl) - 1);
+    ss << buf;
     pilot_free_text_dump(buf);
 
-    cout << "Workload Summary So Far" << endl;
-    cout << "============================" << endl;
+    ss << "Workload Summary So Far" << endl;
+    ss << "============================" << endl;
     buf = pilot_text_workload_summary(wl);
-    printf("%s\n", buf);
+    ss << buf;
     pilot_free_text_dump(buf);
 
+    pilot_ui_printf(wl, "%s\n", ss.str().c_str());
     return true;
 }
 
@@ -199,6 +202,7 @@ int main(int argc, char **argv) {
                     "confidence level is reached")
             ("output,o", po::value<string>(), "set output file name, can be a device. WARNING: the file will be overwritten if it exists.")
             ("result,r", po::value<string>(), "set result file name, (default to seq-write.csv)")
+            ("no-tui", "disable the text user interface")
             ("warm-up-io,w", po::value<size_t>(), "the number of I/O operations that will be removed from the beginning as the warm-up phase (default to 1/10 of total IO ops)")
             ("verbose,v", "print more debug information")
             ;
@@ -230,7 +234,7 @@ int main(int argc, char **argv) {
         g_fsync = true;
     }
 
-    size_t io_limit = 2048*1024*1024;
+    size_t io_limit = 2048*1024*1024L;
     if (vm.count("output")) {
         g_output_file_name = vm["output"].as<string>();
         cout << "Output file is set to " << g_output_file_name << endl;
@@ -252,7 +256,8 @@ int main(int argc, char **argv) {
         result_file_name = vm["result"].as<string>();
     }
 
-    // fill g_io_buf with some pseudo-random data
+    // fill g_io_buf with some pseudo-random data to prevent some smart SSDs from compressing
+    // the data
     g_io_buf = new char[g_io_size];
     for (size_t i = 0; i < g_io_size; ++i)
         g_io_buf[i] = (char)i + 42;
@@ -283,6 +288,11 @@ int main(int argc, char **argv) {
     else
         init_length = io_limit / 5;
 
+    bool use_tui = true;
+    if (vm.count("no-tui"))
+        use_tui = false;
+
+
 //    size_t warmupio = io_limit / g_io_size / 5;
 //    if (vm.count("warm-up-io")) {
 //        warmupio = vm["warmupio"].as<size_t>();
@@ -292,10 +302,9 @@ int main(int argc, char **argv) {
 //    }
 
     // Starting the actual work
-    cout << "Running benchmark ..." << endl;
     pilot_workload_t *wl = pilot_new_workload("Sequential write");
     pilot_set_num_of_pi(wl, num_of_pi);
-    pilot_set_pi_unit_reading_format_func(wl, 0, &ur_format_func, "MB/s");
+    pilot_set_pi_info(wl, 0, "Write throughput", "MB/s", &pilot_default_pi_reading_format_func, &ur_format_func);
     pilot_set_work_amount_limit(wl, io_limit);
     pilot_set_init_work_amount(wl, init_length);
     pilot_set_workload_func(wl, &workload_func);
@@ -304,12 +313,16 @@ int main(int argc, char **argv) {
     pilot_set_hook_func(wl, PRE_WORKLOAD_RUN, &pre_workload_run_hook);
     pilot_set_hook_func(wl, POST_WORKLOAD_RUN, &post_workload_run_hook);
 
-    int res = pilot_run_workload(wl);
+    int res;
+    if (use_tui)
+        res = pilot_run_workload_tui(wl);
+    else
+        res = pilot_run_workload(wl);
     if (res != 0) {
         cout << pilot_strerror(res) << endl;
         return res;
     }
-    cout << "Benchmark finished" << endl << endl;
+    pilot_ui_printf(wl, "Benchmark finished\n");
 
     //const double* time_readings = pilot_get_pi_unit_readings(wl, time_pi, 0, &num_of_work_units) + warmupio;
     //num_of_work_units -= warmupio;
@@ -320,7 +333,7 @@ int main(int argc, char **argv) {
         cout << pilot_strerror(res) << endl;
         return res;
     }
-    cout << "Benchmark results are saved to " << result_file_name << endl;
+    pilot_ui_printf_hl(wl, "Benchmark results are saved to %s\n", result_file_name.c_str());
     if (pilot_destroy_workload(wl) != 0) {
         cerr << ("pilot_destroy_workload failed");
         abort();

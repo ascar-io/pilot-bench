@@ -1,5 +1,6 @@
 /*
- * benchmark_worker.cc
+ * pilot_workload_runner.hpp: a runner that runs the workload in a
+ * separate thread. It is designed to be used with a UI logger.
  *
  * Copyright (c) 2015, University of California, Santa Cruz, CA, USA.
  * Created by Yan Li <yanli@ucsc.edu, elliot.li.tech@gmail.com>,
@@ -31,22 +32,64 @@
  * OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#ifndef LIB_INTERFACE_INCLUDE_PILOT_WORKLOAD_RUNNER_HPP_
+#define LIB_INTERFACE_INCLUDE_PILOT_WORKLOAD_RUNNER_HPP_
+
+#include <boost/timer/timer.hpp>
 #include <common.h>
-#include "libpilot.h"
+#include <fcntl.h>
+#include "../interface_include/libpilot.h"
+#include <string>
+#include <thread>
 #include <vector>
 
-using namespace pilot;
-using namespace std;
+namespace pilot {
 
-// global variables
-size_t g_current_round = 0;
-void *g_logger;
-size_t g_io_size;
-char *g_io_buf;
-string g_output_file_name;
-bool g_fsync;
-std::string g_result_file_name;
+/**
+ * \brief A workload runner that runs the workload in a separate thread
+ */
+template <class Logger>
+class WorkloadRunner {
+private:
+    Logger           &logger_;
+    pilot_workload_t *wl_;
+    std::thread       thread_;
+    int               benchmark_err_;
 
-double ur_format_func(const pilot_workload_t* wl, double ur) {
-    return double(g_io_size) / ur / MEGABYTE;
-}
+    void thread_func(void) {
+        //! TODO: give me a higher thread execution priority
+        // Starting the actual work
+        logger_ << "Running benchmark ..." << std::endl;
+        int res = pilot_run_workload(wl_);
+        if (res != 0) {
+            logger_ << "</13>" << pilot_strerror(res) << std::endl;
+            benchmark_err_ = res;
+            return;
+        }
+        logger_ << "Benchmark finished" << std::endl << std::endl;
+        benchmark_err_ = 0;
+    }
+public:
+    WorkloadRunner(pilot_workload_t *wl, Logger &logger)
+        : wl_(wl), logger_(logger), benchmark_err_(0) {
+    }
+
+    void start(void) {
+        thread_ = std::thread(&WorkloadRunner::thread_func, this);
+    }
+
+    void join(void) {
+        thread_.join();
+    }
+
+    int get_workload_result() const {
+        return benchmark_err_;
+    }
+
+    ~WorkloadRunner() {
+    }
+};
+
+} // namespace pilot
+
+#endif /* LIB_INTERFACE_INCLUDE_PILOT_WORKLOAD_RUNNER_HPP_ */
