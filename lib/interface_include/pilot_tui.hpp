@@ -34,6 +34,19 @@
 #ifndef LIB_INTERFACE_INCLUDE_PILOT_TUI_HPP_
 #define LIB_INTERFACE_INCLUDE_PILOT_TUI_HPP_
 
+#include <boost/log/core.hpp>
+#include <boost/log/expressions.hpp>
+#include <boost/log/sinks/basic_sink_backend.hpp>
+#include <boost/log/sinks/frontend_requirements.hpp>
+#include <boost/log/sources/severity_logger.hpp>
+#include <boost/log/trivial.hpp>
+#include <boost/log/utility/setup/file.hpp>
+#include <boost/log/utility/setup/common_attributes.hpp>
+#include <boost/shared_ptr.hpp>
+// for fomatting timestamp in log
+#include <boost/log/expressions/formatters/date_time.hpp>
+#include <boost/log/support/date_time.hpp>
+
 #include <cdk.h>
 #include <curses.h>
 #include <exception>
@@ -456,7 +469,7 @@ public:
  * \details This class is thread-safe
  */
 class PilotTUI {
-private:
+protected:
     std::mutex      lock_;
 
     TaskList   task_list_;
@@ -500,6 +513,52 @@ private:
         msg_ss_buf_.str(std::string());
         msg_ss_buf_.clear();
     }
+
+    class PilotTUILogBackend :
+        public boost::log::sinks::basic_formatted_sink_backend<
+            char,
+            boost::log::sinks::concurrent_feeding
+        > {
+    protected:
+        PilotTUI *pilot_tui_;
+    public:
+        explicit PilotTUILogBackend(PilotTUI *p) : pilot_tui_(p) {}
+
+        void consume(boost::log::record_view const& rec, string_type const& msg) {
+            //*pilot_tui_ << rec.attribute_values()["Message"].extract<std::string>() << std::endl;
+            *pilot_tui_ << msg << std::endl;
+        }
+    };
+
+    // set the boost log to use me as the sink
+    void set_logging_sink(void) {
+        namespace logging = boost::log;
+        namespace src = boost::log::sources;
+        namespace sinks = boost::log::sinks;
+        namespace keywords = boost::log::keywords;
+        namespace expr = boost::log::expressions;
+
+        logging::add_common_attributes();
+        boost::shared_ptr< logging::core > core = logging::core::get();
+
+        // Create a backend and attach a stream to it
+        boost::shared_ptr<PilotTUILogBackend> backend = boost::make_shared<PilotTUILogBackend>(this);
+
+        // Wrap it into the frontend and register in the core.
+        // The backend requires synchronization in the frontend.
+        typedef sinks::synchronous_sink<PilotTUILogBackend> sink_t;
+        boost::shared_ptr<sink_t> sink(new sink_t(backend));
+        sink->set_formatter
+        (
+            expr::format("%1%:[%2%] <%3%> %4%")
+                % expr::attr< unsigned int >("LineID")
+                % expr::format_date_time< boost::posix_time::ptime >("TimeStamp", "%Y-%m-%d %H:%M:%S")
+                % logging::trivial::severity
+                % expr::smessage
+        );
+        core->add_sink(sink);
+    }
+
 public:
     PilotTUI(const std::vector<PIInfo> &pi_info_vec) :
         num_of_pi_(pi_info_vec.size()), pi_info_vec_(pi_info_vec),
@@ -521,6 +580,7 @@ public:
         cdk_screen_ = initCDKScreen(curses_win_);
         initCDKColor();
         draw();
+        set_logging_sink();
         refresh();
     }
     ~PilotTUI() {
