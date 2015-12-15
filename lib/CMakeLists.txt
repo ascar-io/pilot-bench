@@ -54,6 +54,8 @@ add_test (NAME unit_test_session_duration
 		  COMMAND unit_test_session_duration)
 add_test (NAME unit_test_unit_readings_iter
 		  COMMAND unit_test_unit_readings_iter)
+add_test (NAME unit_test_readings_warmup_removal
+          COMMAND unit_test_readings_warmup_removal)
 add_test (NAME func_test_seq_write
 		  COMMAND func_test_seq_write -o /tmp/test_output_file)
 
