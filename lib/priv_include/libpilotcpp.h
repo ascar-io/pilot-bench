@@ -40,6 +40,9 @@
 #include <boost/math/distributions/students_t.hpp>
 #include <cmath>
 #include "libpilot.h"
+#include <limits>
+#include <map>
+#include <vector>
 #include "workload.hpp"
 
 namespace pilot {
@@ -49,7 +52,10 @@ double pilot_subsession_cov(InputIterator first, size_t n, size_t q, double samp
     using namespace boost::accumulators;
     accumulator_set< double, features<tag::mean > > cov_acc;
     size_t h = n/q;
-    assert (h >= 2);
+    if (1 == h) {
+        error_log << "cannot calculate covariance for one sample";
+        return -1;
+    }
 
     double uae, ube;
     accumulator_set< double, features<tag::mean > > ua_acc;
@@ -86,8 +92,15 @@ double pilot_subsession_var(InputIterator first, size_t n, size_t q, double samp
 
 template <typename InputIterator>
 double pilot_subsession_autocorrelation_coefficient(InputIterator first, size_t n, size_t q, double sample_mean) {
-    return pilot_subsession_cov(first, n, q, sample_mean) /
-           pilot_subsession_var(first, n, q, sample_mean);
+    double res = pilot_subsession_cov(first, n, q, sample_mean) /
+                 pilot_subsession_var(first, n, q, sample_mean);
+
+    // res can be NaN when the variance is 0, in this case we just return 1,
+    // which means the result is very autocorrelated.
+    if (isnan(res))
+        return 1;
+    else
+        return res;
 }
 
 template <typename InputIterator>
@@ -100,10 +113,21 @@ double pilot_subsession_mean(InputIterator first, size_t n) {
 }
 
 template <typename InputIterator>
-int pilot_optimal_subsession_size(InputIterator first, size_t n, double max_autocorrelation_coefficient = 0.1) {
+int pilot_optimal_subsession_size(InputIterator first, const size_t n,
+                                  double max_autocorrelation_coefficient = 0.1) {
+    if (1 == n) {
+        error_log << "cannot calculate covariance for one sample";
+        return -1;
+    }
     double sm = pilot_subsession_mean(first, n);
-    for (size_t q = 1; q != n + 1; ++q) {
-        if (pilot_subsession_autocorrelation_coefficient(first, n, q, sm) <= max_autocorrelation_coefficient)
+    double cov;
+    for (size_t q = 1; q != n / 2 + 1; ++q) {
+        cov = pilot_subsession_autocorrelation_coefficient(first, n, q, sm);
+        if (cov < 0) {
+            fatal_log << __func__ << "() failed to calculate autocorrelation coefficient. Error code: " << cov;
+            abort();
+        }
+        if (cov <= max_autocorrelation_coefficient)
             return q;
     }
     return -1;
@@ -152,6 +176,82 @@ pilot_optimal_sample_size(InputIterator first, size_t n, double confidence_inter
     size_t ur_req = sample_size_req * q;
     debug_log << "number of unit readings required: " << ur_req;
     return ur_req;
+}
+
+template <typename WorkAmountInputIterator, typename RoundDurationInputIterator>
+int pilot_readings_warmup_removal(size_t rounds, WorkAmountInputIterator round_work_amounts,
+        RoundDurationInputIterator round_durations, float confidence_level,
+        float autocorrelation_coefficient_limit, double *v, double *ci_width) {
+    struct dw_info_t {
+        size_t sum_dw;
+        nanosecond_type sum_dt;
+        std::vector<double> vs; //! the v of all rounds that share the same dw
+        ssize_t calc_q;          //! the calculated optimal size of q
+        double calc_v;          //! the single calculated v
+        double calc_ci_width;   //! the calculated width of confidence interval
+        dw_info_t() : sum_dw(0), sum_dt(0) {}
+    };
+
+    if (rounds < 2) {
+        error_log << __func__ << "(): called without enough input data";
+        return ERR_NOT_ENOUGH_DATA;
+    }
+
+    std::map<size_t, dw_info_t> dw_infos;
+
+    // go through the data and calculate sum_dw, sum_dt for each different dw group
+    size_t prev_work_amount = *round_work_amounts;
+    nanosecond_type prev_round_duration = *round_durations;
+    size_t dw;
+    nanosecond_type dt;
+    size_t total_sum_dw = 0;
+    nanosecond_type total_sum_dt = 0;
+    for (int i = 1; i < rounds; ++i) {
+        ++round_work_amounts;
+        ++round_durations;
+
+        if (*round_work_amounts > prev_work_amount) {
+            dw = *round_work_amounts - prev_work_amount;
+            dt = *round_durations - prev_round_duration;
+        } else {
+            dw = prev_work_amount - *round_work_amounts;
+            dt = prev_round_duration - *round_durations;
+        }
+
+        dw_infos[dw].sum_dw += dw;
+        dw_infos[dw].sum_dt += dt;
+        total_sum_dw += dw;
+        total_sum_dt += dt;
+        dw_infos[dw].vs.push_back(double(dw) / dt);
+
+        prev_work_amount = *round_work_amounts;
+        prev_round_duration = *round_durations;
+    }
+
+    // calculate v and ci_width for each dw group
+    *ci_width = std::numeric_limits<double>::infinity();
+    *v = double(total_sum_dw) / total_sum_dt;
+    bool has_seen_valid_ci = false;
+    for (auto & c : dw_infos) {
+        c.second.calc_v = double(c.second.sum_dw) / c.second.sum_dt;
+        c.second.calc_q = pilot_optimal_subsession_size(c.second.vs.begin(), c.second.vs.size(), autocorrelation_coefficient_limit);
+        if (c.second.calc_q < 0) {
+            c.second.calc_ci_width = std::numeric_limits<double>::infinity();
+        } else {
+            c.second.calc_ci_width =
+                pilot_subsession_confidence_interval(c.second.vs.begin(), c.second.vs.size(),
+                                                     c.second.calc_q, confidence_level);
+        }
+        if (c.second.calc_ci_width < *ci_width) {
+            *ci_width = c.second.calc_ci_width;
+            has_seen_valid_ci = true;
+        }
+    }
+
+    if (has_seen_valid_ci)
+        return 0;
+    else
+        return ERR_NOT_ENOUGH_DATA_FOR_CI;
 }
 
 } // namespace pilot

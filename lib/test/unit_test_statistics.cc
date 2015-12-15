@@ -46,6 +46,11 @@ const vector<double> g_mean_response_time{
     2.27, 1.93, 2.19, 2.04, 1.92, 1.97, 1.65, 1.71, 1.89, 1.70, 1.62, 1.48, 1.55, 1.39, 1.45, 1.67, 1.62, 1.77, 1.88, 1.82, 1.93, 2.09, 2.24, 2.16
 };
 
+TEST(StatisticsUnitTest, CornerCases) {
+    ASSERT_TRUE(pilot_subsession_cov_p(g_mean_response_time.data(), 1, 1, 0) < 0) << "Shouldn't be able to calculate covariance for one sample";
+    ASSERT_TRUE(pilot_optimal_subsession_size_p(g_mean_response_time.data(), 1) < 0) << "Shouldn't be able to calculate optimal subsession size for one sample";
+}
+
 TEST(StatisticsUnitTest, AutocorrelationCoefficient) {
     double sample_mean = pilot_subsession_mean_p(g_mean_response_time.data(), g_mean_response_time.size());
     ASSERT_DOUBLE_EQ(1.756458333333333, sample_mean) << "Mean is wrong";
