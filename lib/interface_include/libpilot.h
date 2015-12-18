@@ -177,26 +177,15 @@ enum pilot_hook_t {
 int pilot_set_hook_func(pilot_workload_t* wl, enum pilot_hook_t hook, general_hook_func_t *f);
 
 /**
- * \brief Type for a function that formats a unit reading for output
- * \details libpilots calls this function whenever it needs to format a unit
- * reading for display. You can set a different function for each PI.
+ * \brief Type for a function that preprocess a number for output
+ * \details There are several hooks of this type used by libpilots to
+ * preprocess a number before rendering it for display. You can set a
+ * different function for each PI.
  * @param[in] wl pointer to the workload struct
  * @param unit_reading the unit reading to display
  * @return a processed number for print
  */
-typedef double pilot_pi_unit_reading_format_func_t(const pilot_workload_t* wl, double unit_reading);
-double pilot_default_pi_unit_reading_format_func(const pilot_workload_t* wl, double unit_reading);
-
-/**
- * \brief Type for a function that formats a reading for output
- * \details libpilots calls this function whenever it needs to format a
- * reading for display. You can set a different function for each PI.
- * @param[in] wl pointer to the workload struct
- * @param reading the unit reading to display
- * @return a processed number for print
- */
-typedef double pilot_pi_reading_format_func_t(const pilot_workload_t* wl, double reading);
-double pilot_default_pi_reading_format_func(const pilot_workload_t* wl, double reading);
+typedef double pilot_pi_display_preprocess_func_t(const pilot_workload_t* wl, double number);
 
 /**
  * \brief Set the information of a PI
@@ -204,14 +193,29 @@ double pilot_default_pi_reading_format_func(const pilot_workload_t* wl, double r
  * @param piid the piid of the PI to change
  * @param[in] pi_name the name of the PI
  * @param[in] pi_unit the unit of the for displaying a reading, like "MB/s"
- * @param rf the function for formatting a reading. Omitting this parameter sets it back to the default function.
- * @param urf the function for formatting a unit reading. Omitting this parameter sets it back to the default function.
+ * @param[in] reading_display_preprocess_func the function for preprocessing a
+ * reading number for display. Setting this parameter to NULL to disable it.
+ * @param[in] unit_reading_display_preprocess_func the function for preprocessing a
+ * unit reading number for display. Setting this parameter to NULL to disable
+ * it.
+ * @param[in] work_per_second_display_preprocess_func the function for
+ * preprocessing a work-per-second number for display. Setting this parameter
+ * to NULL to disable it.
+ * @param reading_must_satisfy set if the reading must satisfy quality
+ * requirements
+ * @param unit_reading_must_satisfy set if the unit readings must satisfy
+ * quality requirements
+ * @param wps_must_satisfy set if the work-per-second must satisfy quality
+ * requirements
  */
 void pilot_set_pi_info(pilot_workload_t* wl, int piid,
         const char *pi_name,
         const char *pi_unit = NULL,
-        pilot_pi_reading_format_func_t *rf = &pilot_default_pi_reading_format_func,
-        pilot_pi_unit_reading_format_func_t *urf = &pilot_default_pi_unit_reading_format_func);
+        pilot_pi_display_preprocess_func_t *reading_display_preprocess_func = NULL,
+        pilot_pi_display_preprocess_func_t *unit_reading_display_preprocess_func = NULL,
+        pilot_pi_display_preprocess_func_t *work_per_second_display_preprocess_func = NULL,
+        bool reading_must_satisfy = false, bool unit_reading_must_satisfy = false,
+        bool wps_must_satisfy = false);
 
 pilot_workload_t* pilot_new_workload(const char *workload_name);
 
@@ -432,7 +436,18 @@ void pilot_set_log_level(pilot_log_level_t log_level);
 double pilot_set_confidence_interval(pilot_workload_t *wl, double ci);
 
 double pilot_subsession_mean_p(const double *data, size_t n);
+
+/**
+ * \brief Calculate the subsession covariance of data
+ * \details n/q must be greater than or equal 2
+ * @param[in] data the input data
+ * @param n the number of samples of data
+ * @param q the subsession size
+ * @param sample_mean the sample mean
+ * @return the calculated covariance
+ */
 double pilot_subsession_cov_p(const double *data, size_t n, size_t q, double sample_mean);
+
 double pilot_subsession_var_p(const double *data, size_t n, size_t q, double sample_mean);
 double pilot_subsession_autocorrelation_coefficient_p(const double *data, size_t n, size_t q, double sample_mean);
 
@@ -503,6 +518,8 @@ struct pilot_workload_info_t {
     double* unit_readings_optimal_subsession_confidence_interval;
     size_t* unit_readings_required_sample_size;
     double* dumb_results_from_readings;
+    double* readings_v;
+    double* readings_v_ci_width;
 #ifdef __cplusplus
     inline void _free_all_field();
     inline void _copyfrom(const pilot_workload_info_t &a);

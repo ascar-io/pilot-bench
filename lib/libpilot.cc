@@ -57,28 +57,26 @@ void pilot_lib_self_check(int vmajor, int vminor, size_t nanosecond_type_size) {
             ERR_LINKED_WRONG_VER, "size of current compiler's int_least64_t does not match the library");
 }
 
-double pilot_default_pi_unit_reading_format_func(const pilot_workload_t* wl, double unit_reading) {
-    return unit_reading;
-}
-
-double pilot_default_pi_reading_format_func(const pilot_workload_t* wl, double reading) {
-    return reading;
-}
-
 void pilot_set_pi_info(pilot_workload_t* wl, int piid,
         const char *pi_name,
         const char *pi_unit,
-        pilot_pi_reading_format_func_t *rf,
-        pilot_pi_unit_reading_format_func_t *urf) {
+        pilot_pi_display_preprocess_func_t *reading_display_preprocess_func,
+        pilot_pi_display_preprocess_func_t *unit_reading_display_preprocess_func,
+        pilot_pi_display_preprocess_func_t *work_per_second_display_preprocess_func,
+        bool reading_must_satisfy, bool unit_reading_must_satisfy,
+        bool wps_must_satisfy)
+{
     ASSERT_VALID_POINTER(wl);
     ASSERT_VALID_POINTER(pi_name);
     // we allow pi_unit be NULL
-    ASSERT_VALID_POINTER(rf);
-    ASSERT_VALID_POINTER(urf);
-    wl->pi_names_[piid] = pi_name ? string(pi_name) : string("");
-    wl->pi_units_[piid] = pi_unit ? string(pi_unit) : string("");
-    wl->reading_format_funcs_[piid] = rf;
-    wl->unit_reading_format_funcs_[piid] = urf;
+    wl->pi_info_[piid].name.assign(pi_name ? pi_name : "");
+    wl->pi_info_[piid].unit.assign(pi_unit ? pi_unit : "");
+    wl->pi_info_[piid].r_format_func = reading_display_preprocess_func;
+    wl->pi_info_[piid].ur_format_func = unit_reading_display_preprocess_func;
+    wl->pi_info_[piid].wps_format_func = work_per_second_display_preprocess_func;
+    wl->pi_info_[piid].reading_must_satisfy = reading_must_satisfy;
+    wl->pi_info_[piid].unit_reading_must_satisfy = unit_reading_must_satisfy;
+    wl->pi_info_[piid].wps_must_satisfy = wps_must_satisfy;
 }
 
 pilot_workload_t* pilot_new_workload(const char *workload_name) {
@@ -107,15 +105,12 @@ void pilot_set_num_of_pi(pilot_workload_t* wl, size_t num_of_pi) {
         abort();
     }
     wl->num_of_pi_ = num_of_pi;
-    wl->pi_names_.resize(num_of_pi);
-    wl->pi_units_.resize(num_of_pi);
+    wl->pi_info_.resize(num_of_pi);
     wl->readings_.resize(num_of_pi);
     wl->unit_readings_.resize(num_of_pi);
     wl->warm_up_phase_len_.resize(num_of_pi);
     wl->total_num_of_unit_readings_.resize(num_of_pi);
     wl->total_num_of_readings_.resize(num_of_pi);
-    wl->unit_reading_format_funcs_.resize(num_of_pi, &pilot_default_pi_unit_reading_format_func);
-    wl->reading_format_funcs_.resize(num_of_pi, &pilot_default_pi_reading_format_func);
 }
 
 int pilot_get_num_of_pi(const pilot_workload_t* wl, size_t *p_num_of_pi) {
@@ -276,16 +271,9 @@ int pilot_run_workload(pilot_workload_t *wl) {
 }
 
 int pilot_run_workload_tui(pilot_workload_t *wl) {
-    std::vector<PIInfo> piinfo;
-    for (int piid = 0; piid < wl->num_of_pi_; ++piid) {
-        piinfo.emplace_back(wl->pi_names_[piid], wl->pi_units_[piid],
-                            wl->reading_format_funcs_[piid],
-                            wl->unit_reading_format_funcs_[piid]);
-    }
-
     unique_ptr<PilotTUI> pilot_tui;
     try {
-        pilot_tui.reset(new PilotTUI(piinfo));
+        pilot_tui.reset(new PilotTUI(&(wl->pi_info_)));
     } catch (const tui_exception &ex) {
         // when TUI can't be constructed, switch back to old plain cout
         cerr << ex.what() << endl;
@@ -485,6 +473,8 @@ void pilot_workload_info_t::_free_all_field() {
     FREE_AND_NULL(unit_readings_optimal_subsession_confidence_interval);
     FREE_AND_NULL(unit_readings_required_sample_size);
     FREE_AND_NULL(dumb_results_from_readings);
+    FREE_AND_NULL(readings_v);
+    FREE_AND_NULL(readings_v_ci_width);
 
 #undef FREE_AND_NULL
 }
@@ -506,6 +496,8 @@ void pilot_workload_info_t::_copyfrom(const pilot_workload_info_t &a) {
     COPY_FIELD(unit_readings_optimal_subsession_confidence_interval);
     COPY_FIELD(unit_readings_required_sample_size);
     COPY_FIELD(dumb_results_from_readings);
+    COPY_FIELD(readings_v);
+    COPY_FIELD(readings_v_ci_width);
 
 #undef COPY_FIELD
 }

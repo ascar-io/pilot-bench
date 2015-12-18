@@ -42,9 +42,33 @@
 #include <vector>
 #include "common.h"
 #include "libpilot.h"
-#include "pilot_tui.hpp"
 
 namespace pilot {
+
+class PilotTUI;
+
+class PIInfo {
+public:
+    std::string name;
+    std::string unit;
+    pilot_pi_display_preprocess_func_t *r_format_func;
+    pilot_pi_display_preprocess_func_t *ur_format_func;
+    pilot_pi_display_preprocess_func_t *wps_format_func;
+    bool reading_must_satisfy;
+    bool unit_reading_must_satisfy;
+    bool wps_must_satisfy;
+
+    PIInfo(std::string _name = "", std::string _unit = "",
+           pilot_pi_display_preprocess_func_t *_r_format_func = NULL,
+           pilot_pi_display_preprocess_func_t *_ur_format_func = NULL,
+           pilot_pi_display_preprocess_func_t *_wps_format_func = NULL,
+           bool _r_sat = false, bool _ur_sat = false,
+           bool _wps_sat = false) :
+        name(_name), unit(_unit), r_format_func(_r_format_func),
+        ur_format_func(_ur_format_func), wps_format_func(_wps_format_func),
+        reading_must_satisfy(_r_sat), unit_reading_must_satisfy(_ur_sat),
+        wps_must_satisfy(_wps_sat) {}
+};
 
 struct pilot_workload_t {
     std::string workload_name_;
@@ -58,8 +82,7 @@ struct pilot_workload_t {
     size_t init_work_amount_;
     size_t work_amount_limit_;
     pilot_workload_func_t *workload_func_;
-    std::vector<std::string> pi_names_;
-    std::vector<std::string> pi_units_;
+    std::vector<PIInfo> pi_info_;
     PilotTUI *tui_;
 
     std::vector<boost::timer::nanosecond_type> round_durations_; //! The duration of each round
@@ -87,8 +110,6 @@ struct pilot_workload_t {
     calc_readings_required_func_t *calc_readings_required_func_;      //! The hook function that calculates how many readings (samples) are needed
     general_hook_func_t *hook_pre_workload_run_;
     general_hook_func_t *hook_post_workload_run_;
-    std::vector<pilot_pi_unit_reading_format_func_t*> unit_reading_format_funcs_;
-    std::vector<pilot_pi_reading_format_func_t*> reading_format_funcs_;
 
     pilot_workload_t(const char *wl_name) :
                          num_of_pi_(0), rounds_(0), init_work_amount_(0),
@@ -187,11 +208,28 @@ struct pilot_workload_t {
      */
     char* text_workload_summary(void) const;
 
-    inline double format_unit_reading(const int piid, const double ur) const {
-        return unit_reading_format_funcs_[piid](this, ur);
+    inline double format_reading(const int piid, const double r) const {
+        if (pi_info_[piid].r_format_func) {
+            return pi_info_[piid].r_format_func(this, r);
+        } else {
+            return r;
+        }
     }
-    inline double format_reading(const int piid, const double ur) const {
-        return reading_format_funcs_[piid](this, ur);
+
+    inline double format_unit_reading(const int piid, const double ur) const {
+        if (pi_info_[piid].ur_format_func) {
+            return pi_info_[piid].ur_format_func(this, ur);
+        } else {
+            return ur;
+        }
+    }
+
+    inline double format_wps(const int piid, const double wps) const {
+        if (pi_info_[piid].wps_format_func) {
+            return pi_info_[piid].wps_format_func(this, wps);
+        } else {
+            return wps;
+        }
     }
 };
 

@@ -54,7 +54,7 @@ double pilot_subsession_cov(InputIterator first, size_t n, size_t q, double samp
     size_t h = n/q;
     if (1 == h) {
         error_log << "cannot calculate covariance for one sample";
-        return -1;
+        abort();
     }
 
     double uae, ube;
@@ -123,10 +123,6 @@ int pilot_optimal_subsession_size(InputIterator first, const size_t n,
     double cov;
     for (size_t q = 1; q != n / 2 + 1; ++q) {
         cov = pilot_subsession_autocorrelation_coefficient(first, n, q, sm);
-        if (cov < 0) {
-            fatal_log << __func__ << "() failed to calculate autocorrelation coefficient. Error code: " << cov;
-            abort();
-        }
         if (cov <= max_autocorrelation_coefficient)
             return q;
     }
@@ -192,6 +188,8 @@ int pilot_readings_warmup_removal(size_t rounds, WorkAmountInputIterator round_w
         dw_info_t() : sum_dw(0), sum_dt(0) {}
     };
 
+    *v = -1; *ci_width = -1;
+
     if (rounds < 2) {
         error_log << __func__ << "(): called without enough input data";
         return ERR_NOT_ENOUGH_DATA;
@@ -230,28 +228,36 @@ int pilot_readings_warmup_removal(size_t rounds, WorkAmountInputIterator round_w
 
     // calculate v and ci_width for each dw group
     *ci_width = std::numeric_limits<double>::infinity();
-    *v = double(total_sum_dw) / total_sum_dt;
+    *v = (double(total_sum_dw) / total_sum_dt) * ONE_SECOND;
     bool has_seen_valid_ci = false;
     for (auto & c : dw_infos) {
         c.second.calc_v = double(c.second.sum_dw) / c.second.sum_dt;
+        if (c.second.vs.size() < 2) {
+            // sample size too small
+            c.second.calc_q = -1;
+            c.second.calc_ci_width = -1;
+            continue;
+        }
         c.second.calc_q = pilot_optimal_subsession_size(c.second.vs.begin(), c.second.vs.size(), autocorrelation_coefficient_limit);
         if (c.second.calc_q < 0) {
-            c.second.calc_ci_width = std::numeric_limits<double>::infinity();
+            c.second.calc_ci_width = -1;
         } else {
             c.second.calc_ci_width =
                 pilot_subsession_confidence_interval(c.second.vs.begin(), c.second.vs.size(),
                                                      c.second.calc_q, confidence_level);
         }
         if (c.second.calc_ci_width < *ci_width) {
-            *ci_width = c.second.calc_ci_width;
+            *ci_width = c.second.calc_ci_width * ONE_SECOND;
             has_seen_valid_ci = true;
         }
     }
 
     if (has_seen_valid_ci)
         return 0;
-    else
+    else {
+        *ci_width = -1;
         return ERR_NOT_ENOUGH_DATA_FOR_CI;
+    }
 }
 
 } // namespace pilot

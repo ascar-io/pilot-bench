@@ -57,6 +57,7 @@
 #include <string>
 #include <term.h>
 #include <vector>
+#include "workload.hpp"
 
 namespace pilot {
 
@@ -204,21 +205,6 @@ public:
     }
 };
 
-class PIInfo {
-public:
-    std::string pi_name;
-    std::string pi_unit;
-    pilot_pi_reading_format_func_t *pi_r_format_func;
-    pilot_pi_unit_reading_format_func_t *pi_ur_format_func;
-
-    PIInfo(std::string name, std::string unit,
-           pilot_pi_reading_format_func_t *r_format_func,
-           pilot_pi_unit_reading_format_func_t *ur_format_func) :
-        pi_name(name), pi_unit(unit), pi_r_format_func(r_format_func),
-        pi_ur_format_func(ur_format_func)
-    {}
-};
-
 class SummaryBox : public BoxedWidget {
 private:
     const std::vector<PIInfo> * const pi_info_vec_p_;
@@ -286,10 +272,10 @@ private:
             draw_data_line("total rounds: ", wi_.num_of_rounds, "");
             for (int piid = 0; piid < wi_.num_of_pi; ++piid) {
                 const char pi_separator[] = " Perf. Index ";
-                const std::string &pi_name = (*pi_info_vec_p_)[piid].pi_name;
-                const std::string &pi_unit = std::string(" ") + (*pi_info_vec_p_)[piid].pi_unit;
-                pilot_pi_unit_reading_format_func_t *pi_format_func =
-                        (*pi_info_vec_p_)[piid].pi_ur_format_func;
+                const std::string &pi_name = (*pi_info_vec_p_)[piid].name;
+                const std::string &pi_unit = std::string(" ") + (*pi_info_vec_p_)[piid].unit;
+                pilot_pi_display_preprocess_func_t *pi_format_func =
+                        (*pi_info_vec_p_)[piid].ur_format_func;
 
                 // draw the PI name as the separator
                 // decor is the ====== in the PI separator
@@ -394,7 +380,22 @@ private:
                 draw_buf_ << tail;
                 flush_buf_new_line();
 
-                draw_data_line("naive result: ", wi_.dumb_results_from_readings[piid] / MEGABYTE, pi_unit);
+                draw_buf_ << "WORK-PER-SECOND ANALYSIS:";
+                flush_buf_new_line();
+                draw_data_line("naive result: ", wi_.dumb_results_from_readings[piid], pi_unit);
+                if (wi_.readings_v[piid] > 0) {
+                    draw_data_line("warm-up removed v: ", wi_.readings_v[piid], pi_unit);
+                    if (wi_.readings_v_ci_width > 0) {
+                        draw_data_line("CI width: ", wi_.readings_v_ci_width[piid], pi_unit);
+                    } else {
+                        draw_buf_ << "Not enough data for CI analysis";
+                        flush_buf_new_line();
+                    }
+                } else {
+                    draw_buf_ << "Not enough data for WPS analysis"
+                            "";
+                    flush_buf_new_line();
+                }
             } /* loop for all PI */
 
             // if this refresh cycle has fewer lines than previous cycle,
@@ -473,8 +474,7 @@ protected:
     std::mutex      lock_;
 
     TaskList   task_list_;
-    std::vector<PIInfo> pi_info_vec_;
-    const int   num_of_pi_;
+    const std::vector<PIInfo> *pi_info_vec_p_;
 
     WINDOW     *curses_win_;
     CDKSCREEN  *cdk_screen_;
@@ -560,8 +560,8 @@ protected:
     }
 
 public:
-    PilotTUI(const std::vector<PIInfo> &pi_info_vec) :
-        num_of_pi_(pi_info_vec.size()), pi_info_vec_(pi_info_vec),
+    PilotTUI(const std::vector<PIInfo> *pi_info_vec_p) :
+        pi_info_vec_p_(pi_info_vec_p),
         task_box_height_(task_list_.size() + 2),
         title_bar_(NULL), progress_bar_(NULL), task_box_(NULL),
         summary_box_(NULL), msg_box_(NULL) {
@@ -629,7 +629,7 @@ public:
         summary_box_ = new SummaryBox(LINES - task_box_height_ - 2,
                                       left_col_width_,
                                       task_box_height_ + 1,
-                                      0, &pi_info_vec_);
+                                      0, pi_info_vec_p_);
         msg_box_ = new MsgBox(cdk_screen_, LINES - 2, COLS - left_col_width_, 1, left_col_width_);
     }
     void refresh() {

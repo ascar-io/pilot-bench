@@ -127,24 +127,24 @@ pilot_workload_info_t* pilot_workload_t::workload_info(pilot_workload_info_t *in
     }
     info->num_of_pi = num_of_pi_;
     info->num_of_rounds = rounds_;
-    info->total_num_of_unit_readings =
-            (size_t*)realloc(info->total_num_of_unit_readings, sizeof(info->total_num_of_unit_readings[0]) * num_of_pi_);
-    info->unit_readings_mean = (double*)realloc(info->unit_readings_mean, sizeof(info->unit_readings_mean[0]) * num_of_pi_);
-    info->unit_readings_var = (double*)realloc(info->unit_readings_var, sizeof(info->unit_readings_var[0]) * num_of_pi_);
-    info->unit_readings_autocorrelation_coefficient =
-            (double*)realloc(info->unit_readings_autocorrelation_coefficient, sizeof(info->unit_readings_autocorrelation_coefficient[0]) * num_of_pi_);
-    info->unit_readings_optimal_subsession_size =
-            (size_t*)realloc(info->unit_readings_optimal_subsession_size, sizeof(info->unit_readings_optimal_subsession_size[0]) * num_of_pi_);
-    info->unit_readings_optimal_subsession_var =
-            (double*)realloc(info->unit_readings_optimal_subsession_var, sizeof(info->unit_readings_optimal_subsession_var[0]) * num_of_pi_);
-    info->unit_readings_optimal_subsession_autocorrelation_coefficient =
-            (double*)realloc(info->unit_readings_optimal_subsession_autocorrelation_coefficient, sizeof(info->unit_readings_optimal_subsession_autocorrelation_coefficient[0]) * num_of_pi_);
-    info->unit_readings_optimal_subsession_confidence_interval =
-            (double*)realloc(info->unit_readings_optimal_subsession_confidence_interval, sizeof(info->unit_readings_optimal_subsession_confidence_interval[0]) * num_of_pi_);
-    info->unit_readings_required_sample_size =
-            (size_t*)realloc(info->unit_readings_required_sample_size, sizeof(info->unit_readings_required_sample_size[0]) * num_of_pi_);
-    info->dumb_results_from_readings =
-            (double*)realloc(info->dumb_results_from_readings, sizeof(info->dumb_results_from_readings[0]) * num_of_pi_);
+
+#define INIT_FIELD(field) field = (typeof(field[0])*)realloc(field, sizeof(field[0]) * num_of_pi_)
+
+    INIT_FIELD(info->total_num_of_unit_readings);
+    INIT_FIELD(info->unit_readings_mean);
+    INIT_FIELD(info->unit_readings_var);
+    INIT_FIELD(info->unit_readings_autocorrelation_coefficient);
+    INIT_FIELD(info->unit_readings_optimal_subsession_size);
+    INIT_FIELD(info->unit_readings_optimal_subsession_var);
+    INIT_FIELD(info->unit_readings_optimal_subsession_autocorrelation_coefficient);
+    INIT_FIELD(info->unit_readings_optimal_subsession_confidence_interval);
+    INIT_FIELD(info->unit_readings_required_sample_size);
+    INIT_FIELD(info->dumb_results_from_readings);
+    INIT_FIELD(info->readings_v);
+    INIT_FIELD(info->readings_v_ci_width);
+
+#undef COPY_FIELD
+
     for (int piid = 0; piid < num_of_pi_; ++piid) {
         double sm = unit_readings_mean(piid);
         info->total_num_of_unit_readings[piid] = total_num_of_unit_readings_[piid];
@@ -169,6 +169,11 @@ pilot_workload_info_t* pilot_workload_t::workload_info(pilot_workload_info_t *in
         double sum_of_readings = 0;
         for (auto r : readings_[piid]) sum_of_readings += r;
         info->dumb_results_from_readings[piid] = sum_of_work_amount / sum_of_readings;
+
+        pilot_readings_warmup_removal(work_amount_per_round_.size(), work_amount_per_round_.begin(),
+                                      round_durations_.begin(), confidence_interval_,
+                                      autocorrelation_coefficient_limit_,
+                                      &(info->readings_v[piid]), &(info->readings_v_ci_width[piid]));
     }
     return info;
 }
@@ -227,9 +232,9 @@ char* pilot_workload_t::text_workload_summary(void) const {
         s << "sample size: " << cur_ur << endl;
         if (0 == cur_ur)
             continue;
-        s << "sample mean: " << format_unit_reading(piid, sm) << " " << pi_units_[piid] << endl;
+        s << "sample mean: " << format_unit_reading(piid, sm) << " " << pi_info_[piid].unit << endl;
         double var_rt = var / sm;
-        s << "sample variance: " << format_unit_reading(piid, sm) * var_rt << " " << pi_units_[piid] << endl;
+        s << "sample variance: " << format_unit_reading(piid, sm) * var_rt << " " << pi_info_[piid].unit << endl;
         s << "sample variance to sample mean ratio: " << var_rt * 100 << "%" << endl;
         s << "sample autocorrelation coefficient: " << i->unit_readings_autocorrelation_coefficient[piid] << endl;
         size_t q = i->unit_readings_optimal_subsession_size[piid];
@@ -253,9 +258,9 @@ char* pilot_workload_t::text_workload_summary(void) const {
         double ci_rt = ci / sm;
         double ci_low = format_unit_reading(piid, sm) * (1 - ci_rt/2);
         double ci_high = format_unit_reading(piid, sm) * (1 + ci_rt/2) ;
-        s << "95% confidence interval width: " << ci_high - ci_low << " " << pi_units_[piid] << endl;
+        s << "95% confidence interval width: " << ci_high - ci_low << " " << pi_info_[piid].unit << endl;
         s << "95% confidence interval width is " << ci_rt * 100 << "% of sample_mean" << endl;
-        s << "95% confidence interval: [" << ci_low << ", " << ci_high << "] " << pi_units_[piid] << endl;
+        s << "95% confidence interval: [" << ci_low << ", " << ci_high << "] " << pi_info_[piid].unit << endl;
     }
 //    cout << "dumb throughput (io_limit / total_elapsed_time) (MB/s): [";
 //    const double* tp_readings = pilot_get_pi_readings(wl, tp_pi);

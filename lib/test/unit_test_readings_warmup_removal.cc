@@ -75,11 +75,13 @@ static void prepare_data(const vector<size_t> &work_amounts,
 TEST(WarmUpRemoval, NotEnoughInputData) {
     const vector<size_t> work_amounts {50};
     const vector<nanosecond_type> total_durations {ONE_SECOND};
-    double v, ci_width;
+    double v = 1, ci_width = 1;
     ASSERT_EQ(ERR_NOT_ENOUGH_DATA,
               pilot_readings_warmup_removal_p(work_amounts.size(), work_amounts.data(),
                                               total_durations.data(), .95, numeric_limits<double>::infinity(),
                                               &v, &ci_width));
+    ASSERT_TRUE(v < 0) << "v should be set to a negative number";
+    ASSERT_TRUE(ci_width < 0) << "ci_width should be set to a negative number";
 }
 
 TEST(WarmUpRemoval, ReadingsWithFixedSetupAndWarmupDurationIdenticalDiffWorkAmounts) {
@@ -103,7 +105,7 @@ TEST(WarmUpRemoval, ReadingsWithFixedSetupAndWarmupDurationIdenticalDiffWorkAmou
               pilot_readings_warmup_removal_p(work_amounts.size(), work_amounts.data(),
                                               total_durations.data(), .95, numeric_limits<double>::infinity(),
                                               &calc_v, &calc_ci_width));
-    ASSERT_NEAR(v, calc_v * ONE_SECOND, 0.00000001);
+    ASSERT_NEAR(v, calc_v, 0.00000001);
     ASSERT_DOUBLE_EQ(0, calc_ci_width);
 }
 
@@ -126,6 +128,6 @@ TEST(WarmUpRemoval, ReadingsWithFixedSetupAndWarmupDurationChangingDiffWorkAmoun
     pilot_readings_warmup_removal_p(work_amounts.size(), work_amounts.data(),
                                     total_durations.data(), .95, numeric_limits<double>::infinity(),
                                     &calc_v, &calc_ci_width);
-    ASSERT_NEAR(v, calc_v * ONE_SECOND, 0.00000001);
+    ASSERT_NEAR(v, calc_v, 0.00000001);
     ASSERT_DOUBLE_EQ(0, calc_ci_width);
 }
