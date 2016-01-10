@@ -85,14 +85,14 @@ pilot_workload_t* pilot_new_workload(const char *workload_name) {
 }
 
 void pilot_set_calc_readings_required_func(pilot_workload_t* wl,
-        calc_readings_required_func_t *f) {
+        calc_from_data_func_t *f) {
     ASSERT_VALID_POINTER(wl);
     ASSERT_VALID_POINTER(f);
     wl->calc_readings_required_func_ = f;
 }
 
 void pilot_set_calc_unit_readings_required_func(pilot_workload_t* wl,
-        calc_readings_required_func_t *f) {
+        calc_from_data_func_t *f) {
     ASSERT_VALID_POINTER(wl);
     ASSERT_VALID_POINTER(f);
     wl->calc_unit_readings_required_func_ = f;
