@@ -47,8 +47,8 @@ const vector<double> g_mean_response_time{
 };
 
 TEST(StatisticsUnitTest, CornerCases) {
-    ASSERT_TRUE(pilot_subsession_cov_p(g_mean_response_time.data(), 1, 1, 0) < 0) << "Shouldn't be able to calculate covariance for one sample";
-    ASSERT_TRUE(pilot_optimal_subsession_size_p(g_mean_response_time.data(), 1) < 0) << "Shouldn't be able to calculate optimal subsession size for one sample";
+    ASSERT_DEATH(pilot_subsession_cov_p(g_mean_response_time.data(), 1, 1, 0), "") << "Shouldn't be able to calculate covariance for one sample";
+    ASSERT_DEATH(pilot_optimal_subsession_size_p(g_mean_response_time.data(), 1), "") << "Shouldn't be able to calculate optimal subsession size for one sample";
 }
 
 TEST(StatisticsUnitTest, AutocorrelationCoefficient) {

@@ -304,7 +304,7 @@ int main(int argc, char **argv) {
     // Starting the actual work
     pilot_workload_t *wl = pilot_new_workload("Sequential write");
     pilot_set_num_of_pi(wl, num_of_pi);
-    pilot_set_pi_info(wl, 0, "Write throughput", "MB/s");
+    pilot_set_pi_info(wl, 0, "Write throughput", "MB/s", NULL, ur_format_func);
     pilot_set_work_amount_limit(wl, io_limit);
     pilot_set_init_work_amount(wl, init_length);
     pilot_set_workload_func(wl, &workload_func);

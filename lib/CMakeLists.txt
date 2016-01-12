@@ -57,6 +57,6 @@ add_test (NAME unit_test_unit_readings_iter
 add_test (NAME unit_test_readings_warmup_removal
           COMMAND unit_test_readings_warmup_removal)
 add_test (NAME func_test_seq_write
-		  COMMAND func_test_seq_write -o /tmp/test_output_file)
+		  COMMAND func_test_seq_write -o /tmp/test_output_file --no-tui)
 
 install (DIRECTORY interface_include DESTINATION include/pilot)
