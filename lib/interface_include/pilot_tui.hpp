@@ -271,7 +271,6 @@ private:
         if (wi_.num_of_pi != 0) {
             draw_data_line("total rounds: ", wi_.num_of_rounds, "");
             for (int piid = 0; piid < wi_.num_of_pi; ++piid) {
-                const char pi_separator[] = " Perf. Index ";
                 const std::string &pi_name = (*pi_info_vec_p_)[piid].name;
                 const std::string &pi_unit = std::string(" ") + (*pi_info_vec_p_)[piid].unit;
                 pilot_pi_display_preprocess_func_t *pi_format_func =
