@@ -471,7 +471,7 @@ double pilot_subsession_autocorrelation_coefficient_p(const double *data, size_t
  * for calculate v; ERR_NOT_ENOUGH_DATA_FOR_CI when there is enough data for
  * calculating v but not enough for calculating confidence interval.
  */
-int pilot_readings_warmup_removal_p(size_t rounds, const size_t *round_work_amounts,
+int pilot_readings_warmup_removal_dw_method_p(size_t rounds, const size_t *round_work_amounts,
         const nanosecond_type *round_durations, float confidence_level,
         float autocorrelation_coefficient_limit, double *v, double *ci_width);
 
@@ -508,6 +508,19 @@ pilot_round_info_t* pilot_round_info(const pilot_workload_t *wl, size_t round, p
 struct pilot_workload_info_t {
     size_t  num_of_pi;
     size_t  num_of_rounds;
+    // Readings analysis
+    double* readings_naive_mean;  //! this is the native mean of all readings so far (before warm-up removal)
+    double* readings_v_dw_method;           //! readings after warm-up removal using the dw_method
+    double* readings_v_ci_width;
+    double* readings_mean;
+    double* readings_var;
+    double* readings_autocorrelation_coefficient;
+    size_t* readings_optimal_subsession_size;
+    double* readings_optimal_subsession_var;
+    double* readings_optimal_subsession_autocorrelation_coefficient;
+    double* readings_optimal_subsession_confidence_interval;
+    size_t* readings_required_sample_size;
+    // Unit-readings analysis
     size_t* total_num_of_unit_readings;
     double* unit_readings_mean;
     double* unit_readings_var;
@@ -517,9 +530,6 @@ struct pilot_workload_info_t {
     double* unit_readings_optimal_subsession_autocorrelation_coefficient;
     double* unit_readings_optimal_subsession_confidence_interval;
     size_t* unit_readings_required_sample_size;
-    double* dumb_results_from_readings;
-    double* readings_v;
-    double* readings_v_ci_width;
 #ifdef __cplusplus
     inline void _free_all_field();
     inline void _copyfrom(const pilot_workload_info_t &a);

@@ -472,8 +472,8 @@ void pilot_workload_info_t::_free_all_field() {
     FREE_AND_NULL(unit_readings_optimal_subsession_autocorrelation_coefficient);
     FREE_AND_NULL(unit_readings_optimal_subsession_confidence_interval);
     FREE_AND_NULL(unit_readings_required_sample_size);
-    FREE_AND_NULL(dumb_results_from_readings);
-    FREE_AND_NULL(readings_v);
+    FREE_AND_NULL(readings_naive_mean);
+    FREE_AND_NULL(readings_v_dw_method);
     FREE_AND_NULL(readings_v_ci_width);
 
 #undef FREE_AND_NULL
@@ -495,8 +495,8 @@ void pilot_workload_info_t::_copyfrom(const pilot_workload_info_t &a) {
     COPY_FIELD(unit_readings_optimal_subsession_autocorrelation_coefficient);
     COPY_FIELD(unit_readings_optimal_subsession_confidence_interval);
     COPY_FIELD(unit_readings_required_sample_size);
-    COPY_FIELD(dumb_results_from_readings);
-    COPY_FIELD(readings_v);
+    COPY_FIELD(readings_naive_mean);
+    COPY_FIELD(readings_v_dw_method);
     COPY_FIELD(readings_v_ci_width);
 
 #undef COPY_FIELD
@@ -579,13 +579,13 @@ pilot_optimal_sample_size_p(const double *data, size_t n,
                                      max_autocorrelation_coefficient);
 }
 
-int pilot_readings_warmup_removal_p(size_t rounds, const size_t *round_work_amounts,
+int pilot_readings_warmup_removal_dw_method_p(size_t rounds, const size_t *round_work_amounts,
         const nanosecond_type *round_durations, float confidence_level,
         float autocorrelation_coefficient_limit, double *v, double *ci_width) {
-    return pilot_readings_warmup_removal(rounds, round_work_amounts,
-                                         round_durations, confidence_level,
-                                         autocorrelation_coefficient_limit,
-                                         v, ci_width);
+    return pilot_readings_warmup_removal_dw_method(rounds, round_work_amounts,
+                                                   round_durations, confidence_level,
+                                                   autocorrelation_coefficient_limit,
+                                                   v, ci_width);
 }
 
 ssize_t pilot_warm_up_removal_detect(const pilot_workload_t *wl,

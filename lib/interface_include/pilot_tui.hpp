@@ -287,6 +287,11 @@ private:
                 use_default_color();
                 flush_buf_new_line();
 
+                draw_buf_ << "READINGS ANALYSIS";
+                flush_buf_new_line();
+
+                draw_buf_ << "UNIT-READINGS ANALYSIS";
+                flush_buf_new_line();
                 size_t cur_ur = wi_.total_num_of_unit_readings[piid];
                 draw_data_line("sample size: ", cur_ur, "");
                 if (0 == wi_.total_num_of_unit_readings[piid]) continue;
@@ -381,9 +386,9 @@ private:
 
                 draw_buf_ << "WORK-PER-SECOND ANALYSIS:";
                 flush_buf_new_line();
-                draw_data_line("naive result: ", wi_.dumb_results_from_readings[piid], pi_unit);
-                if (wi_.readings_v[piid] > 0) {
-                    draw_data_line("warm-up removed v: ", wi_.readings_v[piid], pi_unit);
+                draw_data_line("naive result: ", wi_.readings_naive_mean[piid], pi_unit);
+                if (wi_.readings_v_dw_method[piid] > 0) {
+                    draw_data_line("warm-up removed v: ", wi_.readings_v_dw_method[piid], pi_unit);
                     if (wi_.readings_v_ci_width > 0) {
                         draw_data_line("CI width: ", wi_.readings_v_ci_width[piid], pi_unit);
                     } else {

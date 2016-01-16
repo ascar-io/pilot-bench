@@ -174,8 +174,20 @@ pilot_optimal_sample_size(InputIterator first, size_t n, double confidence_inter
     return ur_req;
 }
 
+/**
+ * Perform warm-up phase detection and removal on readings using the (now
+ * deprecated) dw method
+ * @param rounds
+ * @param round_work_amounts
+ * @param round_durations
+ * @param confidence_level
+ * @param autocorrelation_coefficient_limit
+ * @param v
+ * @param ci_width
+ * @return
+ */
 template <typename WorkAmountInputIterator, typename RoundDurationInputIterator>
-int pilot_readings_warmup_removal(size_t rounds, WorkAmountInputIterator round_work_amounts,
+int pilot_readings_warmup_removal_dw_method(size_t rounds, WorkAmountInputIterator round_work_amounts,
         RoundDurationInputIterator round_durations, float confidence_level,
         float autocorrelation_coefficient_limit, double *v, double *ci_width) {
     struct dw_info_t {

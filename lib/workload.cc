@@ -139,8 +139,8 @@ pilot_workload_info_t* pilot_workload_t::workload_info(pilot_workload_info_t *in
     INIT_FIELD(info->unit_readings_optimal_subsession_autocorrelation_coefficient);
     INIT_FIELD(info->unit_readings_optimal_subsession_confidence_interval);
     INIT_FIELD(info->unit_readings_required_sample_size);
-    INIT_FIELD(info->dumb_results_from_readings);
-    INIT_FIELD(info->readings_v);
+    INIT_FIELD(info->readings_naive_mean);
+    INIT_FIELD(info->readings_v_dw_method);
     INIT_FIELD(info->readings_v_ci_width);
 
 #undef COPY_FIELD
@@ -168,12 +168,13 @@ pilot_workload_info_t* pilot_workload_t::workload_info(pilot_workload_info_t *in
         for (auto s : work_amount_per_round_) sum_of_work_amount += s;
         double sum_of_readings = 0;
         for (auto r : readings_[piid]) sum_of_readings += r;
-        info->dumb_results_from_readings[piid] = sum_of_work_amount / sum_of_readings;
+        info->readings_naive_mean[piid] = sum_of_work_amount / sum_of_readings;
 
-        pilot_readings_warmup_removal(work_amount_per_round_.size(), work_amount_per_round_.begin(),
-                                      round_durations_.begin(), confidence_interval_,
-                                      autocorrelation_coefficient_limit_,
-                                      &(info->readings_v[piid]), &(info->readings_v_ci_width[piid]));
+        pilot_readings_warmup_removal_dw_method(work_amount_per_round_.size(),
+                work_amount_per_round_.begin(),
+                round_durations_.begin(), confidence_interval_,
+                autocorrelation_coefficient_limit_,
+                &(info->readings_v_dw_method[piid]), &(info->readings_v_ci_width[piid]));
     }
     return info;
 }
