@@ -71,9 +71,9 @@ void pilot_set_pi_info(pilot_workload_t* wl, int piid,
     // we allow pi_unit be NULL
     wl->pi_info_[piid].name.assign(pi_name ? pi_name : "");
     wl->pi_info_[piid].unit.assign(pi_unit ? pi_unit : "");
-    wl->pi_info_[piid].r_format_func = reading_display_preprocess_func;
-    wl->pi_info_[piid].ur_format_func = unit_reading_display_preprocess_func;
-    wl->pi_info_[piid].wps_format_func = work_per_second_display_preprocess_func;
+    wl->pi_info_[piid].format_reading.format_func_ = reading_display_preprocess_func;
+    wl->pi_info_[piid].format_unit_reading.format_func_ = unit_reading_display_preprocess_func;
+    wl->pi_info_[piid].format_wps.format_func_ = work_per_second_display_preprocess_func;
     wl->pi_info_[piid].reading_must_satisfy = reading_must_satisfy;
     wl->pi_info_[piid].unit_reading_must_satisfy = unit_reading_must_satisfy;
     wl->pi_info_[piid].wps_must_satisfy = wps_must_satisfy;
@@ -228,7 +228,6 @@ int pilot_run_workload(pilot_workload_t *wl) {
 
         // result check first
         if (0 != rc)   { result = ERR_WL_FAIL; break; }
-        if (!readings) { result = ERR_NO_READING; break; }
 
         //! TODO validity check: if (wl->short_workload_check_) ...
         // Get the total_elapsed_time and avg_time_per_unit = total_elapsed_time / num_of_work_units.
@@ -338,7 +337,6 @@ const char *pilot_strerror(int errnum) {
     case ERR_UNKNOWN_HOOK: return "Unknown hook";
     case ERR_NOT_INIT:    return "Workload not properly initialized yet";
     case ERR_WL_FAIL:     return "Workload failure";
-    case ERR_NO_READING:  return "Workload did not return readings";
     case ERR_STOPPED_BY_HOOK: return "Execution is stopped by a hook function";
     case ERR_TOO_MANY_REJECTED_ROUNDS: return "Too many rounds are wholly rejected. Stopping. Check the workload.";
     case ERR_NOT_IMPL:    return "Not implemented";
@@ -463,6 +461,16 @@ void pilot_free_workload_info(pilot_workload_info_t *info) {
 void pilot_workload_info_t::_free_all_field() {
 #define FREE_AND_NULL(field) free(field); field = NULL
 
+    FREE_AND_NULL(readings_arithmetic_mean);
+    FREE_AND_NULL(readings_harmonic_mean);
+    FREE_AND_NULL(readings_var);
+    FREE_AND_NULL(readings_autocorrelation_coefficient);
+    FREE_AND_NULL(readings_optimal_subsession_size);
+    FREE_AND_NULL(readings_optimal_subsession_var);
+    FREE_AND_NULL(readings_optimal_subsession_autocorrelation_coefficient);
+    FREE_AND_NULL(readings_optimal_subsession_confidence_interval);
+    FREE_AND_NULL(readings_required_sample_size);
+
     FREE_AND_NULL(total_num_of_unit_readings);
     FREE_AND_NULL(unit_readings_mean);
     FREE_AND_NULL(unit_readings_var);
@@ -472,9 +480,6 @@ void pilot_workload_info_t::_free_all_field() {
     FREE_AND_NULL(unit_readings_optimal_subsession_autocorrelation_coefficient);
     FREE_AND_NULL(unit_readings_optimal_subsession_confidence_interval);
     FREE_AND_NULL(unit_readings_required_sample_size);
-    FREE_AND_NULL(readings_naive_mean);
-    FREE_AND_NULL(readings_v_dw_method);
-    FREE_AND_NULL(readings_v_ci_width);
 
 #undef FREE_AND_NULL
 }
@@ -483,22 +488,36 @@ void pilot_workload_info_t::_copyfrom(const pilot_workload_info_t &a) {
     num_of_pi = a.num_of_pi;
     num_of_rounds = a.num_of_rounds;
 
-#define COPY_FIELD(field) field = (typeof(field[0])*)realloc(field, sizeof(field[0]) * num_of_pi); \
-    memcpy(field, a.field, sizeof(field[0]) * num_of_pi)
+#define COPY_ARRAY(field) if (a.field) { field = (typeof(field[0])*)realloc(field, sizeof(field[0]) * num_of_pi); \
+    memcpy(field, a.field, sizeof(field[0]) * num_of_pi); } else { field = NULL; }
 
-    COPY_FIELD(total_num_of_unit_readings);
-    COPY_FIELD(unit_readings_mean);
-    COPY_FIELD(unit_readings_var);
-    COPY_FIELD(unit_readings_autocorrelation_coefficient);
-    COPY_FIELD(unit_readings_optimal_subsession_size);
-    COPY_FIELD(unit_readings_optimal_subsession_var);
-    COPY_FIELD(unit_readings_optimal_subsession_autocorrelation_coefficient);
-    COPY_FIELD(unit_readings_optimal_subsession_confidence_interval);
-    COPY_FIELD(unit_readings_required_sample_size);
-    COPY_FIELD(readings_naive_mean);
-    COPY_FIELD(readings_v_dw_method);
-    COPY_FIELD(readings_v_ci_width);
+    COPY_ARRAY(readings_arithmetic_mean);
+    COPY_ARRAY(readings_harmonic_mean);
+    COPY_ARRAY(readings_var);
+    COPY_ARRAY(readings_autocorrelation_coefficient);
+    COPY_ARRAY(readings_optimal_subsession_size);
+    COPY_ARRAY(readings_optimal_subsession_var);
+    COPY_ARRAY(readings_optimal_subsession_autocorrelation_coefficient);
+    COPY_ARRAY(readings_optimal_subsession_confidence_interval);
+    COPY_ARRAY(readings_required_sample_size);
 
+    COPY_ARRAY(total_num_of_unit_readings);
+    COPY_ARRAY(unit_readings_mean);
+    COPY_ARRAY(unit_readings_var);
+    COPY_ARRAY(unit_readings_autocorrelation_coefficient);
+    COPY_ARRAY(unit_readings_optimal_subsession_size);
+    COPY_ARRAY(unit_readings_optimal_subsession_var);
+    COPY_ARRAY(unit_readings_optimal_subsession_autocorrelation_coefficient);
+    COPY_ARRAY(unit_readings_optimal_subsession_confidence_interval);
+    COPY_ARRAY(unit_readings_required_sample_size);
+#undef COPY_ARRAY
+
+#define COPY_FIELD(field) field = a.field;
+    COPY_FIELD(wps_harmonic_mean);
+    COPY_FIELD(wps_v_dw_method);
+    COPY_FIELD(wps_v_ci_dw_method);
+    COPY_FIELD(wps_v);
+    COPY_FIELD(wps_alpha);
 #undef COPY_FIELD
 }
 
@@ -579,10 +598,10 @@ pilot_optimal_sample_size_p(const double *data, size_t n,
                                      max_autocorrelation_coefficient);
 }
 
-int pilot_readings_warmup_removal_dw_method_p(size_t rounds, const size_t *round_work_amounts,
+int pilot_wps_warmup_removal_dw_method_p(size_t rounds, const size_t *round_work_amounts,
         const nanosecond_type *round_durations, float confidence_level,
         float autocorrelation_coefficient_limit, double *v, double *ci_width) {
-    return pilot_readings_warmup_removal_dw_method(rounds, round_work_amounts,
+    return pilot_wps_warmup_removal_dw_method(rounds, round_work_amounts,
                                                    round_durations, confidence_level,
                                                    autocorrelation_coefficient_limit,
                                                    v, ci_width);
@@ -631,13 +650,12 @@ void pilot_import_benchmark_results(pilot_workload_t *wl, int round,
 
     ASSERT_VALID_POINTER(wl);
     die_if(round < 0 || round > wl->rounds_, ERR_WRONG_PARAM, string("Invalid round value for ") + __func__);
-    ASSERT_VALID_POINTER(readings);
 
     // update work_amount
     if (round != wl->rounds_)
-        wl->work_amount_per_round_[round] = work_amount;
+        wl->round_work_amounts_[round] = work_amount;
     else
-        wl->work_amount_per_round_.push_back(work_amount);
+        wl->round_work_amounts_.push_back(work_amount);
 
     // update round_dueration
     if (round != wl->rounds_)
@@ -699,10 +717,12 @@ void pilot_import_benchmark_results(pilot_workload_t *wl, int round,
         wl->total_num_of_unit_readings_[piid] += num_of_unit_readings - wul;
 
         // handle readings
-        if (round == wl->rounds_) {
-            wl->readings_[piid].push_back(readings[piid]);
-        } else {
-            wl->readings_[piid][round] = readings[piid];
+        if (readings) {
+            if (round == wl->rounds_) {
+                wl->readings_[piid].push_back(readings[piid]);
+            } else {
+                wl->readings_[piid][round] = readings[piid];
+            }
         }
     } // for loop for PI
 

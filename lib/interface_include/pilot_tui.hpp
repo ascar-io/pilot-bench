@@ -207,7 +207,7 @@ public:
 
 class SummaryBox : public BoxedWidget {
 private:
-    const std::vector<PIInfo> * const pi_info_vec_p_;
+    const std::vector<pilot_pi_info_t> * const pi_info_vec_p_;
     static const int kLinesPerPI = 2;
 
     pilot_workload_info_t wi_;
@@ -266,6 +266,21 @@ private:
         draw_buf_ << tail;
         flush_buf_new_line();
     }
+    /**
+     * Draw string s with decor "==" around it
+     * @param s the string to draw
+     */
+    void draw_with_decor(std::string s) {
+        // decor is the ====== in the PI separator
+        int decor_len = (inner_w_ - s.size() - 2/*spaces*/) / 2;
+        for (int i = 0; i < decor_len; ++i) draw_buf_ << '=';
+        draw_buf_ << " " << s << " ";
+        for (int i = decor_len + s.size() + 2; i < inner_w_; ++i) {
+            draw_buf_ << '=';
+        }
+        use_default_color();
+        flush_buf_new_line();
+    }
     void draw(void) {
         next_draw_pos_y_ = 1;
         if (wi_.num_of_pi != 0) {
@@ -273,22 +288,21 @@ private:
             for (int piid = 0; piid < wi_.num_of_pi; ++piid) {
                 const std::string &pi_name = (*pi_info_vec_p_)[piid].name;
                 const std::string &pi_unit = std::string(" ") + (*pi_info_vec_p_)[piid].unit;
-                pilot_pi_display_preprocess_func_t *pi_format_func =
-                        (*pi_info_vec_p_)[piid].ur_format_func;
+                const pilot_display_preprocess_functor &format_r = (*pi_info_vec_p_)[piid].format_reading;
+                const pilot_display_preprocess_functor &format_ur = (*pi_info_vec_p_)[piid].format_unit_reading;
+                const pilot_display_preprocess_functor &format_wps = (*pi_info_vec_p_)[piid].format_wps;
 
                 // draw the PI name as the separator
-                // decor is the ====== in the PI separator
-                int decor_len = (inner_w_ - pi_name.size() - 2/*spaces*/) / 2;
-                for (int i = 0; i < decor_len; ++i) draw_buf_ << '=';
-                draw_buf_ << " " << pi_name << " ";
-                for (int i = decor_len + pi_name.size() + 2; i < inner_w_; ++i) {
-                    draw_buf_ << '=';
-                }
-                use_default_color();
-                flush_buf_new_line();
+                draw_with_decor(pi_name);
 
-                draw_buf_ << "READINGS ANALYSIS";
-                flush_buf_new_line();
+                if (wi_.readings_arithmetic_mean) {
+                    draw_buf_ << "READINGS ANALYSIS";
+                    flush_buf_new_line();
+                    draw_data_line("naive mean: ", format_r(NULL, wi_.readings_arithmetic_mean[piid]), pi_unit);
+                } else {
+                    draw_buf_ << "NO READING DATA";
+                    flush_buf_new_line();
+                }
 
                 draw_buf_ << "UNIT-READINGS ANALYSIS";
                 flush_buf_new_line();
@@ -298,8 +312,8 @@ private:
                 double sm = wi_.unit_readings_mean[piid];
                 double var = wi_.unit_readings_var[piid];
                 double var_rt = var / sm;
-                draw_data_line("sample mean: ", pi_format_func(NULL, sm), pi_unit);
-                draw_data_line("variance: ", var_rt * pi_format_func(NULL, sm), pi_unit);
+                draw_data_line("sample mean: ", format_ur(NULL, sm), pi_unit);
+                draw_data_line("variance: ", var_rt * format_ur(NULL, sm), pi_unit);
 
                 use_default_color();
                 std::string label = "variance to mean ratio: ";
@@ -308,7 +322,7 @@ private:
                 use_highlight_color();
                 draw_buf_ << std::setprecision(3)
                           << std::setw(inner_w_ - label.size() - 1)
-                          << pi_format_func(NULL, var_rt * 100) << "%";
+                          << format_ur(NULL, var_rt * 100) << "%";
                 flush_buf_new_line();
 
                 draw_data_line("autocorrelation coefficient: ",
@@ -318,7 +332,7 @@ private:
                 draw_data_line("optimal subsession size (q): ", q, "");
                 double subvar = wi_.unit_readings_optimal_subsession_var[piid];
                 double subvar_rt = subvar / sm;
-                draw_data_line("subsession variance: ", subvar_rt * pi_format_func(NULL, sm), "");
+                draw_data_line("subsession variance: ", subvar_rt * format_ur(NULL, sm), "");
 
                 use_default_color();
                 label = "subvar. to mean ratio: ";
@@ -346,8 +360,8 @@ private:
 
                 double ci = wi_.unit_readings_optimal_subsession_confidence_interval[piid];
                 double ci_rt = ci / sm;
-                double ci_low = pi_format_func(NULL, sm) * (1 - ci_rt/2);
-                double ci_high = pi_format_func(NULL, sm) * (1 + ci_rt/2) ;
+                double ci_low = format_ur(NULL, sm) * (1 - ci_rt/2);
+                double ci_high = format_ur(NULL, sm) * (1 + ci_rt/2) ;
                 use_default_color();
                 draw_buf_ << "95% confidence interval (CI): ";
                 flush_buf_new_line();
@@ -383,24 +397,22 @@ private:
                 use_default_color();
                 draw_buf_ << tail;
                 flush_buf_new_line();
-
-                draw_buf_ << "WORK-PER-SECOND ANALYSIS:";
-                flush_buf_new_line();
-                draw_data_line("naive result: ", wi_.readings_naive_mean[piid], pi_unit);
-                if (wi_.readings_v_dw_method[piid] > 0) {
-                    draw_data_line("warm-up removed v: ", wi_.readings_v_dw_method[piid], pi_unit);
-                    if (wi_.readings_v_ci_width > 0) {
-                        draw_data_line("CI width: ", wi_.readings_v_ci_width[piid], pi_unit);
-                    } else {
-                        draw_buf_ << "Not enough data for CI analysis";
-                        flush_buf_new_line();
-                    }
+            } /* loop for all PI */
+            draw_with_decor("WORK-PER-SECOND ANALYSIS");
+            draw_data_line("naive mean: ", wi_.wps_harmonic_mean, "");
+            /* wi_.wps_v_dw_method = -1 if not enough data */
+            if (wi_.wps_v_dw_method > 0) {
+                draw_data_line("warm-up removed v (dw mtd): ", wi_.wps_v_dw_method, "");
+                if (wi_.wps_v_ci_dw_method > 0) {
+                    draw_data_line("CI width: ", wi_.wps_v_ci_dw_method, "");
                 } else {
-                    draw_buf_ << "Not enough data for WPS analysis"
-                            "";
+                    draw_buf_ << "Not enough data for CI analysis";
                     flush_buf_new_line();
                 }
-            } /* loop for all PI */
+            } else {
+                draw_buf_ << "Not enough data for WPS analysis";
+                flush_buf_new_line();
+            }
 
             // if this refresh cycle has fewer lines than previous cycle,
             // we need to clear the rest of the lines from previous cycle
@@ -420,7 +432,7 @@ public:
         wi_ = wi;
         draw();
     }
-    SummaryBox(int h, int w, int y, int x, const std::vector<PIInfo> *pi_info_vec_p)
+    SummaryBox(int h, int w, int y, int x, const std::vector<pilot_pi_info_t> *pi_info_vec_p)
         : pi_info_vec_p_(pi_info_vec_p),
           BoxedWidget(h, w, y, x, " WORKLOAD SUMMARY "),
           next_draw_pos_x_(0), next_draw_pos_y_(0),
@@ -478,7 +490,7 @@ protected:
     std::mutex      lock_;
 
     TaskList   task_list_;
-    const std::vector<PIInfo> *pi_info_vec_p_;
+    const std::vector<pilot_pi_info_t> *pi_info_vec_p_;
 
     WINDOW     *curses_win_;
     CDKSCREEN  *cdk_screen_;
@@ -564,7 +576,7 @@ protected:
     }
 
 public:
-    PilotTUI(const std::vector<PIInfo> *pi_info_vec_p) :
+    PilotTUI(const std::vector<pilot_pi_info_t> *pi_info_vec_p) :
         pi_info_vec_p_(pi_info_vec_p),
         task_box_height_(task_list_.size() + 2),
         title_bar_(NULL), progress_bar_(NULL), task_box_(NULL),

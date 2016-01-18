@@ -88,7 +88,7 @@ int workload_func(size_t total_work_amount,
     *unit_readings = (double**)lib_malloc_func(sizeof(double*) * num_of_pi);
     (*unit_readings)[0] = (double*)lib_malloc_func(sizeof(double) * *num_of_work_unit);
     //(*unit_readings)[1] = (double*)lib_malloc_func(sizeof(double) * *num_of_work_unit);
-    *readings = (double*)lib_malloc_func(sizeof(double) * num_of_pi);
+    *readings = NULL;
     vector<nanosecond_type> work_unit_elapsed_times(*num_of_work_unit);
 
     int fd = open(g_output_file_name.c_str(), O_CREAT | O_WRONLY, S_IRUSR | S_IWUSR | S_IRGRP);
@@ -148,7 +148,8 @@ int workload_func(size_t total_work_amount,
         prev_ts = work_unit_elapsed_times[i];
     }
 
-    (*readings)[time_pi] = (double)total_elapsed_time / ONE_SECOND;
+    // We don't provide readings. Instead we will just use WPS analysis.
+    //(*readings)[time_pi] = (double)total_elapsed_time / ONE_SECOND;
     //(*readings)[tp_pi] = ((double)total_work_amount / MEGABYTE) / ((double)total_elapsed_time / ONE_SECOND);
 
     return 0;

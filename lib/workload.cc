@@ -35,6 +35,7 @@
 #include "common.h"
 #include "libpilot.h"
 #include "libpilotcpp.h"
+#include <numeric>
 #include <sstream>
 #include "workload.hpp"
 
@@ -139,11 +140,26 @@ pilot_workload_info_t* pilot_workload_t::workload_info(pilot_workload_info_t *in
     INIT_FIELD(info->unit_readings_optimal_subsession_autocorrelation_coefficient);
     INIT_FIELD(info->unit_readings_optimal_subsession_confidence_interval);
     INIT_FIELD(info->unit_readings_required_sample_size);
-    INIT_FIELD(info->readings_naive_mean);
-    INIT_FIELD(info->readings_v_dw_method);
-    INIT_FIELD(info->readings_v_ci_width);
-
-#undef COPY_FIELD
+    if (readings_.size() > 0) {
+        INIT_FIELD(info->readings_arithmetic_mean);
+        INIT_FIELD(info->readings_harmonic_mean);
+        INIT_FIELD(info->readings_var);
+        INIT_FIELD(info->readings_autocorrelation_coefficient);
+        INIT_FIELD(info->readings_optimal_subsession_size);
+        INIT_FIELD(info->readings_optimal_subsession_var);
+        INIT_FIELD(info->readings_optimal_subsession_autocorrelation_coefficient);
+        INIT_FIELD(info->readings_optimal_subsession_confidence_interval);
+    } else {
+        info->readings_arithmetic_mean = NULL;
+        info->readings_harmonic_mean = NULL;
+        info->readings_var = NULL;
+        info->readings_autocorrelation_coefficient = NULL;
+        info->readings_optimal_subsession_size = NULL;
+        info->readings_optimal_subsession_var = NULL;
+        info->readings_optimal_subsession_autocorrelation_coefficient = NULL;
+        info->readings_optimal_subsession_confidence_interval = NULL;
+    }
+#undef INIT_FIELD
 
     for (int piid = 0; piid < num_of_pi_; ++piid) {
         double sm = unit_readings_mean(piid);
@@ -163,19 +179,25 @@ pilot_workload_info_t* pilot_workload_t::workload_info(pilot_workload_info_t *in
         info->unit_readings_optimal_subsession_confidence_interval[piid] =
                 pilot_subsession_confidence_interval(pilot_pi_unit_readings_iter_t(this, piid), total_num_of_unit_readings_[piid], q, .95);
         info->unit_readings_required_sample_size[piid] = required_num_of_unit_readings(piid);
-
-        double sum_of_work_amount = 0;
-        for (auto s : work_amount_per_round_) sum_of_work_amount += s;
-        double sum_of_readings = 0;
-        for (auto r : readings_[piid]) sum_of_readings += r;
-        info->readings_naive_mean[piid] = sum_of_work_amount / sum_of_readings;
-
-        pilot_readings_warmup_removal_dw_method(work_amount_per_round_.size(),
-                work_amount_per_round_.begin(),
-                round_durations_.begin(), confidence_interval_,
-                autocorrelation_coefficient_limit_,
-                &(info->readings_v_dw_method[piid]), &(info->readings_v_ci_width[piid]));
     }
+    // generate WPS analysis data
+    double sum_of_work_amount =
+            accumulate(round_work_amounts_.begin(), round_work_amounts_.end(), 0);
+    boost::timer::nanosecond_type sum_of_round_durations =
+            accumulate(round_durations_.begin(), round_durations_.end(), 0);
+    info->wps_harmonic_mean = sum_of_work_amount / sum_of_round_durations;
+
+    if (rounds_ >= 2) {
+        pilot_wps_warmup_removal_dw_method(round_work_amounts_.size(),
+            round_work_amounts_.begin(),
+            round_durations_.begin(), confidence_interval_,
+            autocorrelation_coefficient_limit_,
+            &(info->wps_v_dw_method), &(info->wps_v_ci_dw_method));
+    } else {
+        info->wps_v_dw_method = -1;
+        info->wps_v_ci_dw_method = -1;
+    }
+
     return info;
 }
 
@@ -189,7 +211,7 @@ pilot_round_info_t* pilot_workload_t::round_info(size_t round, pilot_round_info_
     rinfo->num_of_unit_readings = (size_t*)realloc(rinfo->num_of_unit_readings, sizeof(size_t) * num_of_pi_);
     rinfo->warm_up_phase_lens = (size_t*)realloc(rinfo->warm_up_phase_lens, sizeof(size_t) * num_of_pi_);
 
-    rinfo->work_amount = work_amount_per_round_[round];
+    rinfo->work_amount = round_work_amounts_[round];
     rinfo->round_duration = round_durations_[round];
     for (int piid = 0; piid < num_of_pi_; ++piid) {
         rinfo->num_of_unit_readings[piid] = unit_readings_[piid][round].size();

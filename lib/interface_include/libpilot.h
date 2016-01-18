@@ -57,7 +57,6 @@ enum pilot_error_t {
     ERR_UNKNOWN_HOOK = 6,
     ERR_NOT_INIT = 11,
     ERR_WL_FAIL = 12,
-    ERR_NO_READING = 13,
     ERR_STOPPED_BY_HOOK = 14,
     ERR_TOO_MANY_REJECTED_ROUNDS = 15,
     ERR_NOT_ENOUGH_DATA = 16,
@@ -471,7 +470,7 @@ double pilot_subsession_autocorrelation_coefficient_p(const double *data, size_t
  * for calculate v; ERR_NOT_ENOUGH_DATA_FOR_CI when there is enough data for
  * calculating v but not enough for calculating confidence interval.
  */
-int pilot_readings_warmup_removal_dw_method_p(size_t rounds, const size_t *round_work_amounts,
+int pilot_wps_warmup_removal_dw_method_p(size_t rounds, const size_t *round_work_amounts,
         const nanosecond_type *round_durations, float confidence_level,
         float autocorrelation_coefficient_limit, double *v, double *ci_width);
 
@@ -508,11 +507,9 @@ pilot_round_info_t* pilot_round_info(const pilot_workload_t *wl, size_t round, p
 struct pilot_workload_info_t {
     size_t  num_of_pi;
     size_t  num_of_rounds;
-    // Readings analysis
-    double* readings_naive_mean;  //! this is the native mean of all readings so far (before warm-up removal)
-    double* readings_v_dw_method;           //! readings after warm-up removal using the dw_method
-    double* readings_v_ci_width;
-    double* readings_mean;
+    // Readings analysis (not implemented yet)
+    double* readings_arithmetic_mean; //! the arithmetic mean of all readings so far
+    double* readings_harmonic_mean;   //! the harmonic mean of all readings so far
     double* readings_var;
     double* readings_autocorrelation_coefficient;
     size_t* readings_optimal_subsession_size;
@@ -530,6 +527,13 @@ struct pilot_workload_info_t {
     double* unit_readings_optimal_subsession_autocorrelation_coefficient;
     double* unit_readings_optimal_subsession_confidence_interval;
     size_t* unit_readings_required_sample_size;
+    // Work amount-per-second analysis
+    double wps_harmonic_mean;        //! wps is a rate so only harmonic mean is valid
+    double wps_v_dw_method;          //! readings after warm-up removal using the deprecated dw_method
+    double wps_v_ci_dw_method;       //! the width of confidence interval using the deprecated dw_method
+    double wps_v;                    //! the v as in t = alpha + v*w
+    double wps_alpha;                //! the alpha as in t = alpha + v*w
+
 #ifdef __cplusplus
     inline void _free_all_field();
     inline void _copyfrom(const pilot_workload_info_t &a);

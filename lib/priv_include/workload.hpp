@@ -47,25 +47,47 @@ namespace pilot {
 
 class PilotTUI;
 
-class PIInfo {
+/**
+ * This functor is used to format a number for human-readable display.
+ */
+class pilot_display_preprocess_functor {
+public:
+    pilot_pi_display_preprocess_func_t *format_func_;
+    /**
+     * This default format functor does nothing
+     * @param wl
+     * @param number
+     * @return
+     */
+    double operator()(const pilot_workload_t* wl, double number) const {
+        if (!format_func_)
+            return number;
+        else
+            return format_func_(wl, number);
+    }
+    pilot_display_preprocess_functor(pilot_pi_display_preprocess_func_t *format_func = NULL) :
+        format_func_(format_func) {}
+};
+
+class pilot_pi_info_t {
 public:
     std::string name;
     std::string unit;
-    pilot_pi_display_preprocess_func_t *r_format_func;
-    pilot_pi_display_preprocess_func_t *ur_format_func;
-    pilot_pi_display_preprocess_func_t *wps_format_func;
+    pilot_display_preprocess_functor format_reading;
+    pilot_display_preprocess_functor format_unit_reading;
+    pilot_display_preprocess_functor format_wps;
     bool reading_must_satisfy;
     bool unit_reading_must_satisfy;
     bool wps_must_satisfy;
 
-    PIInfo(std::string _name = "", std::string _unit = "",
+    pilot_pi_info_t(std::string _name = "", std::string _unit = "",
            pilot_pi_display_preprocess_func_t *_r_format_func = NULL,
            pilot_pi_display_preprocess_func_t *_ur_format_func = NULL,
            pilot_pi_display_preprocess_func_t *_wps_format_func = NULL,
            bool _r_sat = false, bool _ur_sat = false,
            bool _wps_sat = false) :
-        name(_name), unit(_unit), r_format_func(_r_format_func),
-        ur_format_func(_ur_format_func), wps_format_func(_wps_format_func),
+        name(_name), unit(_unit), format_reading(_r_format_func),
+        format_unit_reading(_ur_format_func), format_wps(_wps_format_func),
         reading_must_satisfy(_r_sat), unit_reading_must_satisfy(_ur_sat),
         wps_must_satisfy(_wps_sat) {}
 };
@@ -82,7 +104,7 @@ struct pilot_workload_t {
     size_t init_work_amount_;
     size_t work_amount_limit_;
     pilot_workload_func_t *workload_func_;
-    std::vector<PIInfo> pi_info_;
+    std::vector<pilot_pi_info_t> pi_info_;
     PilotTUI *tui_;
 
     std::vector<boost::timer::nanosecond_type> round_durations_; //! The duration of each round
@@ -91,7 +113,7 @@ struct pilot_workload_t {
     std::vector<std::vector<size_t> > warm_up_phase_len_;  //! The length of the warm-up phase of each PI per round. Format: warm_up_phase_len_[piid][round_id].
     std::vector<size_t> total_num_of_unit_readings_; //! Total number of unit readings per PI
     std::vector<size_t> total_num_of_readings_;      //! Total number of readings per PI
-    std::vector<size_t> work_amount_per_round_;      //! The work amount we used in each round
+    std::vector<size_t> round_work_amounts_;      //! The work amount we used in each round
 
     double confidence_interval_;
     double confidence_level_;
@@ -159,7 +181,7 @@ struct pilot_workload_t {
         size_t total_work_amount = 0;
         for (auto const & c : unit_readings_[piid])
             total_work_units += c.size();
-        for (auto const & c : work_amount_per_round_)
+        for (auto const & c : round_work_amounts_)
             total_work_amount += c;
         double res = (double)total_work_amount / total_work_units;
         info_log << "[PI " << piid << "] average work per unit reading: " << res;
@@ -209,27 +231,15 @@ struct pilot_workload_t {
     char* text_workload_summary(void) const;
 
     inline double format_reading(const int piid, const double r) const {
-        if (pi_info_[piid].r_format_func) {
-            return pi_info_[piid].r_format_func(this, r);
-        } else {
-            return r;
-        }
+        return pi_info_[piid].format_reading(this, r);
     }
 
     inline double format_unit_reading(const int piid, const double ur) const {
-        if (pi_info_[piid].ur_format_func) {
-            return pi_info_[piid].ur_format_func(this, ur);
-        } else {
-            return ur;
-        }
+        return pi_info_[piid].format_unit_reading(this, ur);
     }
 
     inline double format_wps(const int piid, const double wps) const {
-        if (pi_info_[piid].wps_format_func) {
-            return pi_info_[piid].wps_format_func(this, wps);
-        } else {
-            return wps;
-        }
+        return pi_info_[piid].format_wps(this, wps);
     }
 };
 
