@@ -197,11 +197,12 @@ int pilot_run_workload(pilot_workload_t *wl) {
     size_t num_of_unit_readings;
     double **unit_readings;
     double *readings;
-    unique_ptr<cpu_timer> ptimer;
+    unique_ptr<cpu_timer> round_timer;
 
     // ready to start the workload
     size_t work_amount;
     nanosecond_type round_duration;
+    auto session_start_time = std::chrono::steady_clock::now();
     while (true) {
         unit_readings = NULL;
         readings = NULL;
@@ -224,12 +225,12 @@ int pilot_run_workload(pilot_workload_t *wl) {
             break;
         }
 
-        ptimer.reset(new cpu_timer);
+        round_timer.reset(new cpu_timer);
         int rc =
         wl->workload_func_(work_amount, &pilot_malloc_func,
                           &num_of_unit_readings, &unit_readings,
                           &readings);
-        round_duration = ptimer->elapsed().wall;
+        round_duration = round_timer->elapsed().wall;
         info_log << "finished workload round " << wl->rounds_;
 
         // result check first
@@ -270,6 +271,16 @@ int pilot_run_workload(pilot_workload_t *wl) {
             info_log << "post_workload_run hook returns false, exiting";
             result = ERR_STOPPED_BY_HOOK;
             break;
+        }
+
+        // check session duration limit
+        if (0 != wl->session_duration_limit_in_sec_) {
+            std::chrono::duration<double> diff = std::chrono::steady_clock::now() - session_start_time;
+            if (diff.count() > wl->session_duration_limit_in_sec_) {
+                info_log << "reached session duration limit";
+                result = ERR_STOPPED_BY_DURATION_LIMIT;
+                break;
+            }
         }
     }
     return result;
@@ -612,6 +623,7 @@ pilot_optimal_sample_size_p(const double *data, size_t n,
 int pilot_wps_warmup_removal_dw_method_p(size_t rounds, const size_t *round_work_amounts,
         const nanosecond_type *round_durations, float confidence_level,
         float autocorrelation_coefficient_limit, double *v, double *ci_width) {
+    int a;
     return pilot_wps_warmup_removal_dw_method(rounds, round_work_amounts,
                                                    round_durations, confidence_level,
                                                    autocorrelation_coefficient_limit,
@@ -847,6 +859,10 @@ size_t calc_next_round_work_amount_from_wps(pilot_workload_t *wl) {
 
 bool pilot_set_wps_analysis(pilot_workload_t *wl, bool enabled) {
     return wl->set_wps_analysis(enabled);
+}
+
+size_t pilot_set_session_duration_limit(pilot_workload_t *wl, size_t sec) {
+    return wl->set_session_duration_limit(sec);
 }
 
 } // namespace pilot

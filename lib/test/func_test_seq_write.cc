@@ -313,6 +313,8 @@ int main(int argc, char **argv) {
     // Set up hooks for displaying progress information
     pilot_set_hook_func(wl, PRE_WORKLOAD_RUN, &pre_workload_run_hook);
     pilot_set_hook_func(wl, POST_WORKLOAD_RUN, &post_workload_run_hook);
+    // Run for at most 3 minutes
+    pilot_set_session_duration_limit(wl, 3*60);
 
     int res;
     if (use_tui)

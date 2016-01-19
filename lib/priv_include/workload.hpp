@@ -131,6 +131,7 @@ struct pilot_workload_t {
     double autocorrelation_coefficient_limit_;
     double required_ci_percent_of_mean_;
     double required_ci_absolute_value_;
+    size_t session_duration_limit_in_sec_;
 
     nanosecond_type short_round_detection_threshold_;
     bool short_workload_check_;
@@ -166,7 +167,7 @@ struct pilot_workload_t {
                          wholly_rejected_rounds_(0),
                          short_round_detection_threshold_(1 * pilot::ONE_SECOND),
                          required_ci_percent_of_mean_(0.1), required_ci_absolute_value_(-1),
-                         tui_(NULL) {
+                         tui_(NULL), session_duration_limit_in_sec_(0) {
         if (wl_name) workload_name_ = wl_name;
         runtime_analysis_plugins_.emplace_back(true, &calc_next_round_work_amount_from_readings);
         runtime_analysis_plugins_.emplace_back(true, &calc_next_round_work_amount_from_unit_readings);
@@ -265,6 +266,8 @@ struct pilot_workload_t {
     }
 
     bool set_wps_analysis(bool enabled);
+
+    size_t set_session_duration_limit(size_t sec);
 };
 
 struct pilot_pi_unit_readings_iter_t {

@@ -30,6 +30,11 @@ endif (NOT CMAKE_BUILD_TYPE)
 
 
 ###############################################################################
+## GLOBAL BUILD OPTIONS
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Werror")
+
+
+###############################################################################
 ## TEST RELATED
 
 find_program( MEMORYCHECK_COMMAND valgrind )

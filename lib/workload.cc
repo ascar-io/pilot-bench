@@ -156,7 +156,7 @@ pilot_workload_info_t* pilot_workload_t::workload_info(pilot_workload_info_t *in
         info->unit_readings_required_sample_size[piid] = required_num_of_unit_readings(piid);
     }
     // generate WPS analysis data
-    double sum_of_work_amount =
+    double sum_of_work_amount = (double)
             accumulate(round_work_amounts_.begin(), round_work_amounts_.end(), 0);
     boost::timer::nanosecond_type sum_of_round_durations =
             accumulate(round_durations_.begin(), round_durations_.end(), 0);
@@ -306,4 +306,10 @@ bool pilot_workload_t::set_wps_analysis(bool enabled) {
         abort();
     }
     return false;
+}
+
+size_t pilot_workload_t::set_session_duration_limit(size_t sec) {
+    size_t old_val = session_duration_limit_in_sec_;
+    session_duration_limit_in_sec_ = sec;
+    return old_val;
 }

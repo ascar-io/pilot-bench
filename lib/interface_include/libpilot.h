@@ -57,6 +57,7 @@ enum pilot_error_t {
     ERR_UNKNOWN_HOOK = 6,
     ERR_NOT_INIT = 11,
     ERR_WL_FAIL = 12,
+    ERR_STOPPED_BY_DURATION_LIMIT = 13,
     ERR_STOPPED_BY_HOOK = 14,
     ERR_TOO_MANY_REJECTED_ROUNDS = 15,
     ERR_NOT_ENOUGH_DATA = 16,
@@ -719,9 +720,18 @@ size_t calc_next_round_work_amount_from_wps(pilot_workload_t *wl);
  * Set if WPS analysis should be enabled
  * @param[in] wl pointer to the workload struct
  * @param enabled
- * @return the status before setting
+ * @return previous setting
  */
 bool pilot_set_wps_analysis(pilot_workload_t *wl, bool enabled);
+
+/**
+ * Set the duration limit for running a session. The session will stop after
+ * sec seconds.
+ * @param[in] wl pointer to the workload struct
+ * @param sec the session duration limit; 0 disables limit.
+ * @return previous setting
+ */
+size_t pilot_set_session_duration_limit(pilot_workload_t *wl, size_t sec);
 
 #ifdef __cplusplus
 } // namespace pilot
