@@ -65,6 +65,8 @@ enum pilot_error_t {
     ERR_LINKED_WRONG_VER = 201
 };
 
+const int kWPSInitSlices = 50;
+
 typedef int_least64_t nanosecond_type;
 
 /**
@@ -119,32 +121,9 @@ struct pilot_pi_unit_readings_iter_t;
  * @param piid the Performance Index to calculate
  * @return
  */
-typedef ssize_t calc_readings_required_func_t(const pilot_workload_t* wl, int piid);
+typedef ssize_t calc_required_readings_func_t(const pilot_workload_t* wl, int piid);
 
-/**
- * \brief The default function for calculating how many unit readings are needed to
- * be get a statistically sound result
- * @param[in] wl pointer to the workload struct
- * @return the number of readings needed; a negative number if there is not
- * enough data to calculate the required size
- */
-ssize_t default_calc_unit_readings_required_func(const pilot_workload_t* wl, int piid);
-
-/**
- * \brief The default function for calculating how many readings are needed to
- * be get a statistically sound result
- * @param[in] wl pointer to the workload struct
- * @return the number of readings needed
- */
-ssize_t default_calc_readings_required_func(const pilot_workload_t* wl, int piid);
-
-/**
- * \brief Set the function hook that calculates how many readings are needed
- * for a session (used mainly in test cases)
- * @param[in] wl pointer to the workload struct
- * @param f the new hook function
- */
-void pilot_set_calc_readings_required_func(pilot_workload_t* wl, calc_readings_required_func_t *f);
+void pilot_set_calc_required_readings_func(pilot_workload_t* wl, calc_required_readings_func_t *f);
 
 /**
  * \brief Set the function hook that calculates how many unit readings are needed
@@ -152,7 +131,23 @@ void pilot_set_calc_readings_required_func(pilot_workload_t* wl, calc_readings_r
  * @param[in] wl pointer to the workload struct
  * @param f the new hook function
  */
-void pilot_set_calc_unit_readings_required_func(pilot_workload_t* wl, calc_readings_required_func_t *f);
+void pilot_set_calc_required_unit_readings_func(pilot_workload_t* wl, calc_required_readings_func_t *f);
+
+/**
+ * \brief a function that returns what work amount should be used for next
+ * round (used mainly in test cases)
+ * @param[in] wl pointer to the workload struct
+ * @return
+ */
+typedef ssize_t next_round_work_amount_hook_t(const pilot_workload_t* wl);
+
+/**
+ * \brief Set the function hook that calculates how many readings are needed
+ * for a session (used mainly in test cases)
+ * @param[in] wl pointer to the workload struct
+ * @param f the new hook function
+ */
+void pilot_set_next_round_work_amount_hook(pilot_workload_t* wl, next_round_work_amount_hook_t *f);
 
 /**
  * \brief Type for the general hook functions
@@ -679,7 +674,7 @@ void pilot_import_benchmark_results(pilot_workload_t *wl, int round,
  * @param[in] wl pointer to the workload struct
  * @return the work amount
  */
-size_t pilot_next_round_work_amount(const pilot_workload_t *wl);
+size_t pilot_next_round_work_amount(pilot_workload_t *wl);
 
 /**
  * \brief Set the threshold for short round detection
@@ -698,6 +693,35 @@ void pilot_set_short_round_detection_threshold(pilot_workload_t *wl, nanosecond_
  *        value to use percent_of_medium instead
  */
 void pilot_set_required_confidence_interval(pilot_workload_t *wl, double percent_of_mean, double absolute_value);
+
+/**
+ * Calculate the work amount for next round from readings data
+ * @param[in] wl pointer to the workload struct
+ * @return the work amount needed
+ */
+size_t calc_next_round_work_amount_from_readings(pilot_workload_t *wl);
+
+/**
+ * Calculate the work amount for next round from unit readings data
+ * @param[in] wl pointer to the workload struct
+ * @return the work amount needed
+ */
+size_t calc_next_round_work_amount_from_unit_readings(pilot_workload_t *wl);
+
+/**
+ * Calculate the work amount for next round from unit readings data
+ * @param[in] wl pointer to the workload struct
+ * @return the work amount needed
+ */
+size_t calc_next_round_work_amount_from_wps(pilot_workload_t *wl);
+
+/**
+ * Set if WPS analysis should be enabled
+ * @param[in] wl pointer to the workload struct
+ * @param enabled
+ * @return the status before setting
+ */
+bool pilot_set_wps_analysis(pilot_workload_t *wl, bool enabled);
 
 #ifdef __cplusplus
 } // namespace pilot

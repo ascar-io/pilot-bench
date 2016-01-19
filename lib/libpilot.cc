@@ -84,18 +84,24 @@ pilot_workload_t* pilot_new_workload(const char *workload_name) {
     return wl;
 }
 
-void pilot_set_calc_readings_required_func(pilot_workload_t* wl,
-        calc_readings_required_func_t *f) {
+void pilot_set_next_round_work_amount_hook(pilot_workload_t* wl, next_round_work_amount_hook_t *f) {
     ASSERT_VALID_POINTER(wl);
     ASSERT_VALID_POINTER(f);
-    wl->calc_readings_required_func_ = f;
+    wl->next_round_work_amount_hook_ = f;
 }
 
-void pilot_set_calc_unit_readings_required_func(pilot_workload_t* wl,
-        calc_readings_required_func_t *f) {
+void pilot_set_calc_required_readings_func(pilot_workload_t* wl,
+        calc_required_readings_func_t *f) {
     ASSERT_VALID_POINTER(wl);
     ASSERT_VALID_POINTER(f);
-    wl->calc_unit_readings_required_func_ = f;
+    wl->calc_required_readings_func_ = f;
+}
+
+void pilot_set_calc_required_unit_readings_func(pilot_workload_t* wl,
+        calc_required_readings_func_t *f) {
+    ASSERT_VALID_POINTER(wl);
+    ASSERT_VALID_POINTER(f);
+    wl->calc_required_unit_readings_func_ = f;
 }
 
 void pilot_set_num_of_pi(pilot_workload_t* wl, size_t num_of_pi) {
@@ -392,17 +398,22 @@ int pilot_export(const pilot_workload_t *wl, pilot_export_format_t format,
             for (int piid = 0; piid < wl->num_of_pi_; ++piid)
                 for (int round = 0; round < wl->rounds_; ++round) {
                     if (wl->unit_readings_[piid][round].size() != 0) {
-                        for (int ur=0; ur < wl->unit_readings_[piid][round].size(); ++ur) {
-                            if (0 == ur)
-                            of << piid << ","
-                            << round << ","
-                            << wl->readings_[piid][round] << ","
-                            << wl->unit_readings_[piid][round][ur] << endl;
-                            else
-                            of << piid << ","
-                            << round << ","
-                            << ","
-                            << wl->unit_readings_[piid][round][ur] << endl;
+                        for (int ur = 0; ur < wl->unit_readings_[piid][round].size(); ++ur) {
+                            if (0 == ur) {
+                                of << piid << ","
+                                   << round << ",";
+                                if (wl->readings_[piid].size() > round) {
+                                    of << wl->readings_[piid][round] << ",";
+                                } else {
+                                    of << ",";
+                                }
+                                of << wl->unit_readings_[piid][round][ur] << endl;
+                            } else {
+                                of << piid << ","
+                                   << round << ","
+                                   << ","
+                                   << wl->unit_readings_[piid][round][ur] << endl;
+                            }
                         }
                     } else {
                         of << piid << ","
@@ -752,16 +763,7 @@ void pilot_pi_unit_readings_iter_destroy(pilot_pi_unit_readings_iter_t* iter) {
     delete iter;
 }
 
-ssize_t default_calc_unit_readings_required_func(const pilot_workload_t* wl, int piid) {
-    return wl->required_num_of_unit_readings(piid);
-}
-
-ssize_t default_calc_readings_required_func(const pilot_workload_t* wl, int piid) {
-    fatal_log << __func__ << "() unimplemented yet";
-    abort();
-}
-
-size_t pilot_next_round_work_amount(const pilot_workload_t *wl) {
+size_t pilot_next_round_work_amount(pilot_workload_t *wl) {
     ASSERT_VALID_POINTER(wl);
     return wl->calc_next_round_work_amount();
 }
@@ -775,6 +777,76 @@ void pilot_set_required_confidence_interval(pilot_workload_t *wl, double percent
     ASSERT_VALID_POINTER(wl);
     wl->required_ci_percent_of_mean_ = percent_of_mean;
     wl->required_ci_absolute_value_ = absolute_value;
+}
+
+size_t calc_next_round_work_amount_from_readings(pilot_workload_t *wl) {
+    // use the default value for first round
+    if (0 == wl->rounds_) return 0;
+    // not implemented yet
+    return 0;
+}
+
+size_t calc_next_round_work_amount_from_unit_readings(pilot_workload_t *wl) {
+    if (0 == wl->rounds_)
+        return 0 == wl->init_work_amount_ ? wl->work_amount_limit_ / 10 : wl->init_work_amount_;
+
+    size_t max_work_amount_needed = 0;
+    for (int piid = 0; piid != wl->num_of_pi_; ++piid) {
+        size_t num_of_ur_needed;
+        if (abs(wl->calc_avg_work_unit_per_amount(piid)) < 0.00000001) {
+            error_log << "[PI " << piid << "] average work per unit reading is 0, using work_amount_limit instead (you probably need to report a bug)";
+            return wl->work_amount_limit_;
+        }
+        if (0 != wl->total_num_of_unit_readings_[piid]) {
+            ssize_t req = wl->required_num_of_unit_readings(piid);
+            info_log << "[PI " << piid << "] required unit readings sample size: " << req;
+            if (req > 0) {
+                if (req < wl->total_num_of_unit_readings_[piid]) {
+                    info_log << "[PI " << piid << "] already has enough samples";
+                    continue;
+                }
+                num_of_ur_needed = req - wl->total_num_of_unit_readings_[piid];
+            } else {
+                // in case when there's not enough data to calculate the number of UR,
+                // we try to double the total number of unit readings
+                info_log << "[PI " << piid << "] doesn't have enough information for calculating required sample size, using the current total sample size instead";
+                num_of_ur_needed = wl->total_num_of_unit_readings_[piid];
+            }
+            size_t work_amount_needed = size_t(1.2 * num_of_ur_needed * wl->calc_avg_work_unit_per_amount(piid));
+            max_work_amount_needed = max(max_work_amount_needed, work_amount_needed);
+        }
+    }
+    return min(max_work_amount_needed, wl->work_amount_limit_);
+}
+
+size_t calc_next_round_work_amount_from_wps(pilot_workload_t *wl) {
+    size_t wa_slice_size = wl->work_amount_limit_ / wl->wps_slices_;
+    if (0 == wl->rounds_) return wa_slice_size;
+
+    if (wl->rounds_ > 2) {
+        double wps_v_dw_method, wps_v_ci_dw_method;
+        pilot_wps_warmup_removal_dw_method(wl->round_work_amounts_.size(),
+            wl->round_work_amounts_.begin(),
+            wl->round_durations_.begin(), wl->confidence_interval_,
+            wl->autocorrelation_coefficient_limit_,
+            &wps_v_dw_method, &wps_v_ci_dw_method);
+        if (wps_v_dw_method > 0 && wps_v_ci_dw_method > 0 && wps_v_ci_dw_method < .1 * wps_v_dw_method) {
+            info_log << "WPS confidence interval small enough";
+            return 0;
+        }
+    }
+
+    size_t last_round_wa = wl->round_work_amounts_.back();
+    if (last_round_wa > wl->work_amount_limit_ - wa_slice_size) {
+        wl->wps_slices_ *= 2;
+        wa_slice_size /= 2;
+        return wa_slice_size;
+    }
+    return (last_round_wa / wa_slice_size + 1) * wa_slice_size;
+}
+
+bool pilot_set_wps_analysis(pilot_workload_t *wl, bool enabled) {
+    return wl->set_wps_analysis(enabled);
 }
 
 } // namespace pilot

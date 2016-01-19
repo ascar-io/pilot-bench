@@ -37,6 +37,7 @@
 #include "gtest/gtest.h"
 #include "libpilot.h"
 #include <vector>
+#include "workload.hpp"
 
 using namespace pilot;
 using namespace std;
@@ -74,7 +75,8 @@ int mock_workload_func(size_t work_amount,
     return 0;
 }
 
-ssize_t mock_calc_unit_readings_required_func(const pilot_workload_t* wl, int piid) {
+ssize_t mock_calc_required_ur_func(const pilot_workload_t* wl, int piid
+        ) {
     if (g_test_round >= g_required_sample_size_per_round->size()) {
         cerr << __func__ << "(): more rounds than expected" << endl;
         abort();
@@ -90,7 +92,8 @@ void test_opt_session_duration(size_t work_amount_limit,
     pilot_set_workload_func(wl, &mock_workload_func);
     pilot_set_work_amount_limit(wl, work_amount_limit);
     pilot_set_num_of_pi(wl, 1);
-    pilot_set_calc_unit_readings_required_func(wl, &mock_calc_unit_readings_required_func);
+    pilot_set_calc_required_unit_readings_func(wl, &mock_calc_required_ur_func);
+    pilot_set_wps_analysis(wl, false);
     pilot_set_warm_up_removal_method(wl, NO_WARM_UP_REMOVAL);
 
     g_expected_work_amount_per_round = &expected_work_amount_per_round;
@@ -125,9 +128,31 @@ TEST(PilotRunWorkloadTest, CalculatingOptimalSessionDuration) {
             50,          // work_amount_limit
             { 5, 12},    // expected_work_amount_per_round
             {15, 15});   // required_sample_size_per_round
-    //! TODO: more cases
+    //! TODO: a test case whose average num of work units per work amount != 1
+    //! TODO: a test case for multiple PIs that each of which has a different work_unit_per_amount ratio
+}
 
-    //! TODO: test cases with average num of work units per work amount != 1
+TEST(PilotRunWorkloadTest, TestCalcNextRoundWorkAmountFromWPS) {
+    pilot_workload_t *wl = pilot_new_workload("Test workload");
+    size_t wa_limit = 1000;
+    size_t wa_slice_size = wa_limit / kWPSInitSlices;
+    pilot_set_work_amount_limit(wl, wa_limit);
+    ASSERT_EQ(wa_slice_size, calc_next_round_work_amount_from_wps(wl));
+    // let's add some mock data
+    wl->round_work_amounts_.push_back(365);
+    wl->round_durations_.push_back(1);
+    wl->rounds_++;
+    ASSERT_EQ((365 / wa_slice_size + 1) * wa_slice_size, calc_next_round_work_amount_from_wps(wl));
+    wl->round_work_amounts_.push_back(999);
+    wl->round_durations_.push_back(1);
+    wl->rounds_++;
+    wa_slice_size /= 2;
+    ASSERT_EQ(wa_slice_size, calc_next_round_work_amount_from_wps(wl));
+    wl->round_work_amounts_.push_back(wa_slice_size);
+    wl->round_durations_.push_back(1);
+    wl->rounds_++;
+    ASSERT_EQ(wa_slice_size * 2, calc_next_round_work_amount_from_wps(wl));
+    pilot_destroy_workload(wl);
 }
 
 int main(int argc, char **argv) {

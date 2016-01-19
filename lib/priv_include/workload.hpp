@@ -92,6 +92,17 @@ public:
         wps_must_satisfy(_wps_sat) {}
 };
 
+typedef size_t calc_next_round_work_amount_func_t(pilot_workload_t* wl);
+struct runtime_analysis_plugin_t {
+    bool enabled;
+    calc_next_round_work_amount_func_t *calc_next_round_work_amount;
+
+    runtime_analysis_plugin_t(calc_next_round_work_amount_func_t *c) :
+        enabled(true), calc_next_round_work_amount(c) {}
+    runtime_analysis_plugin_t(bool e, calc_next_round_work_amount_func_t *c) :
+        enabled(e), calc_next_round_work_amount(c) {}
+};
+
 struct pilot_workload_t {
     std::string workload_name_;
 
@@ -127,11 +138,17 @@ struct pilot_workload_t {
     double warm_up_removal_moving_average_window_size_in_seconds_;
     size_t wholly_rejected_rounds_;  //! number of rounds that are wholly rejected due to too short a duration
 
+    // WPS analysis bookkeeping
+    size_t wps_slices_;
+
     // Hook functions
-    calc_readings_required_func_t *calc_unit_readings_required_func_; //! The hook function that calculates how many unit readings (samples) are needed
-    calc_readings_required_func_t *calc_readings_required_func_;      //! The hook function that calculates how many readings (samples) are needed
+    next_round_work_amount_hook_t *next_round_work_amount_hook_; //! The hook function that calculates the work amount for next round
     general_hook_func_t *hook_pre_workload_run_;
     general_hook_func_t *hook_post_workload_run_;
+    calc_required_readings_func_t *calc_required_readings_func_;
+    calc_required_readings_func_t *calc_required_unit_readings_func_;
+
+    std::vector<runtime_analysis_plugin_t> runtime_analysis_plugins_;
 
     pilot_workload_t(const char *wl_name) :
                          num_of_pi_(0), rounds_(0), init_work_amount_(0),
@@ -141,14 +158,19 @@ struct pilot_workload_t {
                          short_workload_check_(true),
                          warm_up_removal_detection_method_(FIXED_PERCENTAGE),
                          warm_up_removal_moving_average_window_size_in_seconds_(3),
-                         calc_unit_readings_required_func_(&default_calc_unit_readings_required_func),
-                         calc_readings_required_func_(&default_calc_readings_required_func),
+                         wps_slices_(kWPSInitSlices),
+                         next_round_work_amount_hook_(NULL),
                          hook_pre_workload_run_(NULL), hook_post_workload_run_(NULL),
+                         calc_required_readings_func_(NULL),
+                         calc_required_unit_readings_func_(NULL),
                          wholly_rejected_rounds_(0),
                          short_round_detection_threshold_(1 * pilot::ONE_SECOND),
                          required_ci_percent_of_mean_(0.1), required_ci_absolute_value_(-1),
                          tui_(NULL) {
         if (wl_name) workload_name_ = wl_name;
+        runtime_analysis_plugins_.emplace_back(true, &calc_next_round_work_amount_from_readings);
+        runtime_analysis_plugins_.emplace_back(true, &calc_next_round_work_amount_from_unit_readings);
+        runtime_analysis_plugins_.emplace_back(true, &calc_next_round_work_amount_from_wps);
     }
 
     /**
@@ -174,7 +196,7 @@ struct pilot_workload_t {
      */
     ssize_t required_num_of_unit_readings(int piid) const;
 
-    size_t calc_next_round_work_amount(void) const;
+    size_t calc_next_round_work_amount(void);
 
     inline double calc_avg_work_unit_per_amount(int piid) const {
         size_t total_work_units = 0;
@@ -241,6 +263,8 @@ struct pilot_workload_t {
     inline double format_wps(const int piid, const double wps) const {
         return pi_info_[piid].format_wps(this, wps);
     }
+
+    bool set_wps_analysis(bool enabled);
 };
 
 struct pilot_pi_unit_readings_iter_t {

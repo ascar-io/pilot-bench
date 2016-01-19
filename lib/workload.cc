@@ -61,6 +61,10 @@ double pilot_workload_t::unit_readings_autocorrelation_coefficient(int piid, siz
 }
 
 ssize_t pilot_workload_t::required_num_of_unit_readings(int piid) const {
+    if (calc_required_unit_readings_func_) {
+        return calc_required_unit_readings_func_(this, piid);
+    }
+
     double ci_width;
     if (required_ci_percent_of_mean_ > 0) {
         double sm = pilot_subsession_mean(pilot_pi_unit_readings_iter_t(this, piid),
@@ -74,52 +78,23 @@ ssize_t pilot_workload_t::required_num_of_unit_readings(int piid) const {
                                      total_num_of_unit_readings_[piid], ci_width);
 }
 
-size_t pilot_workload_t::calc_next_round_work_amount(void) const {
-    if (0 == rounds_)
-        return 0 == init_work_amount_ ? work_amount_limit_ / 10 : init_work_amount_;
+size_t pilot_workload_t::calc_next_round_work_amount(void) {
+    if (next_round_work_amount_hook_) {
+        return next_round_work_amount_hook_(this);
+    }
+
 
     size_t max_work_amount = 0;
-    size_t num_of_readings_needed;
-    size_t work_amount_needed;
-    for (int piid = 0; piid != num_of_pi_; ++piid) {
-        if (abs(calc_avg_work_unit_per_amount(piid)) < 0.00000001) {
-            error_log << "[PI " << piid << "] average work per unit reading is 0, using work_amount_limit instead (you probably need to report a bug)";
-            return work_amount_limit_;
-        }
-        if (0 != total_num_of_unit_readings_[piid]) {
-            ssize_t req = calc_unit_readings_required_func_(this, piid);
-            info_log << "[PI " << piid << "] required unit readings sample size: " << req;
-            if (req > 0) {
-                if (req < total_num_of_unit_readings_[piid]) {
-                    info_log << "[PI " << piid << "] already has enough samples";
-                    return 0;
-                }
-                num_of_readings_needed = req - total_num_of_unit_readings_[piid];
-            } else {
-                // in case when there's not enough data to calculate the number of UR,
-                // we try to double the total number of unit readings
-                info_log << "[PI " << piid << "] doesn't have enough information for calculating required sample size, using the current total sample size instead";
-                num_of_readings_needed = total_num_of_unit_readings_[piid];
-            }
-        } else {
-            // this PI has no unit readings, try readings
-            if (0 != total_num_of_readings_[piid] ) {
-                num_of_readings_needed = calc_readings_required_func_(this, piid)
-                                         - rounds_;
-            } else {
-                info_log << "[PI " << piid << "] has no usable data readings, "
-                        "using using work_amount_limit instead (workload is "
-                        "probably too short so all readings are considered warm-up)";
-                return work_amount_limit_;
-            }
-        }
-        work_amount_needed = size_t(1.2 * num_of_readings_needed
-                                        * calc_avg_work_unit_per_amount(piid));
-        if (work_amount_needed >= work_amount_limit_)
-            return work_amount_limit_;
-        max_work_amount = max(work_amount_needed, max_work_amount);
+    for (auto &r : runtime_analysis_plugins_) {
+        if (!r.enabled) continue;
+        max_work_amount = max(max_work_amount, r.calc_next_round_work_amount(this));
     }
-    return max_work_amount;
+
+    if (0 == rounds_ && 0 == max_work_amount) {
+        return 0 == init_work_amount_ ? work_amount_limit_ / 10 : init_work_amount_;
+    } else {
+        return max_work_amount;
+    }
 }
 
 pilot_workload_info_t* pilot_workload_t::workload_info(pilot_workload_info_t *info) const {
@@ -185,6 +160,8 @@ pilot_workload_info_t* pilot_workload_t::workload_info(pilot_workload_info_t *in
             accumulate(round_work_amounts_.begin(), round_work_amounts_.end(), 0);
     boost::timer::nanosecond_type sum_of_round_durations =
             accumulate(round_durations_.begin(), round_durations_.end(), 0);
+    cout << "sum_of_work_amount: " << sum_of_work_amount << endl;
+    cout << "sum_of_round_durations: " << sum_of_round_durations << endl;
     info->wps_harmonic_mean = sum_of_work_amount / sum_of_round_durations;
 
     if (rounds_ >= 2) {
@@ -284,6 +261,20 @@ char* pilot_workload_t::text_workload_summary(void) const {
         s << "95% confidence interval width: " << ci_high - ci_low << " " << pi_info_[piid].unit << endl;
         s << "95% confidence interval width is " << ci_rt * 100 << "% of sample_mean" << endl;
         s << "95% confidence interval: [" << ci_low << ", " << ci_high << "] " << pi_info_[piid].unit << endl;
+
+        s << "== WORK-PER-SECOND ANALYSIS ==" << endl;
+        s << "naive mean: " << i->wps_harmonic_mean << endl;
+        /* wi_.wps_v_dw_method = -1 if not enough data */
+        if (i->wps_v_dw_method > 0) {
+            s << "warm-up removed v (dw mtd): " << i->wps_v_dw_method << endl;
+            if (i->wps_v_ci_dw_method > 0) {
+                s << "CI width: " << i->wps_v_ci_dw_method << endl;
+            } else {
+                s << "Not enough data for CI analysis" << endl;
+            }
+        } else {
+            s << "Not enough data for WPS analysis" << endl;
+        }
     }
 //    cout << "dumb throughput (io_limit / total_elapsed_time) (MB/s): [";
 //    const double* tp_readings = pilot_get_pi_readings(wl, tp_pi);
@@ -302,3 +293,17 @@ char* pilot_workload_t::text_workload_summary(void) const {
     return result;
 }
 
+bool pilot_workload_t::set_wps_analysis(bool enabled) {
+    for (auto &r : runtime_analysis_plugins_) {
+        if (&calc_next_round_work_amount_from_wps == r.calc_next_round_work_amount) {
+            bool old_enabled = r.enabled;
+            r.enabled = enabled;
+            return old_enabled;
+        }
+    }
+    if (enabled) {
+        info_log << "WPS analysis plugin not loaded";
+        abort();
+    }
+    return false;
+}
