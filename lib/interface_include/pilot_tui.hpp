@@ -143,7 +143,7 @@ public:
     }
 
     BoxedWidget(int h, int w, int y, int x, const std::string &title)
-    : x_(x), y_(y), w_(w), h_(h), title_(title), wind_(NULL) {
+    : w_(w), h_(h), wind_(NULL), x_(x), y_(y), title_(title) {
         inner_w_ = w_ - 2;
         inner_h_ = h_ - 2;
         draw();
@@ -194,7 +194,7 @@ private:
     }
 public:
     TaskBox(CDKSCREEN *cdk_screen, int h, int w, int y, int x, TaskList *task_list)
-    : cdk_screen_(cdk_screen), x_(x), y_(y), w_(w), h_(h),
+    : x_(x), y_(y), w_(w), h_(h), cdk_screen_(cdk_screen),
       task_list_(task_list) {
         draw();
     }
@@ -208,6 +208,7 @@ public:
 class SummaryBox : public BoxedWidget {
 private:
     const std::vector<pilot_pi_info_t> * const pi_info_vec_p_;
+    const pilot_display_format_functor &format_wps_;
     static const int kLinesPerPI = 2;
 
     pilot_workload_info_t wi_;
@@ -285,12 +286,12 @@ private:
         next_draw_pos_y_ = 1;
         if (wi_.num_of_pi != 0) {
             draw_data_line("total rounds: ", wi_.num_of_rounds, "");
+
             for (int piid = 0; piid < wi_.num_of_pi; ++piid) {
                 const std::string &pi_name = (*pi_info_vec_p_)[piid].name;
                 const std::string &pi_unit = std::string(" ") + (*pi_info_vec_p_)[piid].unit;
-                const pilot_display_preprocess_functor &format_r = (*pi_info_vec_p_)[piid].format_reading;
-                const pilot_display_preprocess_functor &format_ur = (*pi_info_vec_p_)[piid].format_unit_reading;
-                const pilot_display_preprocess_functor &format_wps = (*pi_info_vec_p_)[piid].format_wps;
+                const pilot_display_format_functor &format_r = (*pi_info_vec_p_)[piid].format_reading;
+                const pilot_display_format_functor &format_ur = (*pi_info_vec_p_)[piid].format_unit_reading;
 
                 // draw the PI name as the separator
                 draw_with_decor(pi_name);
@@ -402,9 +403,9 @@ private:
             draw_data_line("naive mean: ", wi_.wps_harmonic_mean, "");
             /* wi_.wps_v_dw_method = -1 if not enough data */
             if (wi_.wps_v_dw_method > 0) {
-                draw_data_line("warm-up removed v (dw mtd): ", wi_.wps_v_dw_method, "");
+                draw_data_line("warm-up removed v (dw mtd): ", format_wps_(NULL, wi_.wps_v_dw_method), "");
                 if (wi_.wps_v_ci_dw_method > 0) {
-                    draw_data_line("CI width: ", wi_.wps_v_ci_dw_method, "");
+                    draw_data_line("CI width: ", format_wps_(NULL, wi_.wps_v_ci_dw_method), "");
                 } else {
                     draw_buf_ << "Not enough data for CI analysis";
                     flush_buf_new_line();
@@ -432,9 +433,11 @@ public:
         wi_ = wi;
         draw();
     }
-    SummaryBox(int h, int w, int y, int x, const std::vector<pilot_pi_info_t> *pi_info_vec_p)
-        : pi_info_vec_p_(pi_info_vec_p),
-          BoxedWidget(h, w, y, x, " WORKLOAD SUMMARY "),
+    SummaryBox(int h, int w, int y, int x,
+               const std::vector<pilot_pi_info_t> *pi_info_vec_p,
+               const pilot_display_format_functor &format_wps)
+        : BoxedWidget(h, w, y, x, " WORKLOAD SUMMARY "),
+          pi_info_vec_p_(pi_info_vec_p), format_wps_(format_wps),
           next_draw_pos_x_(0), next_draw_pos_y_(0),
           prev_max_lines_(0) {
         draw();
@@ -469,7 +472,7 @@ private:
     }
 public:
     MsgBox(CDKSCREEN *cdk_screen, int h, int w, int y, int x)
-    : cdk_screen_(cdk_screen), x_(x), y_(y), w_(w), h_(h - 1) {
+    : x_(x), y_(y), w_(w), h_(h - 1), cdk_screen_(cdk_screen) {
         draw();
     }
     ~MsgBox() {
@@ -491,6 +494,7 @@ protected:
 
     TaskList   task_list_;
     const std::vector<pilot_pi_info_t> *pi_info_vec_p_;
+    const pilot_display_format_functor &format_wps_;
 
     WINDOW     *curses_win_;
     CDKSCREEN  *cdk_screen_;
@@ -576,11 +580,12 @@ protected:
     }
 
 public:
-    PilotTUI(const std::vector<pilot_pi_info_t> *pi_info_vec_p) :
-        pi_info_vec_p_(pi_info_vec_p),
-        task_box_height_(task_list_.size() + 2),
+    PilotTUI(const std::vector<pilot_pi_info_t> *pi_info_vec_p,
+             const pilot_display_format_functor &format_wps) :
+        pi_info_vec_p_(pi_info_vec_p), format_wps_(format_wps),
         title_bar_(NULL), progress_bar_(NULL), task_box_(NULL),
-        summary_box_(NULL), msg_box_(NULL) {
+        summary_box_(NULL), msg_box_(NULL),
+        task_box_height_(task_list_.size() + 2) {
         // the width of the left column is [35, 50]
         left_col_width_ = std::max(COLS / 3, 35);
         left_col_width_ = std::min(50, left_col_width_);
@@ -645,7 +650,7 @@ public:
         summary_box_ = new SummaryBox(LINES - task_box_height_ - 2,
                                       left_col_width_,
                                       task_box_height_ + 1,
-                                      0, pi_info_vec_p_);
+                                      0, pi_info_vec_p_, format_wps_);
         msg_box_ = new MsgBox(cdk_screen_, LINES - 2, COLS - left_col_width_, 1, left_col_width_);
     }
     void refresh() {

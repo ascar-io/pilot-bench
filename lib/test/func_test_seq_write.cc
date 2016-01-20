@@ -137,7 +137,7 @@ int workload_func(size_t total_work_amount,
             work_unit_elapsed_times[unit_id] = timer.elapsed().wall;
         ++unit_id;
     }
-    nanosecond_type total_elapsed_time = timer.elapsed().wall;
+    //nanosecond_type total_elapsed_time = timer.elapsed().wall;
     close(fd);
 
     // we do calculation after finishing the workload to minimize the overhead

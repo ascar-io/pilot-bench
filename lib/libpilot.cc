@@ -60,23 +60,27 @@ void pilot_lib_self_check(int vmajor, int vminor, size_t nanosecond_type_size) {
 void pilot_set_pi_info(pilot_workload_t* wl, int piid,
         const char *pi_name,
         const char *pi_unit,
-        pilot_pi_display_preprocess_func_t *reading_display_preprocess_func,
-        pilot_pi_display_preprocess_func_t *unit_reading_display_preprocess_func,
-        pilot_pi_display_preprocess_func_t *work_per_second_display_preprocess_func,
-        bool reading_must_satisfy, bool unit_reading_must_satisfy,
-        bool wps_must_satisfy)
+        pilot_pi_display_format_func_t *format_reading_func,
+        pilot_pi_display_format_func_t *format_unit_reading_func,
+        bool reading_must_satisfy, bool unit_reading_must_satisfy)
 {
     ASSERT_VALID_POINTER(wl);
     ASSERT_VALID_POINTER(pi_name);
     // we allow pi_unit be NULL
     wl->pi_info_[piid].name.assign(pi_name ? pi_name : "");
     wl->pi_info_[piid].unit.assign(pi_unit ? pi_unit : "");
-    wl->pi_info_[piid].format_reading.format_func_ = reading_display_preprocess_func;
-    wl->pi_info_[piid].format_unit_reading.format_func_ = unit_reading_display_preprocess_func;
-    wl->pi_info_[piid].format_wps.format_func_ = work_per_second_display_preprocess_func;
+    wl->pi_info_[piid].format_reading.format_func_ = format_reading_func;
+    wl->pi_info_[piid].format_unit_reading.format_func_ = format_unit_reading_func;
     wl->pi_info_[piid].reading_must_satisfy = reading_must_satisfy;
     wl->pi_info_[piid].unit_reading_must_satisfy = unit_reading_must_satisfy;
-    wl->pi_info_[piid].wps_must_satisfy = wps_must_satisfy;
+}
+
+void pilot_wps_setting(pilot_workload_t* wl,
+        pilot_pi_display_format_func_t *format_wps_func,
+        bool wps_must_satisfy) {
+    ASSERT_VALID_POINTER(wl);
+    wl->format_wps_.format_func_ = format_wps_func;
+    wl->wps_must_satisfy_ = wps_must_satisfy;
 }
 
 pilot_workload_t* pilot_new_workload(const char *workload_name) {
@@ -289,7 +293,7 @@ int pilot_run_workload(pilot_workload_t *wl) {
 int pilot_run_workload_tui(pilot_workload_t *wl) {
     unique_ptr<PilotTUI> pilot_tui;
     try {
-        pilot_tui.reset(new PilotTUI(&(wl->pi_info_)));
+        pilot_tui.reset(new PilotTUI(&(wl->pi_info_), wl->format_wps_));
     } catch (const tui_exception &ex) {
         // when TUI can't be constructed, switch back to old plain cout
         cerr << ex.what() << endl;
@@ -623,7 +627,6 @@ pilot_optimal_sample_size_p(const double *data, size_t n,
 int pilot_wps_warmup_removal_dw_method_p(size_t rounds, const size_t *round_work_amounts,
         const nanosecond_type *round_durations, float confidence_level,
         float autocorrelation_coefficient_limit, double *v, double *ci_width) {
-    int a;
     return pilot_wps_warmup_removal_dw_method(rounds, round_work_amounts,
                                                    round_durations, confidence_level,
                                                    autocorrelation_coefficient_limit,
@@ -832,6 +835,7 @@ size_t calc_next_round_work_amount_from_unit_readings(pilot_workload_t *wl) {
 }
 
 size_t calc_next_round_work_amount_from_wps(pilot_workload_t *wl) {
+    if (!wl->wps_must_satisfy_) return 0;
     size_t wa_slice_size = wl->work_amount_limit_ / wl->wps_slices_;
     if (0 == wl->rounds_) return wa_slice_size;
 
@@ -842,7 +846,7 @@ size_t calc_next_round_work_amount_from_wps(pilot_workload_t *wl) {
             wl->round_durations_.begin(), wl->confidence_interval_,
             wl->autocorrelation_coefficient_limit_,
             &wps_v_dw_method, &wps_v_ci_dw_method);
-        if (wps_v_dw_method > 0 && wps_v_ci_dw_method > 0 && wps_v_ci_dw_method < .1 * wps_v_dw_method) {
+        if (wps_v_dw_method > 0 && wps_v_ci_dw_method > 0 && wps_v_ci_dw_method < wl->required_ci_percent_of_mean_ * wps_v_dw_method) {
             info_log << "WPS confidence interval small enough";
             return 0;
         }

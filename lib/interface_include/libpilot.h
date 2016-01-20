@@ -172,15 +172,15 @@ enum pilot_hook_t {
 int pilot_set_hook_func(pilot_workload_t* wl, enum pilot_hook_t hook, general_hook_func_t *f);
 
 /**
- * \brief Type for a function that preprocess a number for output
+ * \brief Type for a function that formats a number for output
  * \details There are several hooks of this type used by libpilots to
- * preprocess a number before rendering it for display. You can set a
+ * format a number before rendering it for display. You can set a
  * different function for each PI.
  * @param[in] wl pointer to the workload struct
- * @param unit_reading the unit reading to display
+ * @param number the number to be displayed
  * @return a processed number for print
  */
-typedef double pilot_pi_display_preprocess_func_t(const pilot_workload_t* wl, double number);
+typedef double pilot_pi_display_format_func_t(const pilot_workload_t* wl, double number);
 
 /**
  * \brief Set the information of a PI
@@ -193,24 +193,30 @@ typedef double pilot_pi_display_preprocess_func_t(const pilot_workload_t* wl, do
  * @param[in] unit_reading_display_preprocess_func the function for preprocessing a
  * unit reading number for display. Setting this parameter to NULL to disable
  * it.
- * @param[in] work_per_second_display_preprocess_func the function for
- * preprocessing a work-per-second number for display. Setting this parameter
- * to NULL to disable it.
  * @param reading_must_satisfy set if the reading must satisfy quality
  * requirements
  * @param unit_reading_must_satisfy set if the unit readings must satisfy
  * quality requirements
- * @param wps_must_satisfy set if the work-per-second must satisfy quality
- * requirements
  */
 void pilot_set_pi_info(pilot_workload_t* wl, int piid,
         const char *pi_name,
         const char *pi_unit = NULL,
-        pilot_pi_display_preprocess_func_t *reading_display_preprocess_func = NULL,
-        pilot_pi_display_preprocess_func_t *unit_reading_display_preprocess_func = NULL,
-        pilot_pi_display_preprocess_func_t *work_per_second_display_preprocess_func = NULL,
-        bool reading_must_satisfy = false, bool unit_reading_must_satisfy = false,
-        bool wps_must_satisfy = false);
+        pilot_pi_display_format_func_t *format_reading_func = NULL,
+        pilot_pi_display_format_func_t *format_unit_reading_func = NULL,
+        bool reading_must_satisfy = false, bool unit_reading_must_satisfy = false);
+
+/**
+ * Format a WPS number for output
+ * @param[in] wl pointer to the workload struct
+ * @param[in] format_wps_func the function for formatting
+ * a work-per-second number for display. Setting this parameter
+ * to NULL to disable it.
+ * @param wps_must_satisfy set if the work-per-second must satisfy quality
+ * requirements
+ */
+void pilot_wps_setting(pilot_workload_t* wl,
+        pilot_pi_display_format_func_t *format_wps_func,
+        bool wps_must_satisfy);
 
 pilot_workload_t* pilot_new_workload(const char *workload_name);
 

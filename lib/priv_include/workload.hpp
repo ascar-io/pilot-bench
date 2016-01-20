@@ -50,9 +50,9 @@ class PilotTUI;
 /**
  * This functor is used to format a number for human-readable display.
  */
-class pilot_display_preprocess_functor {
+class pilot_display_format_functor {
 public:
-    pilot_pi_display_preprocess_func_t *format_func_;
+    pilot_pi_display_format_func_t *format_func_;
     /**
      * This default format functor does nothing
      * @param wl
@@ -65,7 +65,7 @@ public:
         else
             return format_func_(wl, number);
     }
-    pilot_display_preprocess_functor(pilot_pi_display_preprocess_func_t *format_func = NULL) :
+    pilot_display_format_functor(pilot_pi_display_format_func_t *format_func = NULL) :
         format_func_(format_func) {}
 };
 
@@ -73,21 +73,19 @@ class pilot_pi_info_t {
 public:
     std::string name;
     std::string unit;
-    pilot_display_preprocess_functor format_reading;
-    pilot_display_preprocess_functor format_unit_reading;
-    pilot_display_preprocess_functor format_wps;
+    pilot_display_format_functor format_reading;
+    pilot_display_format_functor format_unit_reading;
     bool reading_must_satisfy;
     bool unit_reading_must_satisfy;
     bool wps_must_satisfy;
 
     pilot_pi_info_t(std::string _name = "", std::string _unit = "",
-           pilot_pi_display_preprocess_func_t *_r_format_func = NULL,
-           pilot_pi_display_preprocess_func_t *_ur_format_func = NULL,
-           pilot_pi_display_preprocess_func_t *_wps_format_func = NULL,
+           pilot_pi_display_format_func_t *_r_format_func = NULL,
+           pilot_pi_display_format_func_t *_ur_format_func = NULL,
            bool _r_sat = false, bool _ur_sat = false,
            bool _wps_sat = false) :
         name(_name), unit(_unit), format_reading(_r_format_func),
-        format_unit_reading(_ur_format_func), format_wps(_wps_format_func),
+        format_unit_reading(_ur_format_func),
         reading_must_satisfy(_r_sat), unit_reading_must_satisfy(_ur_sat),
         wps_must_satisfy(_wps_sat) {}
 };
@@ -116,6 +114,9 @@ struct pilot_workload_t {
     size_t work_amount_limit_;
     pilot_workload_func_t *workload_func_;
     std::vector<pilot_pi_info_t> pi_info_;
+    pilot_display_format_functor format_wps_;
+    bool wps_must_satisfy_;
+
     PilotTUI *tui_;
 
     std::vector<boost::timer::nanosecond_type> round_durations_; //! The duration of each round
@@ -154,20 +155,20 @@ struct pilot_workload_t {
     pilot_workload_t(const char *wl_name) :
                          num_of_pi_(0), rounds_(0), init_work_amount_(0),
                          work_amount_limit_(0), workload_func_(nullptr),
+                         wps_must_satisfy_(true), tui_(NULL),
                          confidence_interval_(0.05), confidence_level_(.95),
                          autocorrelation_coefficient_limit_(0.1),
+                         required_ci_percent_of_mean_(0.1), required_ci_absolute_value_(-1),
+                         session_duration_limit_in_sec_(0),
+                         short_round_detection_threshold_(1 * pilot::ONE_SECOND),
                          short_workload_check_(true),
                          warm_up_removal_detection_method_(FIXED_PERCENTAGE),
                          warm_up_removal_moving_average_window_size_in_seconds_(3),
-                         wps_slices_(kWPSInitSlices),
+                         wholly_rejected_rounds_(0), wps_slices_(kWPSInitSlices),
                          next_round_work_amount_hook_(NULL),
                          hook_pre_workload_run_(NULL), hook_post_workload_run_(NULL),
                          calc_required_readings_func_(NULL),
-                         calc_required_unit_readings_func_(NULL),
-                         wholly_rejected_rounds_(0),
-                         short_round_detection_threshold_(1 * pilot::ONE_SECOND),
-                         required_ci_percent_of_mean_(0.1), required_ci_absolute_value_(-1),
-                         tui_(NULL), session_duration_limit_in_sec_(0) {
+                         calc_required_unit_readings_func_(NULL) {
         if (wl_name) workload_name_ = wl_name;
         runtime_analysis_plugins_.emplace_back(true, &calc_next_round_work_amount_from_readings);
         runtime_analysis_plugins_.emplace_back(true, &calc_next_round_work_amount_from_unit_readings);
@@ -261,8 +262,8 @@ struct pilot_workload_t {
         return pi_info_[piid].format_unit_reading(this, ur);
     }
 
-    inline double format_wps(const int piid, const double wps) const {
-        return pi_info_[piid].format_wps(this, wps);
+    inline double format_wps(const double wps) const {
+        return format_wps_(this, wps);
     }
 
     bool set_wps_analysis(bool enabled);

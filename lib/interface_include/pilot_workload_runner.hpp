@@ -71,7 +71,7 @@ private:
     }
 public:
     WorkloadRunner(pilot_workload_t *wl, Logger &logger)
-        : wl_(wl), logger_(logger), benchmark_err_(0) {
+        : logger_(logger), wl_(wl), benchmark_err_(0) {
     }
 
     void start(void) {
