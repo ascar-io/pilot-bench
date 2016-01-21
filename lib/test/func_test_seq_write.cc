@@ -312,14 +312,20 @@ int main(int argc, char **argv) {
     pilot_set_hook_func(wl, PRE_WORKLOAD_RUN, &pre_workload_run_hook);
     pilot_set_hook_func(wl, POST_WORKLOAD_RUN, &post_workload_run_hook);
     // Run for at most 3 minutes
-    pilot_set_session_duration_limit(wl, 3*60);
+    pilot_set_session_duration_limit(wl, 4*60);
 
     int res;
     if (use_tui)
         res = pilot_run_workload_tui(wl);
     else
         res = pilot_run_workload(wl);
-    if (res != 0) {
+    switch (res) {
+    case 0:
+        break;
+    case ERR_STOPPED_BY_DURATION_LIMIT:
+        cout << "Reached time limit. Stopped.";
+        break;
+    default:
         cout << pilot_strerror(res) << endl;
         return res;
     }
