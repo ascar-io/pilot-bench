@@ -273,14 +273,14 @@ struct pilot_workload_t {
 
 struct pilot_pi_unit_readings_iter_t {
     const pilot_workload_t *wl_;
-    int piid_;
-    int cur_round_id_;
-    int cur_unit_reading_id_;
+    size_t piid_;
+    size_t cur_round_id_;
+    size_t cur_unit_reading_id_;
 
-    pilot_pi_unit_readings_iter_t (const pilot_workload_t *wl, int piid) :
+    pilot_pi_unit_readings_iter_t (const pilot_workload_t *wl, size_t piid) :
         wl_(wl), piid_(piid), cur_round_id_(0), cur_unit_reading_id_(0) {
         ASSERT_VALID_POINTER(wl);
-        if (piid < 0 || piid >= wl->num_of_pi_) {
+        if (piid >= wl->num_of_pi_) {
             fatal_log << __func__ << "() piid has invalid value " << piid;
             abort();
         }
@@ -351,10 +351,10 @@ struct pilot_pi_unit_readings_iter_t {
     }
 
     inline bool valid(void) const {
-        if (piid_ < 0 || piid_ >= wl_->num_of_pi_)
+        if (piid_ >= wl_->num_of_pi_)
             return false;
 
-        if (cur_round_id_ < 0 || cur_round_id_ >= wl_->rounds_)
+        if (cur_round_id_ >= wl_->rounds_)
             return false;
 
         if (cur_unit_reading_id_ >= wl_->unit_readings_[piid_][cur_round_id_].size() ||

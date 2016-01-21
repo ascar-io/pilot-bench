@@ -669,7 +669,7 @@ void pilot_pi_unit_readings_iter_destroy(pilot_pi_unit_readings_iter_t* iter);
  * @param[in] unit_readings the unit readings of each PI, can be NULL if there
  * is no unit readings in this round
  */
-void pilot_import_benchmark_results(pilot_workload_t *wl, int round,
+void pilot_import_benchmark_results(pilot_workload_t *wl, size_t round,
                                     size_t work_amount,
                                     nanosecond_type round_duration,
                                     const double *readings,

@@ -32,7 +32,9 @@ endif (NOT CMAKE_BUILD_TYPE)
 ###############################################################################
 ## GLOBAL BUILD OPTIONS
 if (CMAKE_CXX_COMPILER_ID MATCHES "(Clang|GNU)")
-    add_definitions (-Wall -Werror)
+    # The last -Werror=sign-compare is needed to enable the sign-compare
+    # warning for clang
+    add_definitions (-Wall -Werror -Werror=sign-compare)
 elseif (CMAKE_CXX_COMPILER_ID MATCHES "(MSVC)")
     add_definitions (/W2)
 endif ()

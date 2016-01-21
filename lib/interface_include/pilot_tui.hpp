@@ -184,7 +184,7 @@ private:
                                     A_REVERSE,
                                     TRUE,
                                     FALSE);
-        for (int i = 0; i < task_list_->enabled().size(); ++i) {
+        for (size_t i = 0; i < task_list_->enabled().size(); ++i) {
             selection_list_->selections[i] = task_list_->enabled()[i] ? 1 : 0;
         }
         setCDKScrollBackgroundAttrib(selection_list_, DEFAULT_COLOR | A_BOLD);
@@ -287,7 +287,7 @@ private:
         if (wi_.num_of_pi != 0) {
             draw_data_line("total rounds: ", wi_.num_of_rounds, "");
 
-            for (int piid = 0; piid < wi_.num_of_pi; ++piid) {
+            for (size_t piid = 0; piid < wi_.num_of_pi; ++piid) {
                 const std::string &pi_name = (*pi_info_vec_p_)[piid].name;
                 const std::string &pi_unit = std::string(" ") + (*pi_info_vec_p_)[piid].unit;
                 const pilot_display_format_functor &format_r = (*pi_info_vec_p_)[piid].format_reading;

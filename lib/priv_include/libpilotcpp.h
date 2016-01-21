@@ -216,7 +216,7 @@ int pilot_wps_warmup_removal_dw_method(size_t rounds, WorkAmountInputIterator ro
     nanosecond_type dt;
     size_t total_sum_dw = 0;
     nanosecond_type total_sum_dt = 0;
-    for (int i = 1; i < rounds; ++i) {
+    for (size_t i = 1; i < rounds; ++i) {
         ++round_work_amounts;
         ++round_durations;
 

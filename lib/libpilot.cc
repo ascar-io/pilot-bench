@@ -257,7 +257,7 @@ int pilot_run_workload(pilot_workload_t *wl) {
         // cleaning up
         if (readings) free(readings);
         if (unit_readings) {
-            for (int piid = 0; piid < wl->num_of_pi_; ++piid) {
+            for (size_t piid = 0; piid < wl->num_of_pi_; ++piid) {
                 if (unit_readings[piid])
                     free(unit_readings[piid]);
             }
@@ -410,10 +410,10 @@ int pilot_export(const pilot_workload_t *wl, pilot_export_format_t format,
             of.exceptions(ofstream::failbit | ofstream::badbit);
             of.open(filename);
             of << "piid,round,reading,unit_reading" << endl;
-            for (int piid = 0; piid < wl->num_of_pi_; ++piid)
-                for (int round = 0; round < wl->rounds_; ++round) {
+            for (size_t piid = 0; piid < wl->num_of_pi_; ++piid)
+                for (size_t round = 0; round < wl->rounds_; ++round) {
                     if (wl->unit_readings_[piid][round].size() != 0) {
-                        for (int ur = 0; ur < wl->unit_readings_[piid][round].size(); ++ur) {
+                        for (size_t ur = 0; ur < wl->unit_readings_[piid][round].size(); ++ur) {
                             if (0 == ur) {
                                 of << piid << ","
                                    << round << ",";
@@ -667,7 +667,7 @@ ssize_t pilot_warm_up_removal_detect(const pilot_workload_t *wl,
     }
 }
 
-void pilot_import_benchmark_results(pilot_workload_t *wl, int round,
+void pilot_import_benchmark_results(pilot_workload_t *wl, size_t round,
                                     size_t work_amount,
                                     boost::timer::nanosecond_type round_duration,
                                     const double *readings,
@@ -675,7 +675,7 @@ void pilot_import_benchmark_results(pilot_workload_t *wl, int round,
                                     const double * const *unit_readings) {
 
     ASSERT_VALID_POINTER(wl);
-    die_if(round < 0 || round > wl->rounds_, ERR_WRONG_PARAM, string("Invalid round value for ") + __func__);
+    die_if(round > wl->rounds_, ERR_WRONG_PARAM, string("Invalid round value for ") + __func__);
 
     // update work_amount
     if (round != wl->rounds_)
@@ -690,7 +690,7 @@ void pilot_import_benchmark_results(pilot_workload_t *wl, int round,
         wl->round_durations_.push_back(round_duration);
 
     if (!unit_readings) num_of_unit_readings = 0;
-    for (int piid = 0; piid < wl->num_of_pi_; ++piid) {
+    for (size_t piid = 0; piid < wl->num_of_pi_; ++piid) {
         // first subtract the number of the old unit readings from total_num_of_unit_readings_
         // before updating the data
         if (round != wl->rounds_) {
@@ -736,7 +736,7 @@ void pilot_import_benchmark_results(pilot_workload_t *wl, int round,
         } else {
             wl->warm_up_phase_len_[piid][round] = wul;
         }
-        if (num_of_unit_readings != 0 && wul == num_of_unit_readings)
+        if (num_of_unit_readings != 0 && static_cast<size_t>(wul) == num_of_unit_readings)
             ++wl->wholly_rejected_rounds_;
         // increase total number of unit readings (the number of old unit readings are
         // subtracted at the beginning of the for loop).
@@ -806,7 +806,7 @@ size_t calc_next_round_work_amount_from_unit_readings(pilot_workload_t *wl) {
         return 0 == wl->init_work_amount_ ? wl->work_amount_limit_ / 10 : wl->init_work_amount_;
 
     size_t max_work_amount_needed = 0;
-    for (int piid = 0; piid != wl->num_of_pi_; ++piid) {
+    for (size_t piid = 0; piid != wl->num_of_pi_; ++piid) {
         size_t num_of_ur_needed;
         if (abs(wl->calc_avg_work_unit_per_amount(piid)) < 0.00000001) {
             error_log << "[PI " << piid << "] average work per unit reading is 0, using work_amount_limit instead (you probably need to report a bug)";
@@ -816,7 +816,7 @@ size_t calc_next_round_work_amount_from_unit_readings(pilot_workload_t *wl) {
             ssize_t req = wl->required_num_of_unit_readings(piid);
             info_log << "[PI " << piid << "] required unit readings sample size: " << req;
             if (req > 0) {
-                if (req < wl->total_num_of_unit_readings_[piid]) {
+                if (static_cast<size_t>(req) < wl->total_num_of_unit_readings_[piid]) {
                     info_log << "[PI " << piid << "] already has enough samples";
                     continue;
                 }

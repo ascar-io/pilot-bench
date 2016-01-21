@@ -101,7 +101,7 @@ TEST(PilotUnitReadingsIterTest, ImportingAndIterating) {
     iter = pilot_pi_unit_readings_iter_new(wl, 0);
     ASSERT_FALSE(pilot_pi_unit_readings_iter_valid(iter));
     pilot_pi_unit_readings_iter_destroy(iter);
-    ASSERT_EQ(0, pilot_get_total_num_of_unit_readings(wl, 0));
+    ASSERT_EQ(size_t(0), pilot_get_total_num_of_unit_readings(wl, 0));
 
     // now let's import some test data
     for (int round = 0; round < total_rounds; ++round)
@@ -110,7 +110,7 @@ TEST(PilotUnitReadingsIterTest, ImportingAndIterating) {
                                        unit_readings_per_round,
                                        mock_ur_rounds[round]);
 
-    ASSERT_EQ(16, pilot_get_total_num_of_unit_readings(wl, 0));
+    ASSERT_EQ(size_t(16), pilot_get_total_num_of_unit_readings(wl, 0));
     iter = pilot_pi_unit_readings_iter_new(wl, 0);
     assert_eq({5, 10, 20, 30, 40, 42, 43, 41, 4, 11, 19, 31, 39, 41, 42, 43}, iter, "first iter wrong");
     pilot_pi_unit_readings_iter_destroy(iter);
@@ -123,7 +123,7 @@ TEST(PilotUnitReadingsIterTest, ImportingAndIterating) {
                                    (const double[]){42.0},
                                    sizeof(_new_data_a)/sizeof(double),
                                    new_data_a);
-    ASSERT_EQ(17, pilot_get_total_num_of_unit_readings(wl, 0));
+    ASSERT_EQ(size_t(17), pilot_get_total_num_of_unit_readings(wl, 0));
     iter = pilot_pi_unit_readings_iter_new(wl, 0);
     assert_eq({10, 20, 30, 40, 42, 43, 41, 42, 43, 4, 11, 19, 31, 39, 41, 42, 43}, iter, "second iter wrong");
     pilot_pi_unit_readings_iter_destroy(iter);
@@ -136,7 +136,7 @@ TEST(PilotUnitReadingsIterTest, ImportingAndIterating) {
                                    (const double[]){42.0},
                                    sizeof(_new_data_b)/sizeof(double),
                                    new_data_b);
-    ASSERT_EQ(14, pilot_get_total_num_of_unit_readings(wl, 0));
+    ASSERT_EQ(size_t(14), pilot_get_total_num_of_unit_readings(wl, 0));
     iter = pilot_pi_unit_readings_iter_new(wl, 0);
     assert_eq({5, 10, 20, 30, 40, 42, 4, 11, 19, 31, 39, 41, 42, 43}, iter, "third iter wrong");
     pilot_pi_unit_readings_iter_destroy(iter);
@@ -146,7 +146,7 @@ TEST(PilotUnitReadingsIterTest, ImportingAndIterating) {
                                    (const double[]){42.0},
                                    0,
                                    NULL);
-    ASSERT_EQ(8, pilot_get_total_num_of_unit_readings(wl, 0));
+    ASSERT_EQ(size_t(8), pilot_get_total_num_of_unit_readings(wl, 0));
     iter = pilot_pi_unit_readings_iter_new(wl, 0);
     assert_eq({4, 11, 19, 31, 39, 41, 42, 43}, iter, "fourth iter wrong");
     pilot_pi_unit_readings_iter_destroy(iter);

@@ -42,8 +42,8 @@
 using namespace pilot;
 using namespace std;
 
-static int g_test_round = 0;
-static int g_work_amount_limit;
+static size_t g_test_round = 0;
+static size_t g_work_amount_limit;
 static const int g_num_of_pi = 1;
 static vector<int> *g_expected_work_amount_per_round = NULL;
 static vector<int> *g_required_sample_size_per_round = NULL;
@@ -62,7 +62,7 @@ int mock_workload_func(size_t work_amount,
         size_t memsize = sizeof(double) * work_amount;
         (*unit_readings)[piid] = (double*)lib_malloc_func(memsize);
         // the readings here are irrelevant so we just fill in some number
-        for (int i = 0; i < work_amount; ++i)
+        for (size_t i = 0; i < work_amount; ++i)
             (*unit_readings)[piid][i] = 42.42;
     }
 

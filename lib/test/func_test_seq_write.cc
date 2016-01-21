@@ -108,9 +108,9 @@ int workload_func(size_t total_work_amount,
         my_work_amount -= io_size;
         while(true) {
             res = write(fd, io_buf, io_size);
-            if (res == io_size)
+            if (res > 0 && static_cast<size_t>(res) == io_size)
                 break;
-            if (res > 0 && res != io_size) {
+            if (res > 0 && static_cast<size_t>(res) != io_size) {
                 io_size -= res;
                 io_buf += res;
                 continue;

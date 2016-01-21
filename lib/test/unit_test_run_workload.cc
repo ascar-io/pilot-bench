@@ -96,13 +96,13 @@ TEST(PilotRunWorkloadTest, RunWorkload) {
     pilot_set_log_level(lv_warning);
     pilot_set_num_of_pi(wl, 1);
     ASSERT_EQ(0, pilot_get_num_of_pi(wl, &num_of_pi));
-    ASSERT_EQ(1, num_of_pi);
+    ASSERT_EQ(size_t(1), num_of_pi);
 
     // Limit the write to 500 MB
     pilot_set_work_amount_limit(wl, 500);
     size_t work_amount_limit;
     ASSERT_EQ(0, pilot_get_work_amount_limit(wl, &work_amount_limit));
-    ASSERT_EQ(500, work_amount_limit);
+    ASSERT_EQ(size_t(500), work_amount_limit);
 
     pilot_set_workload_func(wl, &mock_workload_func);
     pilot_set_hook_func(wl, POST_WORKLOAD_RUN, &post_workload_hook);

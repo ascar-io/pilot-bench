@@ -65,7 +65,7 @@ static void prepare_data(const vector<size_t> &work_amounts,
     vector<size_t> sp_work_amounts(work_amounts.size());
     vector<nanosecond_type> sp_durations(work_amounts.size());
     total_durations.resize(work_amounts.size());
-    for (int i = 0; i < work_amounts.size(); ++i) {
+    for (size_t i = 0; i < work_amounts.size(); ++i) {
         sp_work_amounts[i] = work_amounts[i] - warmup_work_amounts[i] - cooldown_work_amounts[i];
         sp_durations[i] = sp_work_amounts[i] / sp_v;
         total_durations[i] = setup_durations[i] + warmup_durations[i] + sp_durations[i] + cooldown_durations[i];

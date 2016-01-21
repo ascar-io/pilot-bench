@@ -136,7 +136,7 @@ pilot_workload_info_t* pilot_workload_t::workload_info(pilot_workload_info_t *in
     }
 #undef INIT_FIELD
 
-    for (int piid = 0; piid < num_of_pi_; ++piid) {
+    for (size_t piid = 0; piid < num_of_pi_; ++piid) {
         double sm = unit_readings_mean(piid);
         info->total_num_of_unit_readings[piid] = total_num_of_unit_readings_[piid];
         if (0 == total_num_of_unit_readings_[piid]) {
@@ -190,7 +190,7 @@ pilot_round_info_t* pilot_workload_t::round_info(size_t round, pilot_round_info_
 
     rinfo->work_amount = round_work_amounts_[round];
     rinfo->round_duration = round_durations_[round];
-    for (int piid = 0; piid < num_of_pi_; ++piid) {
+    for (size_t piid = 0; piid < num_of_pi_; ++piid) {
         rinfo->num_of_unit_readings[piid] = unit_readings_[piid][round].size();
         rinfo->warm_up_phase_lens[piid] = warm_up_phase_len_[piid][round];
     }
@@ -202,7 +202,7 @@ char* pilot_workload_t::text_round_summary(size_t round) const {
     die_if(round >= rounds_, ERR_WRONG_PARAM, string(__func__) + "(): round out-of-bound");
     stringstream s;
     pilot_round_info_t *ri = round_info(round, NULL);
-    for (int piid = 0; piid < num_of_pi_; ++piid) {
+    for (size_t piid = 0; piid < num_of_pi_; ++piid) {
         if (piid != 0) s << endl;
         s << "# Performance Index " << piid << " #" << endl;
         s << "work amount: " << ri->work_amount << endl;
@@ -223,7 +223,7 @@ char* pilot_workload_t::text_workload_summary(void) const {
 
     // Keep the text in Markdown format
     s << setprecision(4);
-    for (int piid = 0; piid < num_of_pi_; ++piid) {
+    for (size_t piid = 0; piid < num_of_pi_; ++piid) {
         double sm = i->unit_readings_mean[piid];
         double var = i->unit_readings_var[piid];
         size_t cur_ur = i->total_num_of_unit_readings[piid];
