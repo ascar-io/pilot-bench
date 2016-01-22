@@ -453,8 +453,33 @@ double pilot_subsession_var_p(const double *data, size_t n, size_t q, double sam
 double pilot_subsession_autocorrelation_coefficient_p(const double *data, size_t n, size_t q, double sample_mean);
 
 /**
- * \brief Calculate the mean and confidence interval of readings with warm-up
- * removal
+ * \brief Calculate the mean and confidence interval of WPS with warm-up
+ * removal using the linear regression method
+ * \details This function is useful for test cases that cannot provide unit
+ * reading. Note that we encourage using CI instead of just a mean because
+ * you should not guarantee that the CI is symmetrical. If you really just
+ * need one number as a mean, you can use (ci_right - ci_left)/2 + ci_left
+ * as the mean if the CI is not too wide.
+ * @param rounds total number of rounds
+ * @param[in] round_work_amounts the work amounts of each round
+ * @param[in] round_durations the duration of each round
+ * @param autocorrelation_coefficient_limit the limit for autocorrelation
+ * coefficient (usually 0.1)
+ * @param[out] v the calculated performance
+ * @param[out] ci_width the calculated width of the confidence interval
+ * @return 0 on success; ERR_NOT_ENOUGH_DATA when there is not enough sample
+ * for calculate v; ERR_NOT_ENOUGH_DATA_FOR_CI when there is enough data for
+ * calculating v but not enough for calculating confidence interval.
+ */
+int pilot_wps_warmup_removal_lr_method_p(size_t rounds, const size_t *round_work_amounts,
+        const nanosecond_type *round_durations,
+        float autocorrelation_coefficient_limit, double *alpha, double *v,
+        double *ci_width);
+
+/**
+ * \brief Calculate the mean and confidence interval of WPS with warm-up
+ * removal using the deprecated dw method (you should use the linear
+ * regression method instead)
  * \details This function is useful for test cases that cannot provide unit
  * reading. Note that we encourage using CI instead of just a mean because
  * you should not guarantee that the CI is symmetrical. If you really just

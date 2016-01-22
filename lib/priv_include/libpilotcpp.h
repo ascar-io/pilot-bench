@@ -39,6 +39,7 @@
 
 #include <boost/math/distributions/students_t.hpp>
 #include <cmath>
+#include <dlib/optimization.h>
 #include "libpilot.h"
 #include <limits>
 #include <map>
@@ -172,6 +173,75 @@ pilot_optimal_sample_size(InputIterator first, size_t n, double confidence_inter
     size_t ur_req = sample_size_req * q;
     debug_log << "number of unit readings required: " << ur_req;
     return ur_req;
+}
+
+/* DEBUG CODE
+inline double residual (const std::pair<double, double>& data,
+    const parameter_vector& params) {
+    return params(0) + params(1) * data.first - data.second;
+}
+
+inline parameter_vector residual_derivative (const std::pair<double, double>& data,
+    const parameter_vector& params) {
+    parameter_vector der;
+    der(0) = 1;
+    der(1) = data.first;
+    return der;
+}
+*/
+
+/**
+ * Perform warm-up phase detection and removal on readings using the linear
+ * regression method
+ * @param rounds
+ * @param round_work_amounts
+ * @param round_durations
+ * @param autocorrelation_coefficient_limit
+ * @param v
+ * @param ci_width
+ * @return 0 on success; ERR_NOT_ENOUGH_DATA when there is not enough sample
+ * for calculate v; ERR_NOT_ENOUGH_DATA_FOR_CI when there is enough data for
+ * calculating v but not enough for calculating confidence interval.
+ */
+template <typename WorkAmountInputIterator, typename RoundDurationInputIterator>
+int pilot_wps_warmup_removal_lr_method(size_t rounds, WorkAmountInputIterator round_work_amounts,
+        RoundDurationInputIterator round_durations,
+        float autocorrelation_coefficient_limit, double *alpha, double *v, double *ci_width) {
+    typedef dlib::matrix<double,2,1> parameter_vector;
+    parameter_vector param_vec = 10 * dlib::randm(2,1);
+    std::vector<std::pair<double, double> > samples;
+    for (size_t i = 0; i < rounds; ++i) {
+        samples.push_back(std::make_pair(round_work_amounts[i], round_durations[i]));
+    }
+
+    /* DEBUG CODE
+    // Before we do anything, let's make sure that our derivative function defined above matches
+    // the approximate derivative computed using central differences (via derivative()).
+    // If this value is big then it means we probably typed the derivative function incorrectly.
+    // std::cout << "derivative error: " << dlib::length(residual_derivative(samples[0], param_vec) -
+    //        derivative(residual)(samples[0], param_vec) ) << std::endl;
+
+    dlib::solve_least_squares_lm(dlib::objective_delta_stop_strategy(1e-7).be_verbose(),
+            residual,
+            residual_derivative,
+            samples,
+            param_vec);
+    */
+    dlib::solve_least_squares_lm(dlib::objective_delta_stop_strategy(1e-7),
+            [](const std::pair<double, double>& data, const parameter_vector& params) {
+                return params(0) + params(1) * data.first - data.second;
+            },
+            [](const std::pair<double, double>& data, const parameter_vector& params) {
+                parameter_vector der;
+                der(0) = 1;
+                der(1) = data.first;
+                return der;
+            },
+            samples,
+            param_vec);
+    *alpha = param_vec(0);
+    *v = 1 / param_vec(1);
+    return 0;
 }
 
 /**

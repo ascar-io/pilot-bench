@@ -624,6 +624,16 @@ pilot_optimal_sample_size_p(const double *data, size_t n,
                                      max_autocorrelation_coefficient);
 }
 
+int pilot_wps_warmup_removal_lr_method_p(size_t rounds, const size_t *round_work_amounts,
+        const nanosecond_type *round_durations,
+        float autocorrelation_coefficient_limit, double *alpha, double *v,
+        double *ci_width) {
+    return pilot_wps_warmup_removal_lr_method(rounds, round_work_amounts,
+                                                   round_durations,
+                                                   autocorrelation_coefficient_limit,
+                                                   alpha, v, ci_width);
+}
+
 int pilot_wps_warmup_removal_dw_method_p(size_t rounds, const size_t *round_work_amounts,
         const nanosecond_type *round_durations, float confidence_level,
         float autocorrelation_coefficient_limit, double *v, double *ci_width) {
