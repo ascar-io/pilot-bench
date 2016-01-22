@@ -78,15 +78,18 @@ TEST(StatisticsUnitTest, OrdinaryLeastSquareLinearRegression) {
     const double exp_alpha = 42;
     const double exp_v = 0.5;
     const vector<size_t> work_amount{50, 100, 150, 200, 250};
+    const vector<double> error{20, -9, -18, -25, 30};
     vector<nanosecond_type> t;
+    auto p_error = error.begin();
     for (size_t c : work_amount) {
-        t.push_back((1.0 / exp_v) * c + exp_alpha);
+        t.push_back((1.0 / exp_v) * c + exp_alpha + *(p_error++));
     }
-    double alpha, v, ci;
+    double alpha, v, v_ci;
     pilot_wps_warmup_removal_lr_method_p(work_amount.size(),
-        work_amount.data(), t.data(), 1, &alpha, &v, &ci);
-    EXPECT_DOUBLE_EQ(exp_alpha, alpha);
-    EXPECT_DOUBLE_EQ(exp_v, v);
+        work_amount.data(), t.data(), 1, &alpha, &v, &v_ci);
+    ASSERT_NEAR(44, alpha, 4);
+    ASSERT_NEAR(exp_v, v, 0.1);
+    ASSERT_NEAR(0.35, v_ci, 0.01);
 }
 
 int main(int argc, char **argv) {

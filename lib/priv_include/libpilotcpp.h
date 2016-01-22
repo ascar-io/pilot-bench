@@ -206,7 +206,7 @@ inline parameter_vector residual_derivative (const std::pair<double, double>& da
 template <typename WorkAmountInputIterator, typename RoundDurationInputIterator>
 int pilot_wps_warmup_removal_lr_method(size_t rounds, WorkAmountInputIterator round_work_amounts,
         RoundDurationInputIterator round_durations,
-        float autocorrelation_coefficient_limit, double *alpha, double *v, double *ci_width) {
+        float autocorrelation_coefficient_limit, double *alpha, double *v, double *v_ci) {
     typedef dlib::matrix<double,2,1> parameter_vector;
     parameter_vector param_vec = 10 * dlib::randm(2,1);
     std::vector<std::pair<double, double> > samples;
@@ -241,6 +241,19 @@ int pilot_wps_warmup_removal_lr_method(size_t rounds, WorkAmountInputIterator ro
             param_vec);
     *alpha = param_vec(0);
     *v = 1 / param_vec(1);
+
+    double ssr = 0;
+    for (size_t i = 0; i < rounds; ++i) {
+        ssr += pow(*alpha + double(round_work_amounts[i]) / *v - round_durations[i], 2);
+    }
+    //std::cout << "SSR: " << ssr << std::endl;
+    double sigma_sqr = ssr / (rounds - 2);
+    //std::cout << "sigma^2: " << sigma_sqr << std::endl;
+    double wa_mean = pilot_subsession_mean(round_work_amounts, rounds);
+    double sum_var = pilot_subsession_var(round_work_amounts, rounds, 1, wa_mean) * (rounds -1);
+    //std::cout << "sum_var: " << sum_var << std::endl;
+    double std_err_v = sqrt(sigma_sqr / sum_var);
+    *v_ci = 2 * std_err_v;
     return 0;
 }
 
