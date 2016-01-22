@@ -68,7 +68,8 @@ set (GTEST_BINARY_DIR ${BINARY_DIR})
 
 find_package (Curses REQUIRED)
 ExternalProject_Add (cdk
-  URL ftp://invisible-island.net/cdk/cdk.tar.gz
+  URL http://invisible-mirror.net/archives/cdk/cdk-5.0-20150928.tgz
+  URL_HASH SHA256=028da75d5f777a1c4184f88e34918bd273bd83bbe3c959bc11710c4f0ea2e448
   PREFIX ${CMAKE_CURRENT_BINARY_DIR}/cdk
   SOURCE_DIR ${CMAKE_CURRENT_BINARY_DIR}/cdk/src/cdk
   CONFIGURE_COMMAND "${CMAKE_CURRENT_BINARY_DIR}/cdk/src/cdk/configure"
