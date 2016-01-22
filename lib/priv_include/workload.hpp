@@ -190,7 +190,7 @@ struct pilot_workload_t {
      */
     double unit_readings_var(int piid, size_t q) const;
 
-    double unit_readings_autocorrelation_coefficient(int piid, size_t q) const;
+    double unit_readings_autocorrelation_coefficient(int piid, size_t q, pilot_mean_method_t mean_method) const;
 
     /**
      * Calculate the required number of unit readings

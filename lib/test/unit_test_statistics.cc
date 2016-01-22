@@ -47,29 +47,29 @@ const vector<double> g_response_time{
 };
 
 TEST(StatisticsUnitTest, CornerCases) {
-    ASSERT_DEATH(pilot_subsession_cov_p(g_response_time.data(), 1, 1, 0), "") << "Shouldn't be able to calculate covariance for one sample";
-    ASSERT_DEATH(pilot_optimal_subsession_size_p(g_response_time.data(), 1), "") << "Shouldn't be able to calculate optimal subsession size for one sample";
+    ASSERT_DEATH(pilot_subsession_cov_p(g_response_time.data(), 1, 1, 0, ARITHMETIC_MEAN), "") << "Shouldn't be able to calculate covariance for one sample";
+    ASSERT_DEATH(pilot_optimal_subsession_size_p(g_response_time.data(), 1, ARITHMETIC_MEAN), "") << "Shouldn't be able to calculate optimal subsession size for one sample";
 }
 
 TEST(StatisticsUnitTest, AutocorrelationCoefficient) {
-    double sample_mean = pilot_subsession_mean_p(g_response_time.data(), g_response_time.size());
+    double sample_mean = pilot_subsession_mean_p(g_response_time.data(), g_response_time.size(), ARITHMETIC_MEAN);
     ASSERT_DOUBLE_EQ(1.756458333333333, sample_mean) << "Mean is wrong";
 
-    ASSERT_DOUBLE_EQ(0.073474423758865273, pilot_subsession_var_p(g_response_time.data(), g_response_time.size(), 1, sample_mean)) << "Subsession mean is wrong";
-    ASSERT_DOUBLE_EQ(0.046770566452423196, pilot_subsession_cov_p(g_response_time.data(), g_response_time.size(), 1, sample_mean)) << "Coverance mean is wrong";
-    ASSERT_DOUBLE_EQ(0.63655574361384437, pilot_subsession_autocorrelation_coefficient_p(g_response_time.data(), g_response_time.size(), 1, sample_mean)) << "Autocorrelation coefficient is wrong";
+    ASSERT_DOUBLE_EQ(0.073474423758865273, pilot_subsession_var_p(g_response_time.data(), g_response_time.size(), 1, sample_mean, ARITHMETIC_MEAN)) << "Subsession mean is wrong";
+    ASSERT_DOUBLE_EQ(0.046770566452423196, pilot_subsession_cov_p(g_response_time.data(), g_response_time.size(), 1, sample_mean, ARITHMETIC_MEAN)) << "Coverance mean is wrong";
+    ASSERT_DOUBLE_EQ(0.63655574361384437, pilot_subsession_autocorrelation_coefficient_p(g_response_time.data(), g_response_time.size(), 1, sample_mean, ARITHMETIC_MEAN)) << "Autocorrelation coefficient is wrong";
 
-    ASSERT_DOUBLE_EQ(0.55892351761172487, pilot_subsession_autocorrelation_coefficient_p(g_response_time.data(), g_response_time.size(), 2, sample_mean)) << "Autocorrelation coefficient is wrong";
+    ASSERT_DOUBLE_EQ(0.55892351761172487, pilot_subsession_autocorrelation_coefficient_p(g_response_time.data(), g_response_time.size(), 2, sample_mean, ARITHMETIC_MEAN)) << "Autocorrelation coefficient is wrong";
 
-    ASSERT_DOUBLE_EQ(0.05264711174242424, pilot_subsession_var_p(g_response_time.data(), g_response_time.size(), 4, sample_mean)) << "Subsession var is wrong";
-    ASSERT_DOUBLE_EQ(0.08230986644266707, pilot_subsession_autocorrelation_coefficient_p(g_response_time.data(), g_response_time.size(), 4, sample_mean)) << "Autocorrelation coefficient is wrong";
+    ASSERT_DOUBLE_EQ(0.05264711174242424, pilot_subsession_var_p(g_response_time.data(), g_response_time.size(), 4, sample_mean, ARITHMETIC_MEAN)) << "Subsession var is wrong";
+    ASSERT_DOUBLE_EQ(0.08230986644266707, pilot_subsession_autocorrelation_coefficient_p(g_response_time.data(), g_response_time.size(), 4, sample_mean, ARITHMETIC_MEAN)) << "Autocorrelation coefficient is wrong";
 
-    ASSERT_DOUBLE_EQ(0.29157062128900485, pilot_subsession_confidence_interval_p(g_response_time.data(), g_response_time.size(), 4, .95));
+    ASSERT_DOUBLE_EQ(0.29157062128900485, pilot_subsession_confidence_interval_p(g_response_time.data(), g_response_time.size(), 4, .95, ARITHMETIC_MEAN));
 
     size_t q = 4;
-    ASSERT_DOUBLE_EQ(q, pilot_optimal_subsession_size_p(g_response_time.data(), g_response_time.size()));
+    ASSERT_DOUBLE_EQ(q, pilot_optimal_subsession_size_p(g_response_time.data(), g_response_time.size(), ARITHMETIC_MEAN));
 
-    ASSERT_DOUBLE_EQ(34 * q, pilot_optimal_sample_size_p(g_response_time.data(), g_response_time.size(), sample_mean * 0.1, .95, .1));
+    ASSERT_DOUBLE_EQ(34 * q, pilot_optimal_sample_size_p(g_response_time.data(), g_response_time.size(), sample_mean * 0.1, ARITHMETIC_MEAN, .95, .1));
 
     //! TODO Tests function pilot_est_sample_var_dist_unknown()
 }
@@ -81,12 +81,15 @@ TEST(StatisticsUnitTest, OrdinaryLeastSquareLinearRegression) {
     const vector<double> error{20, -9, -18, -25, 30};
     vector<nanosecond_type> t;
     auto p_error = error.begin();
+    double exp_ssr = 0;
+    for_each(error.begin(), error.end(), [&exp_ssr](double e) {exp_ssr += e*e;});
     for (size_t c : work_amount) {
         t.push_back((1.0 / exp_v) * c + exp_alpha + *(p_error++));
     }
-    double alpha, v, v_ci;
+    double alpha, v, v_ci, ssr;
     pilot_wps_warmup_removal_lr_method_p(work_amount.size(),
-        work_amount.data(), t.data(), 1, &alpha, &v, &v_ci);
+        work_amount.data(), t.data(), 1, &alpha, &v, &v_ci, &ssr);
+    ASSERT_NEAR(exp_ssr, ssr, 10);
     ASSERT_NEAR(44, alpha, 4);
     ASSERT_NEAR(exp_v, v, 0.1);
     ASSERT_NEAR(0.35, v_ci, 0.01);

@@ -43,21 +43,23 @@ using namespace std;
 using namespace pilot;
 
 double pilot_workload_t::unit_readings_mean(int piid) const {
+    // TODO: add support for HARMONIC_MEAN
     return pilot_subsession_mean(pilot_pi_unit_readings_iter_t(this, piid),
-                                 total_num_of_unit_readings_[piid]);
+                                 total_num_of_unit_readings_[piid], ARITHMETIC_MEAN);
 }
 
 double pilot_workload_t::unit_readings_var(int piid, size_t q) const {
     return pilot_subsession_var(pilot_pi_unit_readings_iter_t(this, piid),
                                 total_num_of_unit_readings_[piid],
                                 q,
-                                unit_readings_mean(piid));
+                                unit_readings_mean(piid), ARITHMETIC_MEAN);
 }
 
-double pilot_workload_t::unit_readings_autocorrelation_coefficient(int piid, size_t q) const {
+double pilot_workload_t::unit_readings_autocorrelation_coefficient(int piid, size_t q,
+        pilot_mean_method_t mean_method) const {
     return pilot_subsession_autocorrelation_coefficient(pilot_pi_unit_readings_iter_t(this, piid),
                                                         total_num_of_unit_readings_[piid], q,
-                                                        unit_readings_mean(piid));
+                                                        unit_readings_mean(piid), mean_method);
 }
 
 ssize_t pilot_workload_t::required_num_of_unit_readings(int piid) const {
@@ -68,14 +70,14 @@ ssize_t pilot_workload_t::required_num_of_unit_readings(int piid) const {
     double ci_width;
     if (required_ci_percent_of_mean_ > 0) {
         double sm = pilot_subsession_mean(pilot_pi_unit_readings_iter_t(this, piid),
-                                          total_num_of_unit_readings_[piid]);
+                                          total_num_of_unit_readings_[piid], ARITHMETIC_MEAN);
         ci_width = sm * required_ci_percent_of_mean_;
     } else {
         ci_width = required_ci_absolute_value_;
     }
 
     return pilot_optimal_sample_size(pilot_pi_unit_readings_iter_t(this, piid),
-                                     total_num_of_unit_readings_[piid], ci_width);
+                                     total_num_of_unit_readings_[piid], ci_width, ARITHMETIC_MEAN);
 }
 
 size_t pilot_workload_t::calc_next_round_work_amount(void) {
@@ -145,14 +147,14 @@ pilot_workload_info_t* pilot_workload_t::workload_info(pilot_workload_info_t *in
         }
         info->unit_readings_mean[piid] = sm;
         info->unit_readings_var[piid] = unit_readings_var(piid, 1);
-        info->unit_readings_autocorrelation_coefficient[piid] = unit_readings_autocorrelation_coefficient(piid, 1);
+        info->unit_readings_autocorrelation_coefficient[piid] = unit_readings_autocorrelation_coefficient(piid, 1, ARITHMETIC_MEAN);
         size_t q = pilot_optimal_subsession_size(pilot_pi_unit_readings_iter_t(this, piid),
-                                                 total_num_of_unit_readings_[piid]);
+                                                 total_num_of_unit_readings_[piid], ARITHMETIC_MEAN);
         info->unit_readings_optimal_subsession_size[piid] = q;
         info->unit_readings_optimal_subsession_var[piid] = unit_readings_var(piid, q);
-        info->unit_readings_optimal_subsession_autocorrelation_coefficient[piid] = unit_readings_autocorrelation_coefficient(piid, q);
+        info->unit_readings_optimal_subsession_autocorrelation_coefficient[piid] = unit_readings_autocorrelation_coefficient(piid, q, ARITHMETIC_MEAN);
         info->unit_readings_optimal_subsession_confidence_interval[piid] =
-                pilot_subsession_confidence_interval(pilot_pi_unit_readings_iter_t(this, piid), total_num_of_unit_readings_[piid], q, .95);
+                pilot_subsession_confidence_interval(pilot_pi_unit_readings_iter_t(this, piid), total_num_of_unit_readings_[piid], q, .95, ARITHMETIC_MEAN);
         info->unit_readings_required_sample_size[piid] = required_num_of_unit_readings(piid);
     }
     // generate WPS analysis data
@@ -164,13 +166,21 @@ pilot_workload_info_t* pilot_workload_t::workload_info(pilot_workload_info_t *in
     cout << "sum_of_round_durations: " << sum_of_round_durations << endl;
     info->wps_harmonic_mean = sum_of_work_amount / sum_of_round_durations;
 
-    if (rounds_ >= 2) {
+    if (rounds_ >= 3) {
+        pilot_wps_warmup_removal_lr_method(round_work_amounts_.size(),
+            round_work_amounts_.begin(),
+            round_durations_.begin(),
+            autocorrelation_coefficient_limit_,
+            &(info->wps_alpha), &(info->wps_v), &(info->wps_v_ci));
         pilot_wps_warmup_removal_dw_method(round_work_amounts_.size(),
             round_work_amounts_.begin(),
             round_durations_.begin(), confidence_interval_,
             autocorrelation_coefficient_limit_,
             &(info->wps_v_dw_method), &(info->wps_v_ci_dw_method));
     } else {
+        info->wps_alpha = -1;
+        info->wps_v = -1;
+        info->wps_v_ci = -1;
         info->wps_v_dw_method = -1;
         info->wps_v_ci_dw_method = -1;
     }

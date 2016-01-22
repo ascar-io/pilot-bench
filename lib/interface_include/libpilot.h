@@ -66,6 +66,11 @@ enum pilot_error_t {
     ERR_LINKED_WRONG_VER = 201
 };
 
+enum pilot_mean_method_t {
+    ARITHMETIC_MEAN = 0,
+    HARMONIC_MEAN = 1
+};
+
 const int kWPSInitSlices = 50;
 
 typedef int_least64_t nanosecond_type;
@@ -436,7 +441,7 @@ void pilot_set_log_level(pilot_log_level_t log_level);
  */
 double pilot_set_confidence_interval(pilot_workload_t *wl, double ci);
 
-double pilot_subsession_mean_p(const double *data, size_t n);
+double pilot_subsession_mean_p(const double *data, size_t n, pilot_mean_method_t mean_method);
 
 /**
  * \brief Calculate the subsession covariance of data
@@ -447,10 +452,10 @@ double pilot_subsession_mean_p(const double *data, size_t n);
  * @param sample_mean the sample mean
  * @return the calculated covariance
  */
-double pilot_subsession_cov_p(const double *data, size_t n, size_t q, double sample_mean);
+double pilot_subsession_cov_p(const double *data, size_t n, size_t q, double sample_mean, pilot_mean_method_t mean_method);
 
-double pilot_subsession_var_p(const double *data, size_t n, size_t q, double sample_mean);
-double pilot_subsession_autocorrelation_coefficient_p(const double *data, size_t n, size_t q, double sample_mean);
+double pilot_subsession_var_p(const double *data, size_t n, size_t q, double sample_mean, pilot_mean_method_t mean_method);
+double pilot_subsession_autocorrelation_coefficient_p(const double *data, size_t n, size_t q, double sample_mean, pilot_mean_method_t mean_method);
 
 /**
  * \brief Calculate the mean and confidence interval of WPS with warm-up
@@ -474,7 +479,7 @@ double pilot_subsession_autocorrelation_coefficient_p(const double *data, size_t
 int pilot_wps_warmup_removal_lr_method_p(size_t rounds, const size_t *round_work_amounts,
         const nanosecond_type *round_durations,
         float autocorrelation_coefficient_limit, double *alpha, double *v,
-        double *ci_width);
+        double *ci_width, double *ssr_out = NULL);
 
 /**
  * \brief Calculate the mean and confidence interval of WPS with warm-up
@@ -556,10 +561,11 @@ struct pilot_workload_info_t {
     size_t* unit_readings_required_sample_size;
     // Work amount-per-second analysis
     double wps_harmonic_mean;        //! wps is a rate so only harmonic mean is valid
+    double wps_alpha;                //! the alpha as in t = alpha + v*w
+    double wps_v;                    //! the v as in t = alpha + v*w
+    double wps_v_ci;                 //! the width of the confidence interval of v
     double wps_v_dw_method;          //! readings after warm-up removal using the deprecated dw_method
     double wps_v_ci_dw_method;       //! the width of confidence interval using the deprecated dw_method
-    double wps_v;                    //! the v as in t = alpha + v*w
-    double wps_alpha;                //! the alpha as in t = alpha + v*w
 
 #ifdef __cplusplus
     inline void _free_all_field();
@@ -616,7 +622,7 @@ void pilot_free_text_dump(char *dump);
  * @param max_autocorrelation_coefficient the maximal limit of the autocorrelation coefficient
  * @return the size of subsession (q); -1 if q can't be found (e.g. q would be larger than n)
  */
-int pilot_optimal_subsession_size_p(const double *data, size_t n, double max_autocorrelation_coefficient = 0.1);
+int pilot_optimal_subsession_size_p(const double *data, size_t n, pilot_mean_method_t mean_method, double max_autocorrelation_coefficient = 0.1);
 
 /**
  * \brief Calculate the width of the confidence interval given subsession size q and confidence level
@@ -626,7 +632,7 @@ int pilot_optimal_subsession_size_p(const double *data, size_t n, double max_aut
  * @param confidence_level the probability that the real mean falls within the confidence interval, e.g., .95
  * @return the width of the confidence interval
  */
-double pilot_subsession_confidence_interval_p(const double *data, size_t n, size_t q, double confidence_level);
+double pilot_subsession_confidence_interval_p(const double *data, size_t n, size_t q, double confidence_level, pilot_mean_method_t mean_method);
 
 /**
  * \brief Calculate the optimal length of the benchmark session given observed
@@ -640,7 +646,11 @@ double pilot_subsession_confidence_interval_p(const double *data, size_t n, size
  * @param max_autocorrelation_coefficient
  * @return the recommended sample size; -1 if the max_autocorrelation_coefficient cannot be met
  */
-ssize_t pilot_optimal_sample_size_p(const double *data, size_t n, double confidence_interval_width, double confidence_level = 0.95, double max_autocorrelation_coefficient = 0.1);
+ssize_t pilot_optimal_sample_size_p(const double *data, size_t n,
+                                    double confidence_interval_width,
+                                    pilot_mean_method_t mean_method,
+                                    double confidence_level = 0.95,
+                                    double max_autocorrelation_coefficient = 0.1);
 
 struct pilot_pi_unit_readings_iter_t;
 

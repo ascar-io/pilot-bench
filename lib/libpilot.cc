@@ -588,38 +588,38 @@ void pilot_free_text_dump(char *dump) {
     delete[] dump;
 }
 
-using namespace boost::accumulators;
-
-double pilot_subsession_mean_p(const double *data, size_t n) {
-    return pilot_subsession_mean(data, n);
+double pilot_subsession_mean_p(const double *data, size_t n, pilot_mean_method_t mean_method) {
+    return pilot_subsession_mean(data, n, mean_method);
 }
 
-double pilot_subsession_cov_p(const double *data, size_t n, size_t q, double sample_mean) {
-    return pilot_subsession_cov(data, n, q, sample_mean);
+double pilot_subsession_cov_p(const double *data, size_t n, size_t q, double sample_mean, pilot_mean_method_t mean_method) {
+    return pilot_subsession_cov(data, n, q, sample_mean, mean_method);
 }
 
-double pilot_subsession_var_p(const double *data, size_t n, size_t q, double sample_mean) {
-    return pilot_subsession_var(data, n, q, sample_mean);
+double pilot_subsession_var_p(const double *data, size_t n, size_t q, double sample_mean, pilot_mean_method_t mean_method) {
+    return pilot_subsession_var(data, n, q, sample_mean, mean_method);
 }
 
-double pilot_subsession_autocorrelation_coefficient_p(const double *data, size_t n, size_t q, double sample_mean) {
-    return pilot_subsession_autocorrelation_coefficient(data, n, q, sample_mean);
+double pilot_subsession_autocorrelation_coefficient_p(const double *data, size_t n, size_t q, double sample_mean, pilot_mean_method_t mean_method) {
+    return pilot_subsession_autocorrelation_coefficient(data, n, q, sample_mean, mean_method);
 }
 
-int pilot_optimal_subsession_size_p(const double *data, size_t n, double max_autocorrelation_coefficient) {
-    return pilot_optimal_subsession_size(data, n, max_autocorrelation_coefficient);
+int pilot_optimal_subsession_size_p(const double *data, size_t n, pilot_mean_method_t mean_method, double max_autocorrelation_coefficient) {
+    return pilot_optimal_subsession_size(data, n, mean_method, max_autocorrelation_coefficient);
 }
 
-double pilot_subsession_confidence_interval_p(const double *data, size_t n, size_t q, double confidence_level) {
-    return pilot_subsession_confidence_interval(data, n, q, confidence_level);
+double pilot_subsession_confidence_interval_p(const double *data, size_t n, size_t q, double confidence_level, pilot_mean_method_t mean_method) {
+    return pilot_subsession_confidence_interval(data, n, q, confidence_level, mean_method);
 }
 
 ssize_t
 pilot_optimal_sample_size_p(const double *data, size_t n,
                             double confidence_interval_width,
+                            pilot_mean_method_t mean_method,
                             double confidence_level,
                             double max_autocorrelation_coefficient) {
     return pilot_optimal_sample_size(data, n, confidence_interval_width,
+                                     mean_method,
                                      confidence_level,
                                      max_autocorrelation_coefficient);
 }
@@ -627,11 +627,11 @@ pilot_optimal_sample_size_p(const double *data, size_t n,
 int pilot_wps_warmup_removal_lr_method_p(size_t rounds, const size_t *round_work_amounts,
         const nanosecond_type *round_durations,
         float autocorrelation_coefficient_limit, double *alpha, double *v,
-        double *ci_width) {
+        double *ci_width, double *ssr_out) {
     return pilot_wps_warmup_removal_lr_method(rounds, round_work_amounts,
                                                    round_durations,
                                                    autocorrelation_coefficient_limit,
-                                                   alpha, v, ci_width);
+                                                   alpha, v, ci_width, ssr_out);
 }
 
 int pilot_wps_warmup_removal_dw_method_p(size_t rounds, const size_t *round_work_amounts,
