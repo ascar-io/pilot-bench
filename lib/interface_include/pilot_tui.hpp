@@ -401,6 +401,24 @@ private:
             } /* loop for all PI */
             draw_with_decor("WORK-PER-SECOND ANALYSIS");
             draw_data_line("naive mean: ", wi_.wps_harmonic_mean, "");
+            if (wi_.wps_alpha > 0) {
+                draw_data_line("WPS alpha: ", format_wps_(NULL, wi_.wps_alpha), "");
+            } else {
+                draw_buf_ << "Not enough data for WPS alpha";
+                flush_buf_new_line();
+            }
+            if (wi_.wps_v > 0) {
+                draw_data_line("WPS v: ", format_wps_(NULL, wi_.wps_v), "");
+            } else {
+                draw_buf_ << "Not enough data for WPS v";
+                flush_buf_new_line();
+            }
+            if (wi_.wps_v_ci > 0) {
+                draw_data_line("WPS v CI: ", format_wps_(NULL, wi_.wps_v_ci), "");
+            } else {
+                draw_buf_ << "Not enough data for WPS v CI";
+                flush_buf_new_line();
+            }
             /* wi_.wps_v_dw_method = -1 if not enough data */
             if (wi_.wps_v_dw_method > 0) {
                 draw_data_line("warm-up removed v (dw mtd): ", format_wps_(NULL, wi_.wps_v_dw_method), "");

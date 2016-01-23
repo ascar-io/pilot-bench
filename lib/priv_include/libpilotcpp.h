@@ -69,7 +69,7 @@ public:
         return sum / static_cast<double>(n);
     }
 
-    virtual ~arithmetic_mean_accumulator() {}
+    ~arithmetic_mean_accumulator() {}
 private:
     int    n;
     double sum;
@@ -88,7 +88,7 @@ public:
         return static_cast<double>(n) / har_sum;
     }
 
-    virtual ~harmonic_mean_accumulator() {}
+    ~harmonic_mean_accumulator() {}
 private:
     int    n;
     double har_sum;
@@ -174,14 +174,15 @@ template <typename InputIterator>
 int pilot_optimal_subsession_size(InputIterator first, const size_t n,
                                   pilot_mean_method_t mean_method,
                                   double max_autocorrelation_coefficient = 0.1) {
-    if (1 == n) {
-        error_log << "cannot calculate covariance for one sample";
+    if (n <= 1) {
+        error_log << "cannot calculate covariance for " << n << " sample(s)";
         abort();
     }
     double sm = pilot_subsession_mean(first, n, mean_method);
     double cov;
     for (size_t q = 1; q != n / 2 + 1; ++q) {
         cov = pilot_subsession_autocorrelation_coefficient(first, n, q, sm, mean_method);
+        info_log << __func__ << "(): subsession size: " << q << ", auto. cor. coef.: " << cov;
         if (std::abs(cov) <= max_autocorrelation_coefficient)
             return q;
     }
@@ -251,12 +252,87 @@ inline parameter_vector residual_derivative (const std::pair<double, double>& da
 */
 
 /**
+ * Our own regression stop strategy that depends on how many percentage the
+ * changed is to total objective value
+ */
+class percent_delta_stop_strategy {
+public:
+    explicit percent_delta_stop_strategy (
+            double percent = 1
+    ) : verbose_(false), been_used_(false), percent_(percent), max_iter_(0), cur_iter_(0), prev_funct_value_(0)
+    {
+        assert (percent > 0);
+    }
+
+    percent_delta_stop_strategy (
+            double percent,
+            unsigned long max_iter
+    ) : verbose_(false), been_used_(false), percent_(percent), max_iter_(max_iter), cur_iter_(0), prev_funct_value_(0)
+    {
+        assert (percent > 0 && max_iter > 0);
+    }
+
+    percent_delta_stop_strategy& be_verbose(
+    )
+    {
+        verbose_ = true;
+        return *this;
+    }
+
+    template <typename T>
+    bool should_continue_search (
+            const T& ,
+            const double funct_value,
+            const T&
+    )
+    {
+        if (verbose_)
+        {
+            using namespace std;
+            std::cout << "iteration: " << cur_iter_ << "   objective: " << funct_value;
+        }
+
+        ++cur_iter_;
+        if (been_used_)
+        {
+            // Check if we have hit the max allowable number of iterations.  (but only
+            // check if _max_iter is enabled (i.e. not 0)).
+            if (max_iter_ != 0 && cur_iter_ > max_iter_)
+                return false;
+
+            // check if the function change was too small
+            double percent_changed = std::abs(funct_value - prev_funct_value_) / prev_funct_value_;
+            if (verbose_) {
+                std::cout << "   percent changed: " << percent_changed * 100 << std::endl;
+            }
+            if (percent_changed < percent_)
+                return false;
+        }
+
+        been_used_ = true;
+        prev_funct_value_ = funct_value;
+        return true;
+    }
+
+private:
+    bool verbose_;
+
+    bool been_used_;
+    double percent_;
+    unsigned long max_iter_;
+    unsigned long cur_iter_;
+    double prev_funct_value_;
+};
+
+
+/**
  * Perform warm-up phase detection and removal on readings using the linear
  * regression method
  * @param rounds
  * @param round_work_amounts
  * @param round_durations
  * @param autocorrelation_coefficient_limit
+ * @param duration_threshold any round whose duration is less than this threshold is discarded
  * @param v
  * @param ci_width
  * @return 0 on success; ERR_NOT_ENOUGH_DATA when there is not enough sample
@@ -264,24 +340,66 @@ inline parameter_vector residual_derivative (const std::pair<double, double>& da
  * calculating v but not enough for calculating confidence interval.
  */
 template <typename WorkAmountInputIterator, typename RoundDurationInputIterator>
-int pilot_wps_warmup_removal_lr_method(size_t rounds, WorkAmountInputIterator round_work_amounts,
-        RoundDurationInputIterator round_durations,
-        float autocorrelation_coefficient_limit, double *alpha, double *v,
+int pilot_wps_warmup_removal_lr_method(size_t rounds, WorkAmountInputIterator round_work_amounts_raw,
+        RoundDurationInputIterator round_durations_raw,
+        float autocorrelation_coefficient_limit, nanosecond_type duration_threshold,
+        double *alpha, double *v,
         double *v_ci, double *ssr_out = NULL) {
-    // first check for auto-correlation
-    std::vector<double> naive_v;
+    // first we create copies of round_work_amounts and round_durations with
+    // rounds that are shorter than round_durations filtered out
+    std::vector<size_t> round_work_amounts;
+    std::vector<nanosecond_type> round_durations;
     for (size_t i = 0; i < rounds; ++i) {
+        if (*round_durations_raw > duration_threshold) {
+            round_work_amounts.push_back(*round_work_amounts_raw);
+            round_durations.push_back(*round_durations_raw);
+        }
+        ++round_work_amounts_raw;
+        ++round_durations_raw;
+    }
+
+    if (round_work_amounts.size() < 3) {
+        info_log << __func__ << "() doesn't have enough samples after filtering using duration threshold";
+        return ERR_NOT_ENOUGH_DATA;
+    }
+
+    // then check for auto-correlation
+    std::vector<double> naive_v;
+    for (size_t i = 0; i < round_work_amounts.size(); ++i) {
         naive_v.push_back(static_cast<double>(round_work_amounts[i]) / static_cast<double>(round_durations[i]));
     }
     int q = pilot_optimal_subsession_size(naive_v.begin(), naive_v.size(), HARMONIC_MEAN, autocorrelation_coefficient_limit);
-    if (q < 0) return q;
-    debug_log << "optimal subsession size (q) = " << q;
+    if (q < 0) {
+        info_log << __func__ << "() samples' autocorrelation coefficient too high; need more samples";
+        return ERR_NOT_ENOUGH_DATA;
+    }
+    debug_log << "WPS analysis: optimal subsession size (q) = " << q;
+    size_t h = round_work_amounts.size() / q;
+    if (h < 3) {
+        info_log << __func__ << "() doesn't have enough samples after subsession grouping";
+        return ERR_NOT_ENOUGH_DATA;
+    }
 
+    // prepare data for regression analysis
+    // See http://dlib.net/least_squares_ex.cpp.html and
+    // http://dlib.net/dlib/optimization/optimization_least_squares_abstract.h.html#solve_least_squares_lm
+    // for more information on using dlib.
     typedef dlib::matrix<double,2,1> parameter_vector;
-    parameter_vector param_vec = 10 * dlib::randm(2,1);
+    parameter_vector param_vec;
+    // set all elements to 1, this is needed for solve_least_squares_lm() to work
+    param_vec = 1;
     std::vector<std::pair<double, double> > samples;
+    size_t subsession_sum_wa = 0;
+    nanosecond_type subsession_sum_dur = 0;
+    // convert input into subsession data by grouping every q samples
     for (size_t i = 0; i < rounds; ++i) {
-        samples.push_back(std::make_pair(round_work_amounts[i], round_durations[i]));
+        subsession_sum_wa  += round_work_amounts[i];
+        subsession_sum_dur += round_durations[i];
+        if (i % q == q - 1) {
+            samples.push_back(std::make_pair(subsession_sum_wa, subsession_sum_dur));
+            subsession_sum_wa = 0;
+            subsession_sum_dur = 0;
+        }
     }
 
     /* DEBUG CODE
@@ -297,7 +415,9 @@ int pilot_wps_warmup_removal_lr_method(size_t rounds, WorkAmountInputIterator ro
             samples,
             param_vec);
     */
-    dlib::solve_least_squares_lm(dlib::objective_delta_stop_strategy(1e-7),
+    //std::cout << "samples: " << samples << std::endl;
+    // We are experimenting using samples_naive_mean / 10 as the stopping threshold.
+    dlib::solve_least_squares_lm(percent_delta_stop_strategy(.01, 50),
             [](const std::pair<double, double>& data, const parameter_vector& params) {
                 return params(0) + params(1) * data.first - data.second;
             },
@@ -313,15 +433,17 @@ int pilot_wps_warmup_removal_lr_method(size_t rounds, WorkAmountInputIterator ro
     *v = 1 / param_vec(1);
 
     double ssr = 0;
-    for (size_t i = 0; i < rounds; ++i) {
-        ssr += pow(*alpha + double(round_work_amounts[i]) / *v - round_durations[i], 2);
+    for (auto &s : samples) {
+        double wa = static_cast<double>(s.first);
+        double dur = static_cast<double>(s.second);
+        ssr += pow(*alpha + wa / *v - dur, 2);
     }
     if (ssr_out) *ssr_out = ssr;
     //std::cout << "SSR: " << ssr << std::endl;
-    double sigma_sqr = ssr / (rounds - 2);
+    double sigma_sqr = ssr / (samples.size() - 2);
     //std::cout << "sigma^2: " << sigma_sqr << std::endl;
-    double wa_mean = pilot_subsession_mean(round_work_amounts, rounds, ARITHMETIC_MEAN);
-    double sum_var = pilot_subsession_var(round_work_amounts, rounds, 1, wa_mean, ARITHMETIC_MEAN) * (rounds -1);
+    double wa_mean = pilot_subsession_mean(round_work_amounts.begin(), round_work_amounts.size(), ARITHMETIC_MEAN);
+    double sum_var = pilot_subsession_var(round_work_amounts.begin(), round_work_amounts.size(), q, wa_mean, ARITHMETIC_MEAN) * (rounds -1);
     //std::cout << "sum_var: " << sum_var << std::endl;
     double std_err_v = sqrt(sigma_sqr / sum_var);
     *v_ci = 2 * std_err_v;

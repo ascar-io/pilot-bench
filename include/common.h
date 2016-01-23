@@ -40,6 +40,7 @@
 #include <boost/timer/timer.hpp>
 #include <iostream>
 #include <string>
+#include <vector>
 
 #define debug_log   BOOST_LOG_TRIVIAL(debug)
 #define info_log    BOOST_LOG_TRIVIAL(info)
@@ -75,6 +76,39 @@ inline void die_if (bool condition, int error_code = 1, const std::string & erro
         fatal_log << "function " << __func__ << "() called with " #p " as a NULL pointer"; \
         abort(); \
     }}
+
+/**
+ * Printing a pair
+ * @param o the ostream object
+ * @param a the pair for printing
+ * @return
+ */
+template <typename FirstT, typename SecondT>
+std::ostream& operator<<(std::ostream &o, const std::pair<FirstT, SecondT> &a) {
+    o << "<" << a.first << ", " << a.second << ">";
+    return o;
+}
+
+/**
+ * Printing a vector
+ * @param o the ostream object
+ * @param a the vector for printing
+ * @return
+ */
+template <typename T>
+std::ostream& operator<<(std::ostream &o, const std::vector<T> &a) {
+    o << "[";
+    if (a.size() > 0) {
+        // we cannot use copy() and ostream_iterator here because they insist
+        // that operator<<() should be in std.
+        for (size_t i = 0; i < a.size() - 1; ++i) {
+            o << a[i] << ", ";
+        }
+        o << a.back();
+    }
+    o << "]";
+    return o;
+}
 
 } /* namespace pilot */
 

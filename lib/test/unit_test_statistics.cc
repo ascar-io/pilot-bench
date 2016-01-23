@@ -31,6 +31,7 @@
  * OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <algorithm>
 #include "gtest/gtest.h"
 #include "libpilot.h"
 #include <vector>
@@ -74,7 +75,13 @@ TEST(StatisticsUnitTest, AutocorrelationCoefficient) {
     //! TODO Tests function pilot_est_sample_var_dist_unknown()
 }
 
-TEST(StatisticsUnitTest, OrdinaryLeastSquareLinearRegression) {
+TEST(StatisticsUnitTest, HarmonicMean) {
+    const vector<double> d {1.21, 1.67, 1.71, 1.53, 2.03, 2.15};
+    double hm = pilot_subsession_mean_p(d.data(), d.size(), HARMONIC_MEAN);
+    ASSERT_DOUBLE_EQ(1.6568334130160711, hm);
+}
+
+TEST(StatisticsUnitTest, OrdinaryLeastSquareLinearRegression1) {
     const double exp_alpha = 42;
     const double exp_v = 0.5;
     const vector<size_t> work_amount{50, 100, 150, 200, 250};
@@ -88,16 +95,35 @@ TEST(StatisticsUnitTest, OrdinaryLeastSquareLinearRegression) {
     }
     double alpha, v, v_ci, ssr;
     pilot_wps_warmup_removal_lr_method_p(work_amount.size(),
-        work_amount.data(), t.data(), 1, &alpha, &v, &v_ci, &ssr);
+        work_amount.data(), t.data(),
+        1,  // autocorrelation_coefficient_limit
+        0,  // duration threshold
+        &alpha, &v, &v_ci, &ssr);
     ASSERT_NEAR(exp_ssr, ssr, 10);
     ASSERT_NEAR(44, alpha, 4);
     ASSERT_NEAR(exp_v, v, 0.1);
     ASSERT_NEAR(0.35, v_ci, 0.01);
 }
 
+TEST(StatisticsUnitTest, OrdinaryLeastSquareLinearRegression2) {
+    // Exercise OLS using some real data
+    const vector<size_t> work_amount{429497000, 472446000, 515396000, 558346000};
+    const vector<nanosecond_type> round_duration{4681140000, 5526190000, 5632120000, 5611980000};
+    double alpha, v, v_ci, ssr;
+    pilot_wps_warmup_removal_lr_method_p(work_amount.size(),
+        work_amount.data(), round_duration.data(),
+        1,  // autocorrelation_coefficient_limit
+        0,  // duration threshold
+        &alpha, &v, &v_ci, &ssr);
+    ASSERT_DOUBLE_EQ(3.6022187058986861e+17, ssr);
+    EXPECT_DOUBLE_EQ(19.300520756183555, alpha);
+    EXPECT_DOUBLE_EQ(0.092427922688291406, v);
+    EXPECT_DOUBLE_EQ(8.8380183626601685, v_ci);
+}
+
 int main(int argc, char **argv) {
     PILOT_LIB_SELF_CHECK;
-    pilot_set_log_level(lv_warning);
+    pilot_set_log_level(lv_info);
 
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();

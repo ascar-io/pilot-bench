@@ -141,13 +141,13 @@ void pilot_set_workload_func(pilot_workload_t* wl, pilot_workload_func_t *wf) {
 
 void pilot_set_work_amount_limit(pilot_workload_t* wl, size_t t) {
     ASSERT_VALID_POINTER(wl);
-    wl->work_amount_limit_ = t;
+    wl->max_work_amount_ = t;
 }
 
 int pilot_get_work_amount_limit(const pilot_workload_t* wl, size_t *p_work_amount_limit) {
     ASSERT_VALID_POINTER(wl);
     ASSERT_VALID_POINTER(p_work_amount_limit);
-    *p_work_amount_limit = wl->work_amount_limit_;
+    *p_work_amount_limit = wl->max_work_amount_;
     return 0;
 }
 
@@ -195,7 +195,7 @@ int pilot_run_workload(pilot_workload_t *wl) {
     // sanity check
     ASSERT_VALID_POINTER(wl);
     if (wl->workload_func_ == nullptr || wl->num_of_pi_ == 0 ||
-        wl->work_amount_limit_ == 0) return 11;
+        wl->max_work_amount_ == 0) return 11;
 
     int result = 0;
     size_t num_of_unit_readings;
@@ -361,7 +361,9 @@ const char *pilot_strerror(int errnum) {
     case ERR_STOPPED_BY_HOOK: return "Execution is stopped by a hook function";
     case ERR_TOO_MANY_REJECTED_ROUNDS: return "Too many rounds are wholly rejected. Stopping. Check the workload.";
     case ERR_NOT_IMPL:    return "Not implemented";
-    default:              return "Unknown error code";
+    default:
+        error_log << "Unknown error code: " << errnum;
+        return "Unknown error code";
     }
 }
 
@@ -626,21 +628,23 @@ pilot_optimal_sample_size_p(const double *data, size_t n,
 
 int pilot_wps_warmup_removal_lr_method_p(size_t rounds, const size_t *round_work_amounts,
         const nanosecond_type *round_durations,
-        float autocorrelation_coefficient_limit, double *alpha, double *v,
+        float autocorrelation_coefficient_limit, nanosecond_type duration_threshold,
+        double *alpha, double *v,
         double *ci_width, double *ssr_out) {
     return pilot_wps_warmup_removal_lr_method(rounds, round_work_amounts,
-                                                   round_durations,
-                                                   autocorrelation_coefficient_limit,
-                                                   alpha, v, ci_width, ssr_out);
+                                              round_durations,
+                                              autocorrelation_coefficient_limit,
+                                              duration_threshold,
+                                              alpha, v, ci_width, ssr_out);
 }
 
 int pilot_wps_warmup_removal_dw_method_p(size_t rounds, const size_t *round_work_amounts,
         const nanosecond_type *round_durations, float confidence_level,
         float autocorrelation_coefficient_limit, double *v, double *ci_width) {
     return pilot_wps_warmup_removal_dw_method(rounds, round_work_amounts,
-                                                   round_durations, confidence_level,
-                                                   autocorrelation_coefficient_limit,
-                                                   v, ci_width);
+                                              round_durations, confidence_level,
+                                              autocorrelation_coefficient_limit,
+                                              v, ci_width);
 }
 
 ssize_t pilot_warm_up_removal_detect(const pilot_workload_t *wl,
@@ -683,7 +687,6 @@ void pilot_import_benchmark_results(pilot_workload_t *wl, size_t round,
                                     const double *readings,
                                     size_t num_of_unit_readings,
                                     const double * const *unit_readings) {
-
     ASSERT_VALID_POINTER(wl);
     die_if(round > wl->rounds_, ERR_WRONG_PARAM, string("Invalid round value for ") + __func__);
 
@@ -813,14 +816,14 @@ size_t calc_next_round_work_amount_from_readings(pilot_workload_t *wl) {
 
 size_t calc_next_round_work_amount_from_unit_readings(pilot_workload_t *wl) {
     if (0 == wl->rounds_)
-        return 0 == wl->init_work_amount_ ? wl->work_amount_limit_ / 10 : wl->init_work_amount_;
+        return 0 == wl->init_work_amount_ ? wl->max_work_amount_ / 10 : wl->init_work_amount_;
 
     size_t max_work_amount_needed = 0;
     for (size_t piid = 0; piid != wl->num_of_pi_; ++piid) {
         size_t num_of_ur_needed;
         if (abs(wl->calc_avg_work_unit_per_amount(piid)) < 0.00000001) {
             error_log << "[PI " << piid << "] average work per unit reading is 0, using work_amount_limit instead (you probably need to report a bug)";
-            return wl->work_amount_limit_;
+            return wl->max_work_amount_;
         }
         if (0 != wl->total_num_of_unit_readings_[piid]) {
             ssize_t req = wl->required_num_of_unit_readings(piid);
@@ -841,29 +844,26 @@ size_t calc_next_round_work_amount_from_unit_readings(pilot_workload_t *wl) {
             max_work_amount_needed = max(max_work_amount_needed, work_amount_needed);
         }
     }
-    return min(max_work_amount_needed, wl->work_amount_limit_);
+    return min(max_work_amount_needed, wl->max_work_amount_);
 }
 
 size_t calc_next_round_work_amount_from_wps(pilot_workload_t *wl) {
     if (!wl->wps_must_satisfy_) return 0;
-    size_t wa_slice_size = wl->work_amount_limit_ / wl->wps_slices_;
+    size_t wa_slice_size = wl->max_work_amount_ / wl->wps_slices_;
     if (0 == wl->rounds_) return wa_slice_size;
 
-    if (wl->rounds_ > 2) {
-        double wps_v_dw_method, wps_v_ci_dw_method;
-        pilot_wps_warmup_removal_dw_method(wl->round_work_amounts_.size(),
-            wl->round_work_amounts_.begin(),
-            wl->round_durations_.begin(), wl->confidence_interval_,
-            wl->autocorrelation_coefficient_limit_,
-            &wps_v_dw_method, &wps_v_ci_dw_method);
-        if (wps_v_dw_method > 0 && wps_v_ci_dw_method > 0 && wps_v_ci_dw_method < wl->required_ci_percent_of_mean_ * wps_v_dw_method) {
+    if (wl->rounds_ > 3) {
+        wl->refresh_wps_analysis_results();
+
+        if (wl->wps_v > 0 && wl->wps_v_ci > 0 &&
+            wl->wps_v_ci < wl->required_ci_percent_of_mean_ * wl->wps_v) {
             info_log << "WPS confidence interval small enough";
             return 0;
         }
     }
 
     size_t last_round_wa = wl->round_work_amounts_.back();
-    if (last_round_wa > wl->work_amount_limit_ - wa_slice_size) {
+    if (last_round_wa > wl->max_work_amount_ - wa_slice_size) {
         wl->wps_slices_ *= 2;
         wa_slice_size /= 2;
         return wa_slice_size;

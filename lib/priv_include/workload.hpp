@@ -111,7 +111,8 @@ struct pilot_workload_t {
     size_t num_of_pi_;                      //! Number of performance indices to collect for each round
     size_t rounds_;                         //! Number of rounds we've done so far
     size_t init_work_amount_;
-    size_t work_amount_limit_;
+    size_t max_work_amount_;
+    size_t min_work_amount_;
     pilot_workload_func_t *workload_func_;
     std::vector<pilot_pi_info_t> pi_info_;
     pilot_display_format_functor format_wps_;
@@ -142,6 +143,11 @@ struct pilot_workload_t {
 
     // WPS analysis bookkeeping
     size_t wps_slices_;
+    mutable double wps_alpha;
+    mutable double wps_v;
+    mutable double wps_v_ci;
+    mutable double wps_v_dw_method;
+    mutable double wps_v_ci_dw_method;
 
     // Hook functions
     next_round_work_amount_hook_t *next_round_work_amount_hook_; //! The hook function that calculates the work amount for next round
@@ -154,7 +160,8 @@ struct pilot_workload_t {
 
     pilot_workload_t(const char *wl_name) :
                          num_of_pi_(0), rounds_(0), init_work_amount_(0),
-                         work_amount_limit_(0), workload_func_(nullptr),
+                         max_work_amount_(0), min_work_amount_(0),
+                         workload_func_(nullptr),
                          wps_must_satisfy_(true), tui_(NULL),
                          confidence_interval_(0.05), confidence_level_(.95),
                          autocorrelation_coefficient_limit_(0.1),
@@ -164,7 +171,9 @@ struct pilot_workload_t {
                          short_workload_check_(true),
                          warm_up_removal_detection_method_(FIXED_PERCENTAGE),
                          warm_up_removal_moving_average_window_size_in_seconds_(3),
-                         wholly_rejected_rounds_(0), wps_slices_(kWPSInitSlices),
+                         wholly_rejected_rounds_(0),
+                         wps_slices_(kWPSInitSlices), wps_alpha(-1), wps_v(-1),
+                         wps_v_ci(-1), wps_v_dw_method(-1), wps_v_ci_dw_method(-1),
                          next_round_work_amount_hook_(NULL),
                          hook_pre_workload_run_(NULL), hook_post_workload_run_(NULL),
                          calc_required_readings_func_(NULL),
@@ -267,8 +276,10 @@ struct pilot_workload_t {
     }
 
     bool set_wps_analysis(bool enabled);
+    void refresh_wps_analysis_results(void) const;
 
     size_t set_session_duration_limit(size_t sec);
+
 };
 
 struct pilot_pi_unit_readings_iter_t {

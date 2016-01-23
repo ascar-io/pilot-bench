@@ -478,7 +478,9 @@ double pilot_subsession_autocorrelation_coefficient_p(const double *data, size_t
  */
 int pilot_wps_warmup_removal_lr_method_p(size_t rounds, const size_t *round_work_amounts,
         const nanosecond_type *round_durations,
-        float autocorrelation_coefficient_limit, double *alpha, double *v,
+        float autocorrelation_coefficient_limit,
+        nanosecond_type duration_threshold,
+        double *alpha, double *v,
         double *ci_width, double *ssr_out = NULL);
 
 /**
