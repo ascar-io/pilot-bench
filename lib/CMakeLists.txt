@@ -1,12 +1,12 @@
 find_package (Threads)
 # add the binary tree directory to the search path 
 # for include files
-include_directories (${CMAKE_CURRENT_BINARY_DIR}/../gtest/src/gtest/include)
+include_directories (SYSTEM ${CMAKE_CURRENT_BINARY_DIR}/../gtest/src/gtest/include)
 include_directories (${CMAKE_SOURCE_DIR}/include)
 include_directories (interface_include)
 include_directories (priv_include)
-include_directories (${CDK_INCLUDE_DIR})
-include_directories (${DLIB_INCLUDE_DIR})
+include_directories (SYSTEM ${CDK_INCLUDE_DIR})
+include_directories (SYSTEM ${DLIB_INCLUDE_DIR})
 
 # the main library
 add_library (libpilot libpilot.cc workload.cc)

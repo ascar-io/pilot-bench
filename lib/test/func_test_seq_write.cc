@@ -151,7 +151,6 @@ int workload_func(size_t total_work_amount,
     // We don't provide readings. Instead we will just use WPS analysis.
     //(*readings)[time_pi] = (double)total_elapsed_time / ONE_SECOND;
     //(*readings)[tp_pi] = ((double)total_work_amount / MEGABYTE) / ((double)total_elapsed_time / ONE_SECOND);
-
     return 0;
 }
 

@@ -395,7 +395,7 @@ int pilot_wps_warmup_removal_lr_method(size_t rounds, WorkAmountInputIterator ro
     for (size_t i = 0; i < rounds; ++i) {
         subsession_sum_wa  += round_work_amounts[i];
         subsession_sum_dur += round_durations[i];
-        if (i % q == q - 1) {
+        if (i % size_t(q) == size_t(q) - 1) {
             samples.push_back(std::make_pair(subsession_sum_wa, subsession_sum_dur));
             subsession_sum_wa = 0;
             subsession_sum_dur = 0;
