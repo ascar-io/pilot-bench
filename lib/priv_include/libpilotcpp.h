@@ -430,13 +430,14 @@ int pilot_wps_warmup_removal_lr_method(size_t rounds, WorkAmountInputIterator ro
             samples,
             param_vec);
     *alpha = param_vec(0);
-    *v = 1 / param_vec(1);
+    double inv_v = param_vec(1);
+    *v = 1 / inv_v;
 
     double ssr = 0;
     for (auto &s : samples) {
         double wa = static_cast<double>(s.first);
         double dur = static_cast<double>(s.second);
-        ssr += pow(*alpha + wa / *v - dur, 2);
+        ssr += pow(*alpha + inv_v * wa - dur, 2);
     }
     if (ssr_out) *ssr_out = ssr;
     //std::cout << "SSR: " << ssr << std::endl;
@@ -446,7 +447,8 @@ int pilot_wps_warmup_removal_lr_method(size_t rounds, WorkAmountInputIterator ro
     double sum_var = pilot_subsession_var(round_work_amounts.begin(), round_work_amounts.size(), q, wa_mean, ARITHMETIC_MEAN) * (rounds -1);
     //std::cout << "sum_var: " << sum_var << std::endl;
     double std_err_v = sqrt(sigma_sqr / sum_var);
-    *v_ci = 2 * std_err_v;
+    double inv_v_ci = 2 * std_err_v;
+    *v_ci = 1.0 / (inv_v - inv_v_ci) - 1 / (inv_v + inv_v_ci);
     return 0;
 }
 

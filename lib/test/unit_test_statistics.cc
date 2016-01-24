@@ -102,7 +102,7 @@ TEST(StatisticsUnitTest, OrdinaryLeastSquareLinearRegression1) {
     ASSERT_NEAR(exp_ssr, ssr, 10);
     ASSERT_NEAR(44, alpha, 4);
     ASSERT_NEAR(exp_v, v, 0.1);
-    ASSERT_NEAR(0.35, v_ci, 0.01);
+    ASSERT_NEAR(0.1803, v_ci, 0.01);
 }
 
 TEST(StatisticsUnitTest, OrdinaryLeastSquareLinearRegression2) {
@@ -115,10 +115,10 @@ TEST(StatisticsUnitTest, OrdinaryLeastSquareLinearRegression2) {
         1,  // autocorrelation_coefficient_limit
         0,  // duration threshold
         &alpha, &v, &v_ci, &ssr);
-    ASSERT_DOUBLE_EQ(3.6022187058986861e+17, ssr);
-    EXPECT_DOUBLE_EQ(19.300520756183555, alpha);
-    EXPECT_DOUBLE_EQ(0.092427922688291406, v);
-    EXPECT_DOUBLE_EQ(8.8380183626601685, v_ci);
+    ASSERT_NEAR(3.6022187058986944e+17, ssr, 0.00000001e+17);
+    ASSERT_DOUBLE_EQ(19.300520756183555, alpha);
+    ASSERT_DOUBLE_EQ(0.092427922688291406, v);
+    ASSERT_DOUBLE_EQ(0.45386696058047343, v_ci);
 }
 
 int main(int argc, char **argv) {

@@ -162,7 +162,7 @@ pilot_workload_info_t* pilot_workload_t::workload_info(pilot_workload_info_t *in
             accumulate(round_work_amounts_.begin(), round_work_amounts_.end(), static_cast<size_t>(0));
     nanosecond_type sum_of_round_durations =
             accumulate(round_durations_.begin(), round_durations_.end(), static_cast<nanosecond_type>(0));
-    info->wps_harmonic_mean = static_cast<double>(sum_of_work_amount) / sum_of_round_durations;
+    info->wps_harmonic_mean = double(sum_of_work_amount) / ( double(sum_of_round_durations) / ONE_SECOND );
 
     if (rounds_ >= 3) {
         refresh_wps_analysis_results();
