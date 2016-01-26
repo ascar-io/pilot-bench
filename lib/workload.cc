@@ -356,7 +356,7 @@ void pilot_workload_t::refresh_wps_analysis_results(void) const {
             wps_v_ci = -1;
             return;
         }
-    } while (duration_threshold != static_cast<nanosecond_type>(wps_alpha));
+    } while (wps_alpha > 0 && duration_threshold != static_cast<nanosecond_type>(wps_alpha));
 }
 
 size_t pilot_workload_t::set_session_duration_limit(size_t sec) {

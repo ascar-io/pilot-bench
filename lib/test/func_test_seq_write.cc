@@ -138,6 +138,8 @@ int workload_func(size_t total_work_amount,
         ++unit_id;
     }
     //nanosecond_type total_elapsed_time = timer.elapsed().wall;
+    // sync to make sure the tear down phase appear
+    fsync(fd);
     close(fd);
 
     // we do calculation after finishing the workload to minimize the overhead
