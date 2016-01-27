@@ -412,7 +412,7 @@ int pilot_export(const pilot_workload_t *wl, pilot_export_format_t format,
             ofstream of;
             of.exceptions(ofstream::failbit | ofstream::badbit);
             of.open(filename);
-            of << "piid,round,reading,unit_reading" << endl;
+            of << "piid,round,reading,unit_reading,formatted_unit_reading" << endl;
             for (size_t piid = 0; piid < wl->num_of_pi_; ++piid)
                 for (size_t round = 0; round < wl->rounds_; ++round) {
                     if (wl->unit_readings_[piid][round].size() != 0) {
