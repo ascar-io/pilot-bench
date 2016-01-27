@@ -317,24 +317,17 @@ int main(int argc, char **argv) {
 
     int res;
     if (use_tui)
-        res = pilot_run_workload_tui(wl);
-    else
+        pilot_run_workload_tui(wl);
+    else {
         res = pilot_run_workload(wl);
-    switch (res) {
-    case 0:
-        break;
-    case ERR_STOPPED_BY_DURATION_LIMIT:
-        cout << "Reached time limit. Stopped.";
-        break;
-    default:
-        cout << pilot_strerror(res) << endl;
-        return res;
+        if (0 != res) {
+            cout << pilot_strerror(res) << endl;
+        }
     }
     pilot_ui_printf(wl, "Benchmark finished\n");
 
     //const double* time_readings = pilot_get_pi_unit_readings(wl, time_pi, 0, &num_of_work_units) + warmupio;
     //num_of_work_units -= warmupio;
-
 
     res = pilot_export(wl, CSV, result_file_name.c_str());
     if (res != 0) {

@@ -358,6 +358,7 @@ const char *pilot_strerror(int errnum) {
     case ERR_UNKNOWN_HOOK: return "Unknown hook";
     case ERR_NOT_INIT:    return "Workload not properly initialized yet";
     case ERR_WL_FAIL:     return "Workload failure";
+    case ERR_STOPPED_BY_DURATION_LIMIT: return "Stopped after reaching time limit";
     case ERR_STOPPED_BY_HOOK: return "Execution is stopped by a hook function";
     case ERR_TOO_MANY_REJECTED_ROUNDS: return "Too many rounds are wholly rejected. Stopping. Check the workload.";
     case ERR_NOT_IMPL:    return "Not implemented";
@@ -424,13 +425,15 @@ int pilot_export(const pilot_workload_t *wl, pilot_export_format_t format,
                                 } else {
                                     of << ",";
                                 }
-                                of << wl->unit_readings_[piid][round][ur] << endl;
                             } else {
                                 of << piid << ","
                                    << round << ","
-                                   << ","
-                                   << wl->unit_readings_[piid][round][ur] << endl;
+                                   << ",";
                             }
+                            of << wl->unit_readings_[piid][round][ur]
+                               << ","
+                               << wl->format_unit_reading(piid, wl->unit_readings_[piid][round][ur])
+                               << endl;
                         }
                     } else {
                         of << piid << ","
