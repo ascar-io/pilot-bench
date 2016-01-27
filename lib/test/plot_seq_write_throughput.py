@@ -53,54 +53,66 @@ COLUMNS_PER_OBD=7
 debug = 0
 
 if len(sys.argv) < 3:
-    print("Usage:", sys.argv[0], "output_pdf input_csv")
+    print("Usage:", sys.argv[0], "input_csv output_file_prefix")
     exit(2)
 
+file_count = 1
+
+
+def plot(data):
+    global file_count
+    colors = ('b', 'g', 'r', 'c', 'm', 'y', 'k')
+    line_no = 0
+    sum_log_bw = 0
+
+    if debug >= 1:
+        print("Plotting line %d" % (line_no))
+
+    color = colors[line_no % len(colors)]
+
+    # we only plot 500 data points to reduce the size of the output PDF file
+    if len(data) > 500:
+        new_tp = []
+        scale_factor = len(data) / 500
+        for i in range(0, 500):
+            for j in range(0, scale_factor):
+                new_tp.append(data[i * scale_factor])
+        data = new_tp
+
+    plt.plot(range(1, len(data) + 1), data, linestyle='-', color=color, markersize=4, label='throughput')
+
+    plt.title('Seq. Write Throughput', fontsize=22)
+    plt.xlabel('Write request', fontsize=22)
+    plt.ylabel('Write throughput (MB/s)', fontsize=22)
+
+    #plt.legend(loc=4, prop={'size':22})
+    plt.legend(prop={'size':22})
+
+    # default border size is 0.1, the origin is at the left bottom
+    #plt.subplots_adjust(top=1-0.06)
+    #plt.subplots_adjust(bottom=0.1)
+    #plt.subplots_adjust(right=1-0.04)
+    #plt.subplots_adjust(left=0.11)
+
+    plt.savefig(sys.argv[2] + str(file_count) + '.pdf', format='pdf')
+    file_count += 1
+    plt.clf()
+
 tp = []
-input_csv = sys.argv[2]
+input_csv = sys.argv[1]
+current_round = 0
 with open(input_csv, 'rb') as csvfile:
     csvreader = csv.reader(csvfile, delimiter=',')
     for row in csvreader:
         try:
-            # skip time_pi
-            if int(row[0]) == 0:
-                continue
+            if row[1] != current_round:
+                if len(tp) != 0:
+                    plot(tp)
+                    tp = []
+                current_round = row[1]
             else:
-                tp.append(float(row[3]))
+                tp.append(float(row[4]))
         except ValueError:
             pass
 
-colors = ('b', 'g', 'r', 'c', 'm', 'y', 'k')
-line_no = 0
-sum_log_bw = 0
-
-if debug >= 1:
-    print("Plotting line %d" % (line_no))
-
-color = colors[line_no % len(colors)]
-
-# we only plot 500 data points to reduce the size of the output PDF file
-if len(tp) > 500:
-    new_tp = []
-    scale_factor = len(tp) / 500
-    for i in range(0, 500):
-        for j in range(0, scale_factor):
-            new_tp.append(tp[i * scale_factor])
-    tp = new_tp
-
-plt.plot(range(1, len(tp)+1), tp, linestyle='-', color=color, markersize=4, label='throughput')
-
-plt.title('Seq. Write Throughput', fontsize=22)
-plt.xlabel('Write request', fontsize=22)
-plt.ylabel('Write throughput (MB/s)', fontsize=22)
-
-#plt.legend(loc=4, prop={'size':22})
-plt.legend(prop={'size':22})
-
-# default border size is 0.1, the origin is at the left bottom
-#plt.subplots_adjust(top=1-0.06)
-#plt.subplots_adjust(bottom=0.1)
-#plt.subplots_adjust(right=1-0.04)
-#plt.subplots_adjust(left=0.11)
-
-plt.savefig(sys.argv[1], format='pdf')
+plot(tp)
