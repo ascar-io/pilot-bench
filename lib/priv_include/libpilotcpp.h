@@ -39,7 +39,6 @@
 
 #include <boost/math/distributions/students_t.hpp>
 #include <cmath>
-#include <dlib/optimization.h>
 #include "libpilot.h"
 #include <limits>
 #include <map>
@@ -104,8 +103,18 @@ inline accumulator_base* accumulator_factory(pilot_mean_method_t mean_method) {
     abort();
 }
 
+template <typename InputIterator1, typename InputIterator2>
+double pilot_cov(InputIterator1 x, InputIterator2 y, size_t n, double x_mean, double y_mean,
+        enum pilot_mean_method_t mean_method = ARITHMETIC_MEAN) {
+    double sum = 0;
+    for (size_t i = 0; i < n; ++i) {
+        sum += (double(x[i]) - x_mean) * (double(y[i]) - y_mean);
+    }
+    return sum / (n - 1);
+}
+
 template <typename InputIterator>
-double pilot_subsession_cov(InputIterator first, size_t n, size_t q, double sample_mean,
+double pilot_subsession_auto_cov(InputIterator first, size_t n, size_t q, double sample_mean,
         enum pilot_mean_method_t mean_method = ARITHMETIC_MEAN) {
     // we always use arithmetic mean for the covariance accumulator
     arithmetic_mean_accumulator cov_acc;
@@ -151,7 +160,7 @@ double pilot_subsession_var(InputIterator first, size_t n, size_t q,
 template <typename InputIterator>
 double pilot_subsession_autocorrelation_coefficient(InputIterator first,
         size_t n, size_t q, double sample_mean, pilot_mean_method_t mean_method) {
-    double res = pilot_subsession_cov(first, n, q, sample_mean, mean_method) /
+    double res = pilot_subsession_auto_cov(first, n, q, sample_mean, mean_method) /
                  pilot_subsession_var(first, n, q, sample_mean, mean_method);
 
     // res can be NaN when the variance is 0, in this case we just return 1,
@@ -236,94 +245,15 @@ pilot_optimal_sample_size(InputIterator first, size_t n, double confidence_inter
     return ur_req;
 }
 
-/* DEBUG CODE
-inline double residual (const std::pair<double, double>& data,
-    const parameter_vector& params) {
-    return params(0) + params(1) * data.first - data.second;
+template <typename T1, typename T2>
+void simple_regression_model(const std::vector<T1> &x, const std::vector<T2> &y, double *alpha, double *v) {
+    double x_mean = pilot_subsession_mean(x.data(), x.size(), ARITHMETIC_MEAN);
+    double y_mean = pilot_subsession_mean(y.data(), y.size(), ARITHMETIC_MEAN);
+    double x_var = pilot_subsession_var(x.data(), x.size(), 1, x_mean, ARITHMETIC_MEAN);
+    double xy_cov = pilot_cov(x.data(), y.data(), x.size(), x_mean, y_mean, ARITHMETIC_MEAN);
+    *v = xy_cov / x_var;
+    *alpha = y_mean - (*v) * x_mean;
 }
-
-inline parameter_vector residual_derivative (const std::pair<double, double>& data,
-    const parameter_vector& params) {
-    parameter_vector der;
-    der(0) = 1;
-    der(1) = data.first;
-    return der;
-}
-*/
-
-/**
- * Our own regression stop strategy that depends on how many percentage the
- * changed is to total objective value
- */
-class percent_delta_stop_strategy {
-public:
-    explicit percent_delta_stop_strategy (
-            double percent = 1
-    ) : verbose_(false), been_used_(false), percent_(percent), max_iter_(0), cur_iter_(0), prev_funct_value_(0)
-    {
-        assert (percent > 0);
-    }
-
-    percent_delta_stop_strategy (
-            double percent,
-            unsigned long max_iter
-    ) : verbose_(false), been_used_(false), percent_(percent), max_iter_(max_iter), cur_iter_(0), prev_funct_value_(0)
-    {
-        assert (percent > 0 && max_iter > 0);
-    }
-
-    percent_delta_stop_strategy& be_verbose(
-    )
-    {
-        verbose_ = true;
-        return *this;
-    }
-
-    template <typename T>
-    bool should_continue_search (
-            const T& ,
-            const double funct_value,
-            const T&
-    )
-    {
-        if (verbose_)
-        {
-            using namespace std;
-            std::cout << "iteration: " << cur_iter_ << "   objective: " << funct_value;
-        }
-
-        ++cur_iter_;
-        if (been_used_)
-        {
-            // Check if we have hit the max allowable number of iterations.  (but only
-            // check if _max_iter is enabled (i.e. not 0)).
-            if (max_iter_ != 0 && cur_iter_ > max_iter_)
-                return false;
-
-            // check if the function change was too small
-            double percent_changed = std::abs(funct_value - prev_funct_value_) / prev_funct_value_;
-            if (verbose_) {
-                std::cout << "   percent changed: " << percent_changed * 100 << std::endl;
-            }
-            if (percent_changed < percent_)
-                return false;
-        }
-
-        been_used_ = true;
-        prev_funct_value_ = funct_value;
-        return true;
-    }
-
-private:
-    bool verbose_;
-
-    bool been_used_;
-    double percent_;
-    unsigned long max_iter_;
-    unsigned long cur_iter_;
-    double prev_funct_value_;
-};
-
 
 /**
  * Perform warm-up phase detection and removal on readings using the linear
@@ -364,11 +294,11 @@ int pilot_wps_warmup_removal_lr_method(size_t rounds, WorkAmountInputIterator ro
     }
 
     // then check for auto-correlation
-    std::vector<double> naive_v;
+    std::vector<double> naive_v_per_round;
     for (size_t i = 0; i < round_work_amounts.size(); ++i) {
-        naive_v.push_back(static_cast<double>(round_work_amounts[i]) / static_cast<double>(round_durations[i]));
+        naive_v_per_round.push_back(static_cast<double>(round_work_amounts[i]) / static_cast<double>(round_durations[i]));
     }
-    int q = pilot_optimal_subsession_size(naive_v.begin(), naive_v.size(), HARMONIC_MEAN, autocorrelation_coefficient_limit);
+    int q = pilot_optimal_subsession_size(naive_v_per_round.begin(), naive_v_per_round.size(), HARMONIC_MEAN, autocorrelation_coefficient_limit);
     if (q < 0) {
         info_log << __func__ << "() samples' autocorrelation coefficient too high; need more samples";
         return ERR_NOT_ENOUGH_DATA;
@@ -379,73 +309,41 @@ int pilot_wps_warmup_removal_lr_method(size_t rounds, WorkAmountInputIterator ro
         info_log << __func__ << "() doesn't have enough samples after subsession grouping";
         return ERR_NOT_ENOUGH_DATA;
     }
+    std::vector<size_t> subsession_work_amounts;
+    std::vector<nanosecond_type> subsession_round_durations;
 
-    // prepare data for regression analysis
-    // See http://dlib.net/least_squares_ex.cpp.html and
-    // http://dlib.net/dlib/optimization/optimization_least_squares_abstract.h.html#solve_least_squares_lm
-    // for more information on using dlib.
-    typedef dlib::matrix<double,2,1> parameter_vector;
-    parameter_vector param_vec;
-    // set all elements to 1, this is needed for solve_least_squares_lm() to work
-    param_vec = 1;
-    std::vector<std::pair<double, double> > samples;
     size_t subsession_sum_wa = 0;
     nanosecond_type subsession_sum_dur = 0;
+    size_t total_sum_wa = 0;
+    nanosecond_type total_sum_dur = 0;
     // convert input into subsession data by grouping every q samples
     for (size_t i = 0; i < rounds; ++i) {
         subsession_sum_wa  += round_work_amounts[i];
         subsession_sum_dur += round_durations[i];
+        total_sum_wa += round_work_amounts[i];
+        total_sum_dur += round_durations[i];
         if (i % size_t(q) == size_t(q) - 1) {
-            samples.push_back(std::make_pair(subsession_sum_wa, subsession_sum_dur));
+            subsession_work_amounts.push_back(subsession_sum_wa);
+            subsession_round_durations.push_back(subsession_sum_dur);
             subsession_sum_wa = 0;
             subsession_sum_dur = 0;
         }
     }
 
-    /* DEBUG CODE
-    // Before we do anything, let's make sure that our derivative function defined above matches
-    // the approximate derivative computed using central differences (via derivative()).
-    // If this value is big then it means we probably typed the derivative function incorrectly.
-    // std::cout << "derivative error: " << dlib::length(residual_derivative(samples[0], param_vec) -
-    //        derivative(residual)(samples[0], param_vec) ) << std::endl;
-
-    dlib::solve_least_squares_lm(dlib::objective_delta_stop_strategy(1e-7).be_verbose(),
-            residual,
-            residual_derivative,
-            samples,
-            param_vec);
-    */
-    //std::cout << "samples: " << samples << std::endl;
-    // We are experimenting using samples_naive_mean / 10 as the stopping threshold.
-    dlib::solve_least_squares_lm(percent_delta_stop_strategy(.01, 50),
-            [](const std::pair<double, double>& data, const parameter_vector& params) {
-                return params(0) + params(1) * data.first - data.second;
-            },
-            [](const std::pair<double, double>& data, const parameter_vector& params) {
-                parameter_vector der;
-                der(0) = 1;
-                der(1) = data.first;
-                return der;
-            },
-            samples,
-            param_vec);
-    *alpha = param_vec(0);
-    double inv_v = param_vec(1);
+    double inv_v;
+    simple_regression_model(subsession_work_amounts, subsession_round_durations, alpha, &inv_v);
     *v = 1 / inv_v;
 
     double ssr = 0;
-    for (auto &s : samples) {
-        double wa = static_cast<double>(s.first);
-        double dur = static_cast<double>(s.second);
+    for (size_t i = 0; i < subsession_work_amounts.size(); ++i) {
+        double wa = double(subsession_work_amounts[i]);
+        double dur = double(subsession_round_durations[i]);
         ssr += pow(*alpha + inv_v * wa - dur, 2);
     }
     if (ssr_out) *ssr_out = ssr;
-    //std::cout << "SSR: " << ssr << std::endl;
-    double sigma_sqr = ssr / (samples.size() - 2);
-    //std::cout << "sigma^2: " << sigma_sqr << std::endl;
+    double sigma_sqr = ssr / (h - 2);
     double wa_mean = pilot_subsession_mean(round_work_amounts.begin(), round_work_amounts.size(), ARITHMETIC_MEAN);
     double sum_var = pilot_subsession_var(round_work_amounts.begin(), round_work_amounts.size(), q, wa_mean, ARITHMETIC_MEAN) * (rounds -1);
-    //std::cout << "sum_var: " << sum_var << std::endl;
     double std_err_v = sqrt(sigma_sqr / sum_var);
     double inv_v_ci = 2 * std_err_v;
     *v_ci = 1.0 / (inv_v - inv_v_ci) - 1 / (inv_v + inv_v_ci);

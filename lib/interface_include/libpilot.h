@@ -452,7 +452,7 @@ double pilot_subsession_mean_p(const double *data, size_t n, pilot_mean_method_t
  * @param sample_mean the sample mean
  * @return the calculated covariance
  */
-double pilot_subsession_cov_p(const double *data, size_t n, size_t q, double sample_mean, pilot_mean_method_t mean_method);
+double pilot_subsession_auto_cov_p(const double *data, size_t n, size_t q, double sample_mean, pilot_mean_method_t mean_method);
 
 double pilot_subsession_var_p(const double *data, size_t n, size_t q, double sample_mean, pilot_mean_method_t mean_method);
 double pilot_subsession_autocorrelation_coefficient_p(const double *data, size_t n, size_t q, double sample_mean, pilot_mean_method_t mean_method);
@@ -563,6 +563,7 @@ struct pilot_workload_info_t {
     size_t* unit_readings_required_sample_size;
     // Work amount-per-second analysis
     double wps_harmonic_mean;        //! wps is a rate so only harmonic mean is valid
+    bool   wps_has_data;            //! whether the following fields have data
     double wps_alpha;                //! the alpha as in t = alpha + v*w
     double wps_v;                    //! the v as in t = alpha + v*w
     double wps_v_ci;                 //! the width of the confidence interval of v

@@ -32,6 +32,7 @@
  */
 
 #include <algorithm>
+#include <fstream>
 #include "gtest/gtest.h"
 #include "libpilot.h"
 #include <vector>
@@ -48,7 +49,7 @@ const vector<double> g_response_time{
 };
 
 TEST(StatisticsUnitTest, CornerCases) {
-    ASSERT_DEATH(pilot_subsession_cov_p(g_response_time.data(), 1, 1, 0, ARITHMETIC_MEAN), "") << "Shouldn't be able to calculate covariance for one sample";
+    ASSERT_DEATH(pilot_subsession_auto_cov_p(g_response_time.data(), 1, 1, 0, ARITHMETIC_MEAN), "") << "Shouldn't be able to calculate covariance for one sample";
     ASSERT_DEATH(pilot_optimal_subsession_size_p(g_response_time.data(), 1, ARITHMETIC_MEAN), "") << "Shouldn't be able to calculate optimal subsession size for one sample";
 }
 
@@ -57,7 +58,7 @@ TEST(StatisticsUnitTest, AutocorrelationCoefficient) {
     ASSERT_DOUBLE_EQ(1.756458333333333, sample_mean) << "Mean is wrong";
 
     ASSERT_DOUBLE_EQ(0.073474423758865273, pilot_subsession_var_p(g_response_time.data(), g_response_time.size(), 1, sample_mean, ARITHMETIC_MEAN)) << "Subsession mean is wrong";
-    ASSERT_DOUBLE_EQ(0.046770566452423196, pilot_subsession_cov_p(g_response_time.data(), g_response_time.size(), 1, sample_mean, ARITHMETIC_MEAN)) << "Coverance mean is wrong";
+    ASSERT_DOUBLE_EQ(0.046770566452423196, pilot_subsession_auto_cov_p(g_response_time.data(), g_response_time.size(), 1, sample_mean, ARITHMETIC_MEAN)) << "Coverance mean is wrong";
     ASSERT_DOUBLE_EQ(0.63655574361384437, pilot_subsession_autocorrelation_coefficient_p(g_response_time.data(), g_response_time.size(), 1, sample_mean, ARITHMETIC_MEAN)) << "Autocorrelation coefficient is wrong";
 
     ASSERT_DOUBLE_EQ(0.55892351761172487, pilot_subsession_autocorrelation_coefficient_p(g_response_time.data(), g_response_time.size(), 2, sample_mean, ARITHMETIC_MEAN)) << "Autocorrelation coefficient is wrong";
@@ -106,6 +107,37 @@ TEST(StatisticsUnitTest, OrdinaryLeastSquareLinearRegression1) {
 }
 
 TEST(StatisticsUnitTest, OrdinaryLeastSquareLinearRegression2) {
+    // We generate some mock test data
+    const size_t v_wu = 500;
+    const size_t v_s  = 30;
+    const size_t v_td = 15;
+    const nanosecond_type t_su = 10;
+    const nanosecond_type t_wu = 100;
+    const nanosecond_type t_td = 30;
+    vector<size_t> work_amount;
+    vector<nanosecond_type> round_duration;
+    ofstream of("output.csv");
+    of << "work amount,round_duration" << endl;
+    for(nanosecond_type t_s = 0; t_s < 2000; t_s += 50) {
+        work_amount.push_back(v_wu * t_wu + v_s * t_s + v_td * t_td);
+        round_duration.push_back(t_su + t_wu + t_td + t_s);
+        of << work_amount.back() << "," << round_duration.back() << endl;
+    }
+    of.close();
+
+    double alpha, v, v_ci, ssr;
+    pilot_wps_warmup_removal_lr_method_p(work_amount.size(),
+        work_amount.data(), round_duration.data(),
+        1,  // autocorrelation_coefficient_limit
+        0,  // duration threshold
+        &alpha, &v, &v_ci, &ssr);
+    ASSERT_NEAR(0, ssr, .001);
+    ASSERT_NEAR(-1541.7, alpha, .1);
+    ASSERT_NEAR(v_s, v, .1);
+    ASSERT_NEAR(0, v_ci, .001);
+}
+
+TEST(StatisticsUnitTest, OrdinaryLeastSquareLinearRegression3) {
     // Exercise OLS using some real data
     const vector<size_t> work_amount{429497000, 472446000, 515396000, 558346000};
     const vector<nanosecond_type> round_duration{4681140000, 5526190000, 5632120000, 5611980000};
@@ -115,15 +147,16 @@ TEST(StatisticsUnitTest, OrdinaryLeastSquareLinearRegression2) {
         1,  // autocorrelation_coefficient_limit
         0,  // duration threshold
         &alpha, &v, &v_ci, &ssr);
-    ASSERT_NEAR(3.6022187058986944e+17, ssr, 0.00000001e+17);
-    ASSERT_DOUBLE_EQ(19.300520756183555, alpha);
-    ASSERT_DOUBLE_EQ(0.092427922688291406, v);
-    ASSERT_DOUBLE_EQ(0.45386696058047343, v_ci);
+    ASSERT_NEAR(2.059332e+17, ssr, 0.001e+17);
+    ASSERT_NEAR(2.0296e+9, alpha, .0001e+9);
+    ASSERT_NEAR(1.0/6.7485, v, .001);
+    ASSERT_DOUBLE_EQ(15.068212467990975, v_ci);
 }
 
 int main(int argc, char **argv) {
     PILOT_LIB_SELF_CHECK;
-    pilot_set_log_level(lv_info);
+    // we only display fatals because errors are expected in some test cases
+    pilot_set_log_level(lv_fatal);
 
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();

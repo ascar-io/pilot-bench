@@ -143,11 +143,12 @@ struct pilot_workload_t {
 
     // WPS analysis bookkeeping
     size_t wps_slices_;
-    mutable double wps_alpha;
-    mutable double wps_v;
-    mutable double wps_v_ci;
-    mutable double wps_v_dw_method;
-    mutable double wps_v_ci_dw_method;
+    mutable bool wps_has_data_;
+    mutable double wps_alpha_;
+    mutable double wps_v_;
+    mutable double wps_v_ci_;
+    mutable double wps_v_dw_method_;
+    mutable double wps_v_ci_dw_method_;
 
     // Hook functions
     next_round_work_amount_hook_t *next_round_work_amount_hook_; //! The hook function that calculates the work amount for next round
@@ -172,8 +173,9 @@ struct pilot_workload_t {
                          warm_up_removal_detection_method_(FIXED_PERCENTAGE),
                          warm_up_removal_moving_average_window_size_in_seconds_(3),
                          wholly_rejected_rounds_(0),
-                         wps_slices_(kWPSInitSlices), wps_alpha(-1), wps_v(-1),
-                         wps_v_ci(-1), wps_v_dw_method(-1), wps_v_ci_dw_method(-1),
+                         wps_slices_(kWPSInitSlices), wps_has_data_(false),
+                         wps_alpha_(0), wps_v_(0), wps_v_ci_(0),
+                         wps_v_dw_method_(-1), wps_v_ci_dw_method_(-1),
                          next_round_work_amount_hook_(NULL),
                          hook_pre_workload_run_(NULL), hook_post_workload_run_(NULL),
                          calc_required_readings_func_(NULL),

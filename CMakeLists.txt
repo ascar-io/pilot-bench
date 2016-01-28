@@ -101,22 +101,6 @@ if (Boost_FOUND)
 endif ()
 
 
-###############################################################################
-## dlib library
-
-ExternalProject_Add (dlib
-  URL http://dlib.net/files/dlib-18.18.tar.bz2
-  URL_HASH SHA256=99133ed152e24d37dafa2dd19deac14d2e13c1b8ba6e187476d60f4d376117ca
-  PREFIX ${CMAKE_CURRENT_BINARY_DIR}/dlib
-  SOURCE_DIR ${CMAKE_CURRENT_BINARY_DIR}/dlib/src/dlib
-  CONFIGURE_COMMAND ""
-  BUILD_COMMAND ""
-  INSTALL_COMMAND ""
-)
-ExternalProject_Get_Property(dlib SOURCE_DIR)
-set (DLIB_INCLUDE_DIR "${SOURCE_DIR}")
-
-
 # libpilot
 add_subdirectory (lib)
 # pilot command line tool

@@ -545,10 +545,14 @@ void pilot_workload_info_t::_copyfrom(const pilot_workload_info_t &a) {
 
 #define COPY_FIELD(field) field = a.field;
     COPY_FIELD(wps_harmonic_mean);
+    if (a.wps_has_data) {
+        COPY_FIELD(wps_has_data);
+        COPY_FIELD(wps_alpha);
+        COPY_FIELD(wps_v);
+        COPY_FIELD(wps_v_ci);
+    }
     COPY_FIELD(wps_v_dw_method);
     COPY_FIELD(wps_v_ci_dw_method);
-    COPY_FIELD(wps_v);
-    COPY_FIELD(wps_alpha);
 #undef COPY_FIELD
 }
 
@@ -597,8 +601,8 @@ double pilot_subsession_mean_p(const double *data, size_t n, pilot_mean_method_t
     return pilot_subsession_mean(data, n, mean_method);
 }
 
-double pilot_subsession_cov_p(const double *data, size_t n, size_t q, double sample_mean, pilot_mean_method_t mean_method) {
-    return pilot_subsession_cov(data, n, q, sample_mean, mean_method);
+double pilot_subsession_auto_cov_p(const double *data, size_t n, size_t q, double sample_mean, pilot_mean_method_t mean_method) {
+    return pilot_subsession_auto_cov(data, n, q, sample_mean, mean_method);
 }
 
 double pilot_subsession_var_p(const double *data, size_t n, size_t q, double sample_mean, pilot_mean_method_t mean_method) {
@@ -858,8 +862,8 @@ size_t calc_next_round_work_amount_from_wps(pilot_workload_t *wl) {
     if (wl->rounds_ > 3) {
         wl->refresh_wps_analysis_results();
 
-        if (wl->wps_v > 0 && wl->wps_v_ci > 0 &&
-            wl->wps_v_ci < wl->required_ci_percent_of_mean_ * wl->wps_v) {
+        if (wl->wps_has_data_ && wl->wps_v_ > 0 && wl->wps_v_ci_ > 0 &&
+            wl->wps_v_ci_ < wl->required_ci_percent_of_mean_ * wl->wps_v_) {
             info_log << "WPS confidence interval small enough";
             return 0;
         }
