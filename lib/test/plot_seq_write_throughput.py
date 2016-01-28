@@ -2,7 +2,7 @@
 #
 # Plot throughput chart from the output of func_test_seq_write
 #
-# Copyright (c) 2015, University of California, Santa Cruz, CA, USA.
+# Copyright (c) 2015, 2016 University of California, Santa Cruz, CA, USA.
 # Created by Yan Li <yanli@ucsc.edu, elliot.li.tech@gmail.com>,
 # Department of Computer Science, Baskin School of Engineering.
 #
@@ -111,7 +111,7 @@ with open(input_csv, 'rb') as csvfile:
                     tp = []
                 current_round = row[1]
             else:
-                tp.append(float(row[4]))
+                tp.append(float(row[3]))
         except ValueError:
             pass
 
