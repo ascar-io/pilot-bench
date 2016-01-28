@@ -397,18 +397,16 @@ const double* pilot_get_pi_readings(const pilot_workload_t *wl, size_t piid);
  */
 const double* pilot_get_pi_unit_readings(const pilot_workload_t *wl, size_t piid, size_t round, size_t *num_of_work_units);
 
-enum pilot_export_format_t {
-    CSV
-};
 /**
- * \brief Export all data of a workload to a file
+ * \brief Export workload data
+ * \details Multiple files will be created in a directory.
  * @param[in] wl pointer to the workload struct
- * @param format file format to use
- * @param[in] filename the file name to use
+ * @param[in] dirname the directory to store the exported files. It will be
+ * created if needed.
  * @return 0 on success; aborts if wl is NULL; otherwise returns an error code. On error, call pilot_strerror to
  * get a pointer to the error message.
  */
-int pilot_export(const pilot_workload_t *wl, pilot_export_format_t format, const char *filename);
+int pilot_export(const pilot_workload_t *wl, const char *dirname);
 
 /**
  * \brief Destroy (free) a workload struct

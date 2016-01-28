@@ -203,7 +203,7 @@ int main(int argc, char **argv) {
                     "the workload will start from this length and be gradually repeated or increased until the desired "
                     "confidence level is reached")
             ("output,o", po::value<string>(), "set output file name, can be a device. WARNING: the file will be overwritten if it exists.")
-            ("result,r", po::value<string>(), "set result file name, (default to seq-write.csv)")
+            ("result,r", po::value<string>(), "set result directory name, (default to seq-write-dir)")
             ("no-tui", "disable the text user interface")
             ("warm-up-io,w", po::value<size_t>(), "the number of I/O operations that will be removed from the beginning as the warm-up phase (default to 1/10 of total IO ops)")
             ("verbose,v", "print more debug information")
@@ -251,9 +251,9 @@ int main(int argc, char **argv) {
         }
         g_io_size = vm["io-size"].as<size_t>();
     }
-    string result_file_name("seq-write.csv");
+    string result_dir_name("seq-write-results");
     if (vm.count("result")) {
-        result_file_name = vm["result"].as<string>();
+        result_dir_name = vm["result"].as<string>();
     }
 
     // fill g_io_buf with some pseudo-random data to prevent some smart SSDs from compressing
@@ -329,12 +329,12 @@ int main(int argc, char **argv) {
     //const double* time_readings = pilot_get_pi_unit_readings(wl, time_pi, 0, &num_of_work_units) + warmupio;
     //num_of_work_units -= warmupio;
 
-    res = pilot_export(wl, CSV, result_file_name.c_str());
+    res = pilot_export(wl, result_dir_name.c_str());
     if (res != 0) {
         cout << pilot_strerror(res) << endl;
         return res;
     }
-    pilot_ui_printf_hl(wl, "Benchmark results are saved to %s\n", result_file_name.c_str());
+    pilot_ui_printf_hl(wl, "Benchmark results are saved to %s\n", result_dir_name.c_str());
     if (pilot_destroy_workload(wl) != 0) {
         cerr << ("pilot_destroy_workload failed");
         abort();

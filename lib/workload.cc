@@ -157,28 +157,16 @@ pilot_workload_info_t* pilot_workload_t::workload_info(pilot_workload_info_t *in
                 pilot_subsession_confidence_interval(pilot_pi_unit_readings_iter_t(this, piid), total_num_of_unit_readings_[piid], q, .95, ARITHMETIC_MEAN);
         info->unit_readings_required_sample_size[piid] = required_num_of_unit_readings(piid);
     }
-    // generate WPS analysis data
-    size_t sum_of_work_amount =
-            accumulate(round_work_amounts_.begin(), round_work_amounts_.end(), static_cast<size_t>(0));
-    nanosecond_type sum_of_round_durations =
-            accumulate(round_durations_.begin(), round_durations_.end(), static_cast<nanosecond_type>(0));
-    info->wps_harmonic_mean = double(sum_of_work_amount) / ( double(sum_of_round_durations) / ONE_SECOND );
-
-    if (rounds_ >= 3) {
-        refresh_wps_analysis_results();
-        if (wps_has_data_) {
-            info->wps_has_data = true;
-            info->wps_alpha = wps_alpha_;
-            info->wps_v = wps_v_;
-            info->wps_v_ci = wps_v_ci_;
-            pilot_wps_warmup_removal_dw_method(round_work_amounts_.size(),
-                    round_work_amounts_.begin(),
-                    round_durations_.begin(), confidence_interval_,
-                    autocorrelation_coefficient_limit_,
-                    &(info->wps_v_dw_method), &(info->wps_v_ci_dw_method));
-        } else {
-            info->wps_has_data = false;
-        }
+    // WPS analysis data
+    refresh_wps_analysis_results();
+    info->wps_harmonic_mean = wps_harmonic_mean_;
+    if (wps_has_data_) {
+        info->wps_has_data = true;
+        info->wps_alpha = wps_alpha_;
+        info->wps_v = wps_v_;
+        info->wps_v_ci = wps_v_ci_;
+        info->wps_v_dw_method = wps_v_dw_method_;
+        info->wps_v_ci_dw_method = wps_v_ci_dw_method_;
     } else {
         info->wps_has_data = false;
         info->wps_v_dw_method = -1;
@@ -323,6 +311,12 @@ bool pilot_workload_t::set_wps_analysis(bool enabled) {
 }
 
 void pilot_workload_t::refresh_wps_analysis_results(void) const {
+    size_t sum_of_work_amount =
+            accumulate(round_work_amounts_.begin(), round_work_amounts_.end(), static_cast<size_t>(0));
+    nanosecond_type sum_of_round_durations =
+            accumulate(round_durations_.begin(), round_durations_.end(), static_cast<nanosecond_type>(0));
+    wps_harmonic_mean_ = double(sum_of_work_amount) / ( double(sum_of_round_durations) / ONE_SECOND );
+
     pilot_wps_warmup_removal_dw_method(round_work_amounts_.size(),
             round_work_amounts_.begin(),
             round_durations_.begin(), confidence_interval_,

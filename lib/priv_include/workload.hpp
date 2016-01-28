@@ -144,6 +144,7 @@ struct pilot_workload_t {
     // WPS analysis bookkeeping
     size_t wps_slices_;
     mutable bool wps_has_data_;
+    mutable double wps_harmonic_mean_;
     mutable double wps_alpha_;
     mutable double wps_v_;
     mutable double wps_v_ci_;

@@ -224,18 +224,41 @@ private:
     void use_highlight_color(void) {
         wbkgd(cdk_screen_->window, COLOR_PAIR(29) | A_BOLD);
     }
-    void flush_buf(void) {
+    /**
+     * Print a string at next_draw_pos without considering line folding
+     * @param s
+     */
+    void print_str(const std::string &s) {
         writeChar(cdk_screen_->window,
                   1 + next_draw_pos_x_,
                   next_draw_pos_y_,
-                  const_cast<char*>(draw_buf_.str().c_str()),
+                  const_cast<char*>(s.c_str()),
                   HORIZONTAL, 0,
-                  draw_buf_.str().size());
-        next_draw_pos_x_ += draw_buf_.str().size();
-        draw_buf_.str(std::string()); draw_buf_.clear();
+                  s.size());
+        next_draw_pos_x_ += s.size();
     }
-
+    /**
+     * Flush draw_buf_, taking care of line folding
+     */
+    void flush_buf(void) {
+        while (draw_buf_.str().size() > 0) {
+            if (next_draw_pos_x_ + int(draw_buf_.str().size()) > inner_w_) {
+                print_str(draw_buf_.str().substr(0, inner_w_ - next_draw_pos_x_));
+                next_draw_pos_x_ = 0;
+                ++next_draw_pos_y_;
+                draw_buf_.str(draw_buf_.str().substr(inner_w_ - next_draw_pos_x_, draw_buf_.str().size() - (inner_w_ - next_draw_pos_x_)));
+            } else {
+                print_str(draw_buf_.str());
+                draw_buf_.str(std::string()); draw_buf_.clear();
+                return;
+            }
+        }
+    }
     void flush_buf_new_line(void) {
+        flush_buf();
+        for (int i = next_draw_pos_x_; i < inner_w_; ++i) {
+            draw_buf_ << " ";
+        }
         flush_buf();
         next_draw_pos_x_ = 0;
         ++next_draw_pos_y_;

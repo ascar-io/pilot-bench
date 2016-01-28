@@ -116,7 +116,7 @@ TEST(PilotRunWorkloadTest, RunWorkload) {
     ASSERT_EQ(g_mock_unit_readings[0][0].size(), num_of_work_units);
     ASSERT_EQ(0, memcmp(g_mock_unit_readings[0][0].data(), pi_unit_readings,
                         sizeof(double) * g_mock_unit_readings[0][0].size()));
-    ASSERT_EQ(0, pilot_export(wl, CSV, "unit_test_run_workload_export.csv"));
+    ASSERT_EQ(0, pilot_export(wl, "/tmp/unit_test_run_workload_export"));
     pilot_destroy_workload(wl);
 }
 

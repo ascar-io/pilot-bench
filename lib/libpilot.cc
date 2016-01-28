@@ -401,56 +401,98 @@ const double* pilot_get_pi_unit_readings(const pilot_workload_t *wl,
     return wl->unit_readings_[piid][round].data();
 }
 
-int pilot_export(const pilot_workload_t *wl, pilot_export_format_t format,
-                 const char *filename) {
+int pilot_export(const pilot_workload_t *wl, const char *dirname) {
     ASSERT_VALID_POINTER(wl);
-    ASSERT_VALID_POINTER(filename);
+    ASSERT_VALID_POINTER(dirname);
 
-    switch (format) {
-    case CSV:
-        try {
-            ofstream of;
-            of.exceptions(ofstream::failbit | ofstream::badbit);
-            of.open(filename);
-            of << "piid,round,reading,unit_reading,formatted_unit_reading" << endl;
-            for (size_t piid = 0; piid < wl->num_of_pi_; ++piid)
-                for (size_t round = 0; round < wl->rounds_; ++round) {
-                    if (wl->unit_readings_[piid][round].size() != 0) {
-                        for (size_t ur = 0; ur < wl->unit_readings_[piid][round].size(); ++ur) {
-                            if (0 == ur) {
-                                of << piid << ","
-                                   << round << ",";
-                                if (wl->readings_[piid].size() > round) {
-                                    of << wl->readings_[piid][round] << ",";
-                                } else {
-                                    of << ",";
-                                }
-                            } else {
-                                of << piid << ","
-                                   << round << ","
-                                   << ",";
-                            }
-                            of << wl->unit_readings_[piid][round][ur]
-                               << ","
-                               << wl->format_unit_reading(piid, wl->unit_readings_[piid][round][ur])
-                               << endl;
-                        }
-                    } else {
-                        of << piid << ","
-                        << round << ","
-                        << wl->readings_[piid][round] << "," << endl;
-                    }
-                } /* round loop */
-            of.close();
-        } catch (ofstream::failure &e) {
-            error_log << "I/O error: " << strerror(errno);
-            return ERR_IO;
+    int res;
+    /* The behavior of mkdir is undefined for anything other than the "permission" bits */
+    res = mkdir(dirname, 0777);
+    if (0 == res) {
+        /* So we need to set the sticky/executable bits explicitly with chmod after calling mkdir */
+        if (chmod(dirname, 07777)) {
+            error_log << __func__ << "(): chmod failed, errno " << errno;
         }
-        break;
-    default:
-        error_log << "Unknown format: " << format;
-        return ERR_WRONG_PARAM;
+    } else if (EEXIST != errno) {
+        error_log << __func__ << "(): mkdir failed, errno " << errno;
+        return errno;
     }
+
+
+    stringstream filename;
+    ofstream of;
+    try {
+        wl->refresh_wps_analysis_results();
+        filename << dirname << "/" << "wps_analysis.csv";
+        of.exceptions(ofstream::failbit | ofstream::badbit);
+        of.open(filename.str().c_str());
+        of << "wps_harmonic_mean,wps_alpha,wps_v,wps_v_ci,wps_v_dw_method,wps_v_ci_dw_method" << endl;
+        of << wl->wps_harmonic_mean_ << ",";
+        if (wl->wps_has_data_) {
+            of << wl->wps_alpha_ << ","
+               << wl->wps_v_ << ","
+               << wl->wps_v_ci_ << ","
+               << wl->wps_v_dw_method_ << ","
+               << wl->wps_v_ci_dw_method_ << endl;
+        } else {
+            of << ",,,," << endl;
+        }
+        of.close();
+
+        filename.str(string());
+        filename << dirname << "/" << "rounds.csv";
+        of.exceptions(ofstream::failbit | ofstream::badbit);
+        of.open(filename.str().c_str());
+        of << "round,work_amount,round_duration" << endl;
+        for (size_t round = 0; round < wl->rounds_; ++round) {
+            of << round << ","
+               << wl->round_work_amounts_[round] << ","
+               << wl->round_durations_[round] << endl;
+        }
+        of.close();
+
+        filename.str(string());
+        filename << dirname << "/" << "readings.csv";
+        of.exceptions(ofstream::failbit | ofstream::badbit);
+        of.open(filename.str().c_str());
+        of << "piid,round,readings" << endl;
+        for (size_t piid = 0; piid < wl->num_of_pi_; ++piid)
+            for (size_t round = 0; round < wl->rounds_; ++round) {
+                of << piid << "," << round << ",";
+                if (wl->readings_[piid].size() > round) {
+                    of << wl->readings_[piid][round] << ",";
+                } else {
+                    of << ",";
+                }
+        }
+        of.close();
+
+        filename.str(string());
+        filename << dirname << "/" << "unit_readings.csv";
+        of.exceptions(ofstream::failbit | ofstream::badbit);
+        of.open(filename.str().c_str());
+        of << "piid,round,unit_reading,formatted_unit_reading" << endl;
+        for (size_t piid = 0; piid < wl->num_of_pi_; ++piid)
+            for (size_t round = 0; round < wl->rounds_; ++round) {
+                if (wl->unit_readings_[piid][round].size() != 0) {
+                    for (size_t ur = 0; ur < wl->unit_readings_[piid][round].size(); ++ur) {
+                        of << piid << ","
+                           << round << ","
+                           << wl->unit_readings_[piid][round][ur] << ","
+                           << wl->format_unit_reading(piid, wl->unit_readings_[piid][round][ur])
+                           << endl;
+                    }
+                } else {
+                    of << piid << ","
+                       << round << ",," << endl;
+                }
+            } /* round loop */
+        of.close();
+    } catch (ofstream::failure &e) {
+        error_log << "I/O error: " << strerror(errno);
+        return ERR_IO;
+    }
+
     return 0;
 }
 

@@ -49,7 +49,7 @@ add_test (NAME unit_test_statistics
 add_test (NAME unit_test_run_workload
 		  COMMAND unit_test_run_workload)
 add_test (NAME unit_test_run_workload_check_export
-		  COMMAND diff unit_test_run_workload_export.csv ${CMAKE_CURRENT_LIST_DIR}/test/unit_test_run_workload_export_expected.csv)
+		  COMMAND diff /tmp/unit_test_run_workload_export/unit_readings.csv ${CMAKE_CURRENT_LIST_DIR}/test/unit_test_run_workload_export_expected.csv)
 add_test (NAME unit_test_session_duration
 		  COMMAND unit_test_session_duration)
 add_test (NAME unit_test_unit_readings_iter
