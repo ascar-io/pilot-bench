@@ -50,11 +50,54 @@ using boost::timer::nanosecond_type;
 
 namespace pilot {
 
+stringstream g_in_mem_log_buffer;
+
+class PilotInMemLogBackend :
+        public boost::log::sinks::basic_formatted_sink_backend<
+        char,
+        boost::log::sinks::concurrent_feeding
+        > {
+public:
+    explicit PilotInMemLogBackend() {}
+
+    void consume(boost::log::record_view const& rec, string_type const& msg) {
+        g_in_mem_log_buffer << msg << std::endl;
+    }
+};
+
 void pilot_lib_self_check(int vmajor, int vminor, size_t nanosecond_type_size) {
     die_if(vmajor != PILOT_VERSION_MAJOR || vminor != PILOT_VERSION_MINOR,
             ERR_LINKED_WRONG_VER, "libpilot header files and library version mismatch");
     die_if(nanosecond_type_size != sizeof(boost::timer::nanosecond_type),
             ERR_LINKED_WRONG_VER, "size of current compiler's int_least64_t does not match the library");
+
+    // set up the in-mem log backend
+    namespace logging = boost::log;
+    namespace src = boost::log::sources;
+    namespace sinks = boost::log::sinks;
+    namespace keywords = boost::log::keywords;
+    namespace expr = boost::log::expressions;
+
+    logging::add_common_attributes();
+    boost::shared_ptr< logging::core > core = logging::core::get();
+
+    // Create a backend and attach a stream to it
+    boost::shared_ptr<PilotInMemLogBackend> backend = boost::make_shared<PilotInMemLogBackend>();
+
+    // Wrap it into the frontend and register in the core.
+    // The backend requires synchronization in the frontend.
+    typedef sinks::synchronous_sink<PilotInMemLogBackend> sink_t;
+    boost::shared_ptr<sink_t> sink(new sink_t(backend));
+    sink->set_formatter
+    (
+            expr::format("%1%:[%2%] <%3%> %4%")
+    % expr::attr< unsigned int >("LineID")
+    % expr::format_date_time< boost::posix_time::ptime >("TimeStamp", "%Y-%m-%d %H:%M:%S")
+    % logging::trivial::severity
+    % expr::smessage
+    );
+    core->add_sink(sink);
+
 }
 
 void pilot_set_pi_info(pilot_workload_t* wl, int piid,
@@ -325,6 +368,7 @@ static void _pilot_ui_printf(pilot_workload_t *wl, const char* prefix, const cha
     } else {
         *(wl->tui_) << prefix << buf.get();
     }
+    g_in_mem_log_buffer << buf.get();
 }
 
 void pilot_ui_printf(pilot_workload_t *wl, const char* format, ...) {
@@ -422,7 +466,16 @@ int pilot_export(const pilot_workload_t *wl, const char *dirname) {
     stringstream filename;
     ofstream of;
     try {
+        filename.str(string());
+        filename << dirname << "/" << "session_log.txt";
+        of.exceptions(ofstream::failbit | ofstream::badbit);
+        of.open(filename.str().c_str());
+        of << g_in_mem_log_buffer.str();
+        g_in_mem_log_buffer.str(string());
+        of.close();
+
         wl->refresh_wps_analysis_results();
+        filename.str(string());
         filename << dirname << "/" << "wps_analysis.csv";
         of.exceptions(ofstream::failbit | ofstream::badbit);
         of.open(filename.str().c_str());
