@@ -31,6 +31,15 @@
  * OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <boost/log/core.hpp>
+#include <boost/log/expressions.hpp>
+#include <boost/log/sinks/basic_sink_backend.hpp>
+#include <boost/log/sinks/frontend_requirements.hpp>
+#include <boost/log/sources/severity_logger.hpp>
+#include <boost/log/trivial.hpp>
+#include <boost/log/utility/setup/console.hpp>
+#include <boost/log/utility/setup/common_attributes.hpp>
+#include <boost/shared_ptr.hpp>
 #include <algorithm>
 #include "common.h"
 #include "config.h"
@@ -51,6 +60,7 @@ using boost::timer::nanosecond_type;
 namespace pilot {
 
 stringstream g_in_mem_log_buffer;
+boost::shared_ptr< boost::log::sinks::sink > g_console_log_sink;
 
 class PilotInMemLogBackend :
         public boost::log::sinks::basic_formatted_sink_backend<
@@ -71,7 +81,7 @@ void pilot_lib_self_check(int vmajor, int vminor, size_t nanosecond_type_size) {
     die_if(nanosecond_type_size != sizeof(boost::timer::nanosecond_type),
             ERR_LINKED_WRONG_VER, "size of current compiler's int_least64_t does not match the library");
 
-    // set up the in-mem log backend
+    // we set up two sinks here, one to console, the other to our in-mem log buffer
     namespace logging = boost::log;
     namespace src = boost::log::sources;
     namespace sinks = boost::log::sinks;
@@ -97,7 +107,14 @@ void pilot_lib_self_check(int vmajor, int vminor, size_t nanosecond_type_size) {
     % expr::smessage
     );
     core->add_sink(sink);
+    g_console_log_sink = logging::add_console_log();
+}
 
+void pilot_remove_console_log_sink(void) {
+    namespace logging = boost::log;
+    boost::shared_ptr< logging::core > core = logging::core::get();
+    assert (g_console_log_sink.get() != NULL);
+    core->remove_sink(g_console_log_sink);
 }
 
 void pilot_set_pi_info(pilot_workload_t* wl, int piid,
@@ -732,12 +749,13 @@ int pilot_wps_warmup_removal_lr_method_p(size_t rounds, const size_t *round_work
         const nanosecond_type *round_durations,
         float autocorrelation_coefficient_limit, nanosecond_type duration_threshold,
         double *alpha, double *v,
-        double *ci_width, double *ssr_out) {
+        double *ci_width, double *ssr_out, size_t *subsession_sample_size) {
     return pilot_wps_warmup_removal_lr_method(rounds, round_work_amounts,
                                               round_durations,
                                               autocorrelation_coefficient_limit,
                                               duration_threshold,
-                                              alpha, v, ci_width, ssr_out);
+                                              alpha, v, ci_width, ssr_out,
+                                              subsession_sample_size);
 }
 
 int pilot_wps_warmup_removal_dw_method_p(size_t rounds, const size_t *round_work_amounts,
@@ -957,7 +975,8 @@ size_t calc_next_round_work_amount_from_wps(pilot_workload_t *wl) {
     if (wl->rounds_ > 3) {
         wl->refresh_wps_analysis_results();
 
-        if (wl->wps_has_data_ && wl->wps_v_ > 0 && wl->wps_v_ci_ > 0 &&
+        if (wl->wps_has_data_ && wl->wps_subsession_sample_size_ > 10 &&
+            wl->wps_v_ > 0 && wl->wps_v_ci_ > 0 &&
             wl->wps_v_ci_ < wl->required_ci_percent_of_mean_ * wl->wps_v_) {
             info_log << "WPS confidence interval small enough";
             return 0;

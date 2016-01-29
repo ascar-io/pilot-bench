@@ -138,7 +138,7 @@ TEST(StatisticsUnitTest, OrdinaryLeastSquareLinearRegression2) {
 }
 
 TEST(StatisticsUnitTest, OrdinaryLeastSquareLinearRegression3) {
-    // Exercise OLS using some real data
+    // Real data test A
     const vector<size_t> work_amount{429497000, 472446000, 515396000, 558346000};
     const vector<nanosecond_type> round_duration{4681140000, 5526190000, 5632120000, 5611980000};
     double alpha, v, v_ci, ssr;
@@ -151,6 +151,22 @@ TEST(StatisticsUnitTest, OrdinaryLeastSquareLinearRegression3) {
     ASSERT_NEAR(2.0296e+9, alpha, .0001e+9);
     ASSERT_NEAR(1.0/6.7485, v, .001);
     ASSERT_DOUBLE_EQ(15.068212467990975, v_ci);
+}
+
+TEST(StatisticsUnitTest, OrdinaryLeastSquareLinearRegression4) {
+    // Real data test B
+    const vector<size_t> work_amount{429496729, 472446392, 515396064, 558345736, 601295408, 644245080, 687194752, 730144424, 773094096};
+    const vector<nanosecond_type> round_duration{5731883327, 5235129386, 5321265550, 5860121124, 6040418744, 6513983890, 6623204911, 6828709974, 7455453108};
+    double alpha, v, v_ci, ssr;
+    pilot_wps_warmup_removal_lr_method_p(work_amount.size(),
+        work_amount.data(), round_duration.data(),
+        1,  // autocorrelation_coefficient_limit
+        0,  // duration threshold
+        &alpha, &v, &v_ci, &ssr);
+    EXPECT_DOUBLE_EQ(5.9193307073836864e+17, ssr);
+    EXPECT_NEAR(2694596476, alpha, 1);
+    EXPECT_NEAR(1.0/5.7947, v, .001);
+    EXPECT_DOUBLE_EQ(0.11455029540768602, v_ci);
 }
 
 int main(int argc, char **argv) {

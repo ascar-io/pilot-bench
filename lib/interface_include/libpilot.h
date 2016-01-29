@@ -84,6 +84,8 @@ typedef int_least64_t nanosecond_type;
 
 void pilot_lib_self_check(int vmajor, int vminor, size_t nanosecond_type_size);
 
+void pilot_remove_console_log_sink(void);
+
 /**
  * \brief The type of memory allocation function, which is used by pilot_workload_func_t.
  * \details libpilot needs to ask the caller to allocate some memory and write
@@ -479,7 +481,7 @@ int pilot_wps_warmup_removal_lr_method_p(size_t rounds, const size_t *round_work
         float autocorrelation_coefficient_limit,
         nanosecond_type duration_threshold,
         double *alpha, double *v,
-        double *ci_width, double *ssr_out = NULL);
+        double *ci_width, double *ssr_out = NULL, size_t *subsession_sample_size = NULL);
 
 /**
  * \brief Calculate the mean and confidence interval of WPS with warm-up

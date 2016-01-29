@@ -603,6 +603,7 @@ protected:
                 % expr::smessage
         );
         core->add_sink(sink);
+        pilot_remove_console_log_sink();
     }
 
 public:

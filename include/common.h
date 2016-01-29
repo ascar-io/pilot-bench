@@ -34,15 +34,7 @@
 #ifndef PILOT_TOOL_INCLUDE_COMMON_H_
 #define PILOT_TOOL_INCLUDE_COMMON_H_
 
-#include <boost/log/core.hpp>
-#include <boost/log/expressions.hpp>
-#include <boost/log/sinks/basic_sink_backend.hpp>
-#include <boost/log/sinks/frontend_requirements.hpp>
-#include <boost/log/sources/severity_logger.hpp>
 #include <boost/log/trivial.hpp>
-#include <boost/log/utility/setup/file.hpp>
-#include <boost/log/utility/setup/common_attributes.hpp>
-#include <boost/shared_ptr.hpp>
 #include <boost/timer/timer.hpp>
 #include <iostream>
 #include <string>

@@ -337,7 +337,8 @@ void pilot_workload_t::refresh_wps_analysis_results(void) const {
                                                      round_durations_.begin(),
                                                      autocorrelation_coefficient_limit_,
                                                      duration_threshold,
-                                                     &wps_alpha_, &wps_v_, &wps_v_ci_);
+                                                     &wps_alpha_, &wps_v_, &wps_v_ci_,
+                                                     NULL, &wps_subsession_sample_size_);
         if (ERR_NOT_ENOUGH_DATA == res) {
             info_log << "Not enough data for calculating WPS warm-up removal (duration_threshold = " << duration_threshold << ")";
             wps_has_data_ = false;

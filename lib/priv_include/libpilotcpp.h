@@ -274,7 +274,7 @@ int pilot_wps_warmup_removal_lr_method(size_t rounds, WorkAmountInputIterator ro
         RoundDurationInputIterator round_durations_raw,
         float autocorrelation_coefficient_limit, nanosecond_type duration_threshold,
         double *alpha, double *v,
-        double *v_ci, double *ssr_out = NULL) {
+        double *v_ci, double *ssr_out = NULL, size_t *subsession_sample_size = NULL) {
     // first we create copies of round_work_amounts and round_durations with
     // rounds that are shorter than round_durations filtered out
     std::vector<size_t> round_work_amounts;
@@ -305,8 +305,9 @@ int pilot_wps_warmup_removal_lr_method(size_t rounds, WorkAmountInputIterator ro
     }
     debug_log << "WPS analysis: optimal subsession size (q) = " << q;
     size_t h = round_work_amounts.size() / q;
+    if (subsession_sample_size) *subsession_sample_size = h;
     if (h < 3) {
-        info_log << __func__ << "() doesn't have enough samples after subsession grouping";
+        info_log << __func__ << "() doesn't have enough samples (<3) after subsession grouping";
         return ERR_NOT_ENOUGH_DATA;
     }
     std::vector<size_t> subsession_work_amounts;

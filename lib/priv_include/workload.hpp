@@ -144,6 +144,7 @@ struct pilot_workload_t {
     // WPS analysis bookkeeping
     size_t wps_slices_;
     mutable bool wps_has_data_;
+    mutable size_t wps_subsession_sample_size_;
     mutable double wps_harmonic_mean_;
     mutable double wps_alpha_;
     mutable double wps_v_;
@@ -175,6 +176,7 @@ struct pilot_workload_t {
                          warm_up_removal_moving_average_window_size_in_seconds_(3),
                          wholly_rejected_rounds_(0),
                          wps_slices_(kWPSInitSlices), wps_has_data_(false),
+                         wps_subsession_sample_size_(0),
                          wps_alpha_(0), wps_v_(0), wps_v_ci_(0),
                          wps_v_dw_method_(-1), wps_v_ci_dw_method_(-1),
                          next_round_work_amount_hook_(NULL),
