@@ -34,6 +34,9 @@
 import numpy as np
 import sys
 
+if len(sys.argv) < 3:
+    print('Usage {0} wps_csv_file round_csv_file [naive_v]'.format(sys.argv[0]))
+
 ONE_SECOND = 1e9
 
 wps_csv = sys.argv[1]
@@ -42,13 +45,15 @@ csv_data = np.genfromtxt(wps_csv, names=True, delimiter=',')
 wps_harmonic_mean = csv_data['wps_harmonic_mean']
 wps_alpha = csv_data['wps_alpha']
 wps_v = csv_data['wps_v']
-print('''
-Imported analysis results:
-wps_harmonic_mean: {0}
+if len(sys.argv) >= 4:
+    naive_v = float(sys.argv[3])
+else:
+    naive_v = wps_harmonic_mean
+print('''Imported analysis results:
+naive_v: {0}
 wps_alpha: {1}
 wps_v: {2}
-'''.format(wps_harmonic_mean, wps_alpha, wps_v))
-
+'''.format(naive_v, wps_alpha, wps_v))
 
 round_csv = sys.argv[2]
 csv_data = np.genfromtxt(round_csv, names=True, delimiter=',')
@@ -63,12 +68,12 @@ for row in csv_data:
     sum_work_amount += round_work_amount
     sum_duration += round_duration
 
-    naive_t = round_work_amount / wps_harmonic_mean
-    naive_t_err = naive_t - (round_duration / ONE_SECOND)
+    naive_t = round_work_amount / naive_v
+    naive_t_err = abs(naive_t - (round_duration / ONE_SECOND)) * ONE_SECOND
     sum_native_t_err += naive_t_err
 
     wps_t = wps_alpha + round_work_amount / wps_v
-    wps_t_err = wps_t - round_duration
+    wps_t_err = abs(wps_t - round_duration)
     sum_wps_t_err += wps_t_err
 
 print('mean calculated from round data: {0}'.format(sum_work_amount / sum_duration))

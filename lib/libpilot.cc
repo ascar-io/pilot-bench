@@ -1000,4 +1000,11 @@ size_t pilot_set_session_duration_limit(pilot_workload_t *wl, size_t sec) {
     return wl->set_session_duration_limit(sec);
 }
 
+double pilot_set_autocorrelation_coefficient(pilot_workload_t *wl, double ac) {
+    ASSERT_VALID_POINTER(wl);
+    double old_ac = wl->autocorrelation_coefficient_limit_;
+    wl->autocorrelation_coefficient_limit_ = ac;
+    return old_ac;
+}
+
 } // namespace pilot

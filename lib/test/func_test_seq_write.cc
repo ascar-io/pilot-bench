@@ -314,6 +314,7 @@ int main(int argc, char **argv) {
     pilot_set_hook_func(wl, POST_WORKLOAD_RUN, &post_workload_run_hook);
     // Run for at most 3 minutes
     pilot_set_session_duration_limit(wl, 4*60);
+    pilot_set_autocorrelation_coefficient(wl, 1);
 
     int res;
     if (use_tui)

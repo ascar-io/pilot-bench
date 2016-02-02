@@ -59,30 +59,22 @@ if len(sys.argv) < 3:
 file_count = 1
 
 
-def plot(data):
+def plot(xdata, ydata):
     global file_count
+    print('len(xdata)={0}, len(ydata)={1}'.format(len(xdata), len(ydata)))
+
     colors = ('b', 'g', 'r', 'c', 'm', 'y', 'k')
     line_no = 0
-    sum_log_bw = 0
 
     if debug >= 1:
         print("Plotting line %d" % (line_no))
 
     color = colors[line_no % len(colors)]
 
-    # we only plot 500 data points to reduce the size of the output PDF file
-    if len(data) > 500:
-        new_tp = []
-        scale_factor = len(data) / 500
-        for i in range(0, 500):
-            for j in range(0, scale_factor):
-                new_tp.append(data[i * scale_factor])
-        data = new_tp
-
-    plt.plot(range(1, len(data) + 1), data, linestyle='-', color=color, markersize=4, label='throughput')
+    plt.plot(xdata, ydata, linestyle='-', color=color, markersize=4, label='throughput')
 
     plt.title('Seq. Write Throughput', fontsize=22)
-    plt.xlabel('Write request', fontsize=22)
+    plt.xlabel('Time', fontsize=22)
     plt.ylabel('Write throughput (MB/s)', fontsize=22)
 
     #plt.legend(loc=4, prop={'size':22})
@@ -101,18 +93,26 @@ def plot(data):
 tp = []
 input_csv = sys.argv[1]
 current_round = 0
+timestamps = []
+current_timestamp = 0
 with open(input_csv, 'rb') as csvfile:
     csvreader = csv.reader(csvfile, delimiter=',')
     for row in csvreader:
+        if row[0] == 'piid':
+            continue
         try:
-            if row[1] != current_round:
+            if int(row[1]) != current_round:
                 if len(tp) != 0:
-                    plot(tp)
+                    plot(timestamps, tp)
+                    timestamps = []
                     tp = []
-                current_round = row[1]
+                current_round = int(row[1])
+                current_timestamp = 0
             else:
+                current_timestamp += float(row[2])
+                timestamps.append(current_timestamp)
                 tp.append(float(row[3]))
         except ValueError:
             pass
 
-plot(tp)
+plot(timestamps, tp)

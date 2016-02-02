@@ -777,6 +777,8 @@ bool pilot_set_wps_analysis(pilot_workload_t *wl, bool enabled);
  */
 size_t pilot_set_session_duration_limit(pilot_workload_t *wl, size_t sec);
 
+double pilot_set_autocorrelation_coefficient(pilot_workload_t *wl, double ac);
+
 #ifdef __cplusplus
 } // namespace pilot
 } // extern C

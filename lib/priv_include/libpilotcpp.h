@@ -303,7 +303,7 @@ int pilot_wps_warmup_removal_lr_method(size_t rounds, WorkAmountInputIterator ro
         info_log << __func__ << "() samples' autocorrelation coefficient too high; need more samples";
         return ERR_NOT_ENOUGH_DATA;
     }
-    debug_log << "WPS analysis: optimal subsession size (q) = " << q;
+    info_log << "WPS analysis: optimal subsession size (q) = " << q;
     size_t h = round_work_amounts.size() / q;
     if (subsession_sample_size) *subsession_sample_size = h;
     if (h < 3) {
