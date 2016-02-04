@@ -534,6 +534,7 @@ int pilot_export(const pilot_workload_t *wl, const char *dirname) {
                 } else {
                     of << ",";
                 }
+                of << endl;
         }
         of.close();
 
