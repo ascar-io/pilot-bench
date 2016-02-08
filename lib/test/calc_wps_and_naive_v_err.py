@@ -79,3 +79,6 @@ for row in csv_data:
 print('mean calculated from round data: {0}'.format(sum_work_amount / sum_duration))
 print('sum_native_t_err: {0}, {1}%'.format(sum_native_t_err, sum_native_t_err * 100 / sum_duration))
 print('sum_wps_t_err: {0}, {1}%'.format(sum_wps_t_err, sum_wps_t_err * 100 / sum_duration))
+
+outf = open('calc_wps_and_naive_v_err.out', 'w')
+outf.write('sum_native_t_err_percent,sum_wps_t_err_percent')

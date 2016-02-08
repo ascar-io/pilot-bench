@@ -146,9 +146,13 @@ struct pilot_workload_t {
     mutable bool wps_has_data_;
     mutable size_t wps_subsession_sample_size_;
     mutable double wps_harmonic_mean_;
+    mutable double wps_naive_v_err_;
+    mutable double wps_naive_v_err_percent_;
     mutable double wps_alpha_;
     mutable double wps_v_;
     mutable double wps_v_ci_;
+    mutable double wps_err_;
+    mutable double wps_err_percent_;
     mutable double wps_v_dw_method_;
     mutable double wps_v_ci_dw_method_;
 
@@ -177,7 +181,9 @@ struct pilot_workload_t {
                          wholly_rejected_rounds_(0),
                          wps_slices_(kWPSInitSlices), wps_has_data_(false),
                          wps_subsession_sample_size_(0),
-                         wps_alpha_(0), wps_v_(0), wps_v_ci_(0),
+                         wps_harmonic_mean_(0), wps_naive_v_err_(0),
+                         wps_alpha_(0), wps_v_(0), wps_v_ci_(0), wps_err_(0),
+                         wps_err_percent_(0),
                          wps_v_dw_method_(-1), wps_v_ci_dw_method_(-1),
                          next_round_work_amount_hook_(NULL),
                          hook_pre_workload_run_(NULL), hook_post_workload_run_(NULL),

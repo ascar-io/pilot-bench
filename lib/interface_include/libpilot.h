@@ -481,7 +481,8 @@ int pilot_wps_warmup_removal_lr_method_p(size_t rounds, const size_t *round_work
         float autocorrelation_coefficient_limit,
         nanosecond_type duration_threshold,
         double *alpha, double *v,
-        double *ci_width, double *ssr_out = NULL, size_t *subsession_sample_size = NULL);
+        double *ci_width, double *ssr_out = NULL, double *ssr_out_percent = NULL,
+        size_t *subsession_sample_size = NULL);
 
 /**
  * \brief Calculate the mean and confidence interval of WPS with warm-up
@@ -563,9 +564,13 @@ struct pilot_workload_info_t {
     size_t* unit_readings_required_sample_size;
     // Work amount-per-second analysis
     double wps_harmonic_mean;        //! wps is a rate so only harmonic mean is valid
+    double wps_naive_v_err;
+    double wps_naive_v_err_percent;
     bool   wps_has_data;            //! whether the following fields have data
     double wps_alpha;                //! the alpha as in t = alpha + v*w
     double wps_v;                    //! the v as in t = alpha + v*w
+    double wps_err;
+    double wps_err_percent;
     double wps_v_ci;                 //! the width of the confidence interval of v
     double wps_v_dw_method;          //! readings after warm-up removal using the deprecated dw_method
     double wps_v_ci_dw_method;       //! the width of confidence interval using the deprecated dw_method

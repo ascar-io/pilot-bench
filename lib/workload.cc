@@ -160,9 +160,13 @@ pilot_workload_info_t* pilot_workload_t::workload_info(pilot_workload_info_t *in
     // WPS analysis data
     refresh_wps_analysis_results();
     info->wps_harmonic_mean = wps_harmonic_mean_;
+    info->wps_naive_v_err = wps_naive_v_err_;
+    info->wps_naive_v_err_percent = wps_naive_v_err_percent_;
     if (wps_has_data_) {
         info->wps_has_data = true;
         info->wps_alpha = wps_alpha_;
+        info->wps_err = wps_err_;
+        info->wps_err_percent = wps_err_percent_;
         info->wps_v = wps_v_;
         info->wps_v_ci = wps_v_ci_;
         info->wps_v_dw_method = wps_v_dw_method_;
@@ -262,10 +266,12 @@ char* pilot_workload_t::text_workload_summary(void) const {
 
         s << "== WORK-PER-SECOND ANALYSIS ==" << endl;
         s << "naive mean: " << i->wps_harmonic_mean << endl;
+        s << "naive mean err: " << i->wps_naive_v_err << " (" << i->wps_naive_v_err_percent * 100 <<  "%)" << endl;
         if (i->wps_has_data) {
             s << "WPS alpha: " << format_wps(i->wps_alpha) << endl;
             s << "WPS v: " << format_wps(i->wps_v) << endl;
             s << "WPS v CI: " << format_wps(i->wps_v_ci) << endl;
+            s << "WPS err: " << i->wps_err << " (" << i->wps_err_percent << "%)" << endl;
         } else {
             s << "Not enough data for WPS analysis" << endl;
         }
@@ -311,18 +317,28 @@ bool pilot_workload_t::set_wps_analysis(bool enabled) {
 }
 
 void pilot_workload_t::refresh_wps_analysis_results(void) const {
+    // calculate naive_v and its error
     size_t sum_of_work_amount =
             accumulate(round_work_amounts_.begin(), round_work_amounts_.end(), static_cast<size_t>(0));
     nanosecond_type sum_of_round_durations =
             accumulate(round_durations_.begin(), round_durations_.end(), static_cast<nanosecond_type>(0));
     wps_harmonic_mean_ = double(sum_of_work_amount) / ( double(sum_of_round_durations) / ONE_SECOND );
+    wps_naive_v_err_ = 0;
+    for (size_t i = 0; i < rounds_; ++i) {
+        double wa  = double(round_work_amounts_[i]);
+        double dur = double(round_durations_[i]);
+        wps_naive_v_err_ += pow(wa / wps_harmonic_mean_ - dur, 2);
+    }
+    wps_naive_v_err_percent_ = sqrt(wps_naive_v_err_) / sum_of_round_durations;
 
+    // the obsoleted dw method
     pilot_wps_warmup_removal_dw_method(round_work_amounts_.size(),
             round_work_amounts_.begin(),
             round_durations_.begin(), confidence_interval_,
             autocorrelation_coefficient_limit_,
             &wps_v_dw_method_, &wps_v_ci_dw_method_);
 
+    // the linear regression method
     nanosecond_type duration_threshold;
     int r = 0;
     do {
@@ -338,7 +354,8 @@ void pilot_workload_t::refresh_wps_analysis_results(void) const {
                                                      autocorrelation_coefficient_limit_,
                                                      duration_threshold,
                                                      &wps_alpha_, &wps_v_, &wps_v_ci_,
-                                                     NULL, &wps_subsession_sample_size_);
+                                                     &wps_err_, &wps_err_percent_,
+                                                     &wps_subsession_sample_size_);
         if (ERR_NOT_ENOUGH_DATA == res) {
             info_log << "Not enough data for calculating WPS warm-up removal (duration_threshold = " << duration_threshold << ")";
             wps_has_data_ = false;

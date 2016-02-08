@@ -274,18 +274,16 @@ int pilot_wps_warmup_removal_lr_method(size_t rounds, WorkAmountInputIterator ro
         RoundDurationInputIterator round_durations_raw,
         float autocorrelation_coefficient_limit, nanosecond_type duration_threshold,
         double *alpha, double *v,
-        double *v_ci, double *ssr_out = NULL, size_t *subsession_sample_size = NULL) {
+        double *v_ci, double *ssr_out = NULL, double *ssr_percent_out = NULL, size_t *subsession_sample_size = NULL) {
     // first we create copies of round_work_amounts and round_durations with
     // rounds that are shorter than round_durations filtered out
     std::vector<size_t> round_work_amounts;
     std::vector<nanosecond_type> round_durations;
     for (size_t i = 0; i < rounds; ++i) {
-        if (*round_durations_raw > duration_threshold) {
-            round_work_amounts.push_back(*round_work_amounts_raw);
-            round_durations.push_back(*round_durations_raw);
+        if (round_durations_raw[i] > duration_threshold) {
+            round_work_amounts.push_back(round_work_amounts_raw[i]);
+            round_durations.push_back(round_durations_raw[i]);
         }
-        ++round_work_amounts_raw;
-        ++round_durations_raw;
     }
 
     if (round_work_amounts.size() < 3) {
@@ -335,14 +333,24 @@ int pilot_wps_warmup_removal_lr_method(size_t rounds, WorkAmountInputIterator ro
     simple_regression_model(subsession_work_amounts, subsession_round_durations, alpha, &inv_v);
     *v = 1 / inv_v;
 
-    double ssr = 0;
+    double sub_session_ssr = 0;
     for (size_t i = 0; i < subsession_work_amounts.size(); ++i) {
         double wa = double(subsession_work_amounts[i]);
         double dur = double(subsession_round_durations[i]);
+        sub_session_ssr += pow(*alpha + inv_v * wa - dur, 2);
+    }
+    double ssr = 0;
+    double dur_sum = 0;
+    for (size_t i = 0; i < rounds; ++i) {
+        double wa = double(round_work_amounts_raw[i]);
+        double dur = double(round_durations_raw[i]);
         ssr += pow(*alpha + inv_v * wa - dur, 2);
+        dur_sum += dur;
     }
     if (ssr_out) *ssr_out = ssr;
-    double sigma_sqr = ssr / (h - 2);
+    if (ssr_percent_out) *ssr_percent_out = sqrt(ssr) / dur_sum;
+
+    double sigma_sqr = sub_session_ssr / (h - 2);
     double wa_mean = pilot_subsession_mean(round_work_amounts.begin(), round_work_amounts.size(), ARITHMETIC_MEAN);
     double sum_var = pilot_subsession_var(round_work_amounts.begin(), round_work_amounts.size(), q, wa_mean, ARITHMETIC_MEAN) * (rounds -1);
     double std_err_v = sqrt(sigma_sqr / sum_var);

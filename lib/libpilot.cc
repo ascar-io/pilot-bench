@@ -276,7 +276,7 @@ int pilot_run_workload(pilot_workload_t *wl) {
             info_log << "enough readings collected, exiting";
             break;
         }
-        if (wl->wholly_rejected_rounds_ > 10) {
+        if (wl->wholly_rejected_rounds_ > 100) {
             info_log << "Too many rounds are wholly rejected. Stopping. Check the workload.";
             result = ERR_TOO_MANY_REJECTED_ROUNDS;
             break;
@@ -496,16 +496,18 @@ int pilot_export(const pilot_workload_t *wl, const char *dirname) {
         filename << dirname << "/" << "wps_analysis.csv";
         of.exceptions(ofstream::failbit | ofstream::badbit);
         of.open(filename.str().c_str());
-        of << "wps_harmonic_mean,wps_alpha,wps_v,wps_v_ci,wps_v_dw_method,wps_v_ci_dw_method" << endl;
-        of << wl->wps_harmonic_mean_ << ",";
+        of << "wps_naive_v,wps_naive_v_err,wps_naive_v_err_percent,wps_alpha,wps_v,wps_v_ci,wps_err,wps_err_percent,wps_v_dw_method,wps_v_ci_dw_method" << endl;
+        of << wl->wps_harmonic_mean_ << "," << wl->wps_naive_v_err_ << "," << wl->wps_naive_v_err_percent_ << ",";
         if (wl->wps_has_data_) {
             of << wl->wps_alpha_ << ","
                << wl->wps_v_ << ","
                << wl->wps_v_ci_ << ","
+               << wl->wps_err_ << ","
+               << wl->wps_err_percent_ << ","
                << wl->wps_v_dw_method_ << ","
                << wl->wps_v_ci_dw_method_ << endl;
         } else {
-            of << ",,,," << endl;
+            of << ",,,,,," << endl;
         }
         of.close();
 
@@ -658,11 +660,15 @@ void pilot_workload_info_t::_copyfrom(const pilot_workload_info_t &a) {
 
 #define COPY_FIELD(field) field = a.field;
     COPY_FIELD(wps_harmonic_mean);
+    COPY_FIELD(wps_naive_v_err);
+    COPY_FIELD(wps_naive_v_err_percent)
     if (a.wps_has_data) {
         COPY_FIELD(wps_has_data);
         COPY_FIELD(wps_alpha);
         COPY_FIELD(wps_v);
         COPY_FIELD(wps_v_ci);
+        COPY_FIELD(wps_err);
+        COPY_FIELD(wps_err_percent);
     }
     COPY_FIELD(wps_v_dw_method);
     COPY_FIELD(wps_v_ci_dw_method);
@@ -750,12 +756,12 @@ int pilot_wps_warmup_removal_lr_method_p(size_t rounds, const size_t *round_work
         const nanosecond_type *round_durations,
         float autocorrelation_coefficient_limit, nanosecond_type duration_threshold,
         double *alpha, double *v,
-        double *ci_width, double *ssr_out, size_t *subsession_sample_size) {
+        double *ci_width, double *ssr_out, double *ssr_out_percent, size_t *subsession_sample_size) {
     return pilot_wps_warmup_removal_lr_method(rounds, round_work_amounts,
                                               round_durations,
                                               autocorrelation_coefficient_limit,
                                               duration_threshold,
-                                              alpha, v, ci_width, ssr_out,
+                                              alpha, v, ci_width, ssr_out, ssr_out_percent,
                                               subsession_sample_size);
 }
 
