@@ -8,7 +8,7 @@ include_directories (${CMAKE_SOURCE_DIR}/lib/interface_include)
 
 add_executable (pilot pilot.cc)
 add_dependencies (pilot cdk)
-target_compile_features (pilot PRIVATE cxx_auto_type)
+add_definitions ("-std=gnu++11")
 target_link_libraries (pilot ${CDK_LIBRARIES} ${LIBPILOT_LIBRARIES} ${Boost_LIBRARIES})
 
 install (TARGETS pilot DESTINATION bin)
