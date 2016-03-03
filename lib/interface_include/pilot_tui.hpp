@@ -346,7 +346,7 @@ private:
                 use_highlight_color();
                 draw_buf_ << std::setprecision(3)
                           << std::setw(inner_w_ - label.size() - 1)
-                          << format_ur(NULL, var_rt * 100) << "%";
+                          << var_rt * 100 << "%";
                 flush_buf_new_line();
 
                 draw_data_line("autocorrelation coefficient: ",
