@@ -742,12 +742,12 @@ double pilot_subsession_confidence_interval_p(const double *data, size_t n, size
 }
 
 double pilot_p_eq(double mean1, double mean2, size_t size1, size_t size2,
-                  double stdev1, double stdev2, double *ci_left, double *ci_right,
+                  double var1, double var2, double *ci_left, double *ci_right,
                   double confidence_level) {
     using namespace boost::math;
 
     double d = mean1 - mean2;
-    double sc = sqrt(pow(stdev1, 2) / double(size1) + pow(stdev2, 2) / double(size2));
+    double sc = sqrt(var1 / double(size1) + var2 / double(size2));
     double t = d / sc;
 
     size_t deg_of_freedom = min(size1, size2) - 1;

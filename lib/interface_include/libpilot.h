@@ -649,15 +649,15 @@ double pilot_subsession_confidence_interval_p(const double *data, size_t n, size
  * @param mean2
  * @param size1
  * @param size2
- * @param stdev1
- * @param stdev2
+ * @param var1
+ * @param var2
  * @param[out] ci_left
  * @param[out] ci_right
  * @param confidence_level
  * @return the p-value
  */
 double pilot_p_eq(double mean1, double mean2, size_t size1, size_t size2,
-                  double stdev1, double stdev2, double *ci_left, double *ci_right,
+                  double var1, double var2, double *ci_left, double *ci_right,
                   double confidence_level = 0.95);
 
 /**

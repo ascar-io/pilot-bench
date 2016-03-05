@@ -32,6 +32,7 @@
  */
 
 #include <algorithm>
+#include <cmath>
 #include <fstream>
 #include "gtest/gtest.h"
 #include "libpilot.h"
@@ -169,18 +170,18 @@ TEST(StatisticsUnitTest, OrdinaryLeastSquareLinearRegression4) {
     ASSERT_DOUBLE_EQ(0.11455029540768602, v_ci);
 }
 
-TEST(StatisticsUnitTest, PEqTest) {
+TEST(StatisticsUnitTest, TestOfSignificance) {
     // Sample data from http://www.stat.yale.edu/Courses/1997-98/101/meancomp.htm.
     double mean_male = 98.105;
     double mean_female = 98.394;
-    double stdev_male = 0.699;
-    double stdev_female = 0.743;
+    double var_male = pow(0.699, 2);
+    double var_female = pow(0.743, 2);
     double ci_left, ci_right;
     size_t sample_size_male = 65;
     size_t sample_size_female = 65;
     double p = pilot_p_eq(mean_male, mean_female,
                           sample_size_male, sample_size_female,
-                          stdev_male, stdev_female,
+                          var_male, var_female,
                           &ci_left, &ci_right);
     ASSERT_NEAR(0.025696808408668472, p, 0.000000001);
     ASSERT_NEAR(-0.5417739890521083, ci_left, 0.000000001);
