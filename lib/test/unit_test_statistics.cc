@@ -163,10 +163,28 @@ TEST(StatisticsUnitTest, OrdinaryLeastSquareLinearRegression4) {
         1,  // autocorrelation_coefficient_limit
         0,  // duration threshold
         &alpha, &v, &v_ci, &ssr);
-    EXPECT_DOUBLE_EQ(5.9193307073836864e+17, ssr);
-    EXPECT_NEAR(2694596476, alpha, 1);
-    EXPECT_NEAR(1.0/5.7947, v, .001);
-    EXPECT_DOUBLE_EQ(0.11455029540768602, v_ci);
+    ASSERT_DOUBLE_EQ(5.9193307073836864e+17, ssr);
+    ASSERT_NEAR(2694596476, alpha, 1);
+    ASSERT_NEAR(1.0/5.7947, v, .001);
+    ASSERT_DOUBLE_EQ(0.11455029540768602, v_ci);
+}
+
+TEST(StatisticsUnitTest, PEqTest) {
+    // Sample data from http://www.stat.yale.edu/Courses/1997-98/101/meancomp.htm.
+    double mean_male = 98.105;
+    double mean_female = 98.394;
+    double stdev_male = 0.699;
+    double stdev_female = 0.743;
+    double ci_left, ci_right;
+    size_t sample_size_male = 65;
+    size_t sample_size_female = 65;
+    double p = pilot_p_eq(mean_male, mean_female,
+                          sample_size_male, sample_size_female,
+                          stdev_male, stdev_female,
+                          &ci_left, &ci_right);
+    ASSERT_NEAR(0.025696808408668472, p, 0.000000001);
+    ASSERT_NEAR(-0.5417739890521083, ci_left, 0.000000001);
+    ASSERT_NEAR(-0.03622601094789468, ci_right, 0.000000001);
 }
 
 int main(int argc, char **argv) {

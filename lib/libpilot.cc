@@ -39,6 +39,7 @@
 #include <boost/log/trivial.hpp>
 #include <boost/log/utility/setup/console.hpp>
 #include <boost/log/utility/setup/common_attributes.hpp>
+#include <boost/math/distributions/students_t.hpp>
 #include <boost/shared_ptr.hpp>
 #include <algorithm>
 #include "common.h"
@@ -738,6 +739,28 @@ int pilot_optimal_subsession_size_p(const double *data, size_t n, pilot_mean_met
 
 double pilot_subsession_confidence_interval_p(const double *data, size_t n, size_t q, double confidence_level, pilot_mean_method_t mean_method) {
     return pilot_subsession_confidence_interval(data, n, q, confidence_level, mean_method);
+}
+
+double pilot_p_eq(double mean1, double mean2, size_t size1, size_t size2,
+                  double stdev1, double stdev2, double *ci_left, double *ci_right,
+                  double confidence_level) {
+    using namespace boost::math;
+
+    double d = mean1 - mean2;
+    double sc = sqrt(pow(stdev1, 2) / double(size1) + pow(stdev2, 2) / double(size2));
+    double t = d / sc;
+
+    size_t deg_of_freedom = min(size1, size2) - 1;
+    students_t dist(deg_of_freedom);
+    double p = cdf(dist, -abs(t));
+    // two sided
+    p *= 2;
+
+    // calculate CI
+    t = quantile(complement(dist, (1 - confidence_level) / 2));
+    if (ci_left)  *ci_left = d - t * sc;
+    if (ci_right) *ci_right = d + t * sc;
+    return p;
 }
 
 ssize_t
