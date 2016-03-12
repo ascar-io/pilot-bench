@@ -71,6 +71,12 @@ enum pilot_mean_method_t {
     HARMONIC_MEAN = 1
 };
 
+enum pilot_reading_type_t {
+    READING_TYPE = 0,
+    UNIT_READING_TYPE = 1,
+    WPS_TYPE = 2
+};
+
 const int kWPSInitSlices = 50;
 
 typedef int_least64_t nanosecond_type;
@@ -210,7 +216,9 @@ void pilot_set_pi_info(pilot_workload_t* wl, int piid,
         const char *pi_unit = NULL,
         pilot_pi_display_format_func_t *format_reading_func = NULL,
         pilot_pi_display_format_func_t *format_unit_reading_func = NULL,
-        bool reading_must_satisfy = false, bool unit_reading_must_satisfy = false);
+        bool reading_must_satisfy = false, bool unit_reading_must_satisfy = false,
+        pilot_mean_method_t reading_mean_type = ARITHMETIC_MEAN,
+        pilot_mean_method_t unit_reading_mean_type = ARITHMETIC_MEAN);
 
 /**
  * Format a WPS number for output
@@ -229,6 +237,9 @@ pilot_workload_t* pilot_new_workload(const char *workload_name);
 
 /**
  * \brief Set the number of performance indices to record
+ * \details You should set the number of PIs right after creating a new workload.
+ * Calling this function when there are already stored workload data is NOT
+ * supported.
  * @param[in] wl pointer to the workload struct
  * @param num_of_pi the number of performance indices
  */
@@ -539,49 +550,66 @@ pilot_round_info_t* pilot_round_info(const pilot_workload_t *wl, size_t round, p
  * \brief Basic and statistics information of a workload
  */
 #pragma pack(push, 1)
-struct pilot_workload_info_t {
+struct pilot_analytical_result_t {
+    std::chrono::steady_clock::time_point update_time; //! The time when this data is updated
     size_t  num_of_pi;
     size_t  num_of_rounds;
-    // Readings analysis (not implemented yet)
-    double* readings_arithmetic_mean; //! the arithmetic mean of all readings so far
-    double* readings_harmonic_mean;   //! the harmonic mean of all readings so far
+    // Readings analysis
+    size_t* readings_num;              //! the following readings fields are undefined if readings_num is 0
+    double* readings_mean;             //! the mean of all readings so far according to PI reading's mean method
+    double* readings_mean_formatted;   //! the mean after being formatted by format_reading()
+    pilot_mean_method_t* readings_mean_method;
     double* readings_var;
+    double* readings_var_formatted;
     double* readings_autocorrelation_coefficient;
     size_t* readings_optimal_subsession_size;
     double* readings_optimal_subsession_var;
+    double* readings_optimal_subsession_var_formatted;
     double* readings_optimal_subsession_autocorrelation_coefficient;
-    double* readings_optimal_subsession_confidence_interval;
+    double* readings_optimal_subsession_ci_width;
+    double* readings_optimal_subsession_ci_width_formatted;
     size_t* readings_required_sample_size;
     // Unit-readings analysis
-    size_t* total_num_of_unit_readings;
+    size_t* unit_readings_num;
     double* unit_readings_mean;
+    double* unit_readings_mean_formatted;
+    pilot_mean_method_t* unit_readings_mean_method;
     double* unit_readings_var;
+    double* unit_readings_var_formatted;
     double* unit_readings_autocorrelation_coefficient;
     size_t* unit_readings_optimal_subsession_size;
     double* unit_readings_optimal_subsession_var;
+    double* unit_readings_optimal_subsession_var_formatted;
     double* unit_readings_optimal_subsession_autocorrelation_coefficient;
-    double* unit_readings_optimal_subsession_confidence_interval;
+    double* unit_readings_optimal_subsession_ci_width;
+    double* unit_readings_optimal_subsession_ci_width_formatted;
     size_t* unit_readings_required_sample_size;
     // Work amount-per-second analysis
-    double wps_harmonic_mean;        //! wps is a rate so only harmonic mean is valid
+    size_t wps_subsession_sample_size; //! sample size after merging adjacent samples to reduce autocorrelation coefficient
+    double wps_harmonic_mean;          //! wps is a rate so only harmonic mean is valid
+    double wps_harmonic_mean_formatted;
     double wps_naive_v_err;
     double wps_naive_v_err_percent;
-    bool   wps_has_data;            //! whether the following fields have data
-    double wps_alpha;                //! the alpha as in t = alpha + v*w
-    double wps_v;                    //! the v as in t = alpha + v*w
+    bool   wps_has_data;               //! whether the following fields have data
+    double wps_alpha;                  //! the alpha as in t = alpha + v*w
+    double wps_alpha_formatted;
+    double wps_v;                      //! the v as in t = alpha + v*w
+    double wps_v_formatted;
     double wps_err;
     double wps_err_percent;
-    double wps_v_ci;                 //! the width of the confidence interval of v
-    double wps_v_dw_method;          //! readings after warm-up removal using the deprecated dw_method
-    double wps_v_ci_dw_method;       //! the width of confidence interval using the deprecated dw_method
+    double wps_v_ci;                   //! the width of the confidence interval of v
+    double wps_v_ci_formatted;
+    double wps_v_dw_method;            //! readings after warm-up removal using the deprecated dw_method
+    double wps_v_ci_dw_method;         //! the width of confidence interval using the deprecated dw_method
 
 #ifdef __cplusplus
     inline void _free_all_field();
-    inline void _copyfrom(const pilot_workload_info_t &a);
-    pilot_workload_info_t();
-    pilot_workload_info_t(const pilot_workload_info_t &a);
-    ~pilot_workload_info_t();
-    pilot_workload_info_t& operator=(const pilot_workload_info_t &a);
+    inline void _copyfrom(const pilot_analytical_result_t &a);
+    pilot_analytical_result_t();
+    pilot_analytical_result_t(const pilot_analytical_result_t &a);
+    ~pilot_analytical_result_t();
+    void set_num_of_pi(size_t new_num_of_pi);
+    pilot_analytical_result_t& operator=(const pilot_analytical_result_t &a);
 #endif
 };
 #pragma pack(pop)
@@ -595,12 +623,12 @@ struct pilot_workload_info_t {
  * be freed by using pilot_free_workload_info().
  * @param[in] wl pointer to the workload struct
  * @param info (optional) if provided, it must point to a pilot_workload_info_t
- * that was returned by a previous call to pilot_workload_info()
- * @return a pointer to a pilot_workload_info_t struct
+ * that was returned by a previous call to pilot_analytical_result()
+ * @return a pointer to a pilot_analytical_result_t struct
  */
-pilot_workload_info_t* pilot_workload_info(const pilot_workload_t *wl, pilot_workload_info_t *info = NULL);
+pilot_analytical_result_t* pilot_analytical_result(const pilot_workload_t *wl, pilot_analytical_result_t *info = NULL);
 
-void pilot_free_workload_info(pilot_workload_info_t *info);
+void pilot_free_analytical_result(pilot_analytical_result_t *info);
 
 void pilot_free_round_info(pilot_round_info_t *info);
 
@@ -763,28 +791,28 @@ void pilot_set_short_round_detection_threshold(pilot_workload_t *wl, nanosecond_
 void pilot_set_required_confidence_interval(pilot_workload_t *wl, double percent_of_mean, double absolute_value);
 
 /**
- * Calculate the work amount for next round from readings data
+ * \brief Calculate the work amount for next round from readings data
  * @param[in] wl pointer to the workload struct
  * @return the work amount needed
  */
 size_t calc_next_round_work_amount_from_readings(pilot_workload_t *wl);
 
 /**
- * Calculate the work amount for next round from unit readings data
+ * \brief Calculate the work amount for next round from unit readings data
  * @param[in] wl pointer to the workload struct
  * @return the work amount needed
  */
 size_t calc_next_round_work_amount_from_unit_readings(pilot_workload_t *wl);
 
 /**
- * Calculate the work amount for next round from unit readings data
+ * \brief Calculate the work amount for next round from unit readings data
  * @param[in] wl pointer to the workload struct
  * @return the work amount needed
  */
 size_t calc_next_round_work_amount_from_wps(pilot_workload_t *wl);
 
 /**
- * Set if WPS analysis should be enabled
+ * \brief Set if WPS analysis should be enabled
  * @param[in] wl pointer to the workload struct
  * @param enabled
  * @return previous setting
@@ -792,7 +820,7 @@ size_t calc_next_round_work_amount_from_wps(pilot_workload_t *wl);
 bool pilot_set_wps_analysis(pilot_workload_t *wl, bool enabled);
 
 /**
- * Set the duration limit for running a session. The session will stop after
+ * \brief Set the duration limit for running a session. The session will stop after
  * sec seconds.
  * @param[in] wl pointer to the workload struct
  * @param sec the session duration limit; 0 disables limit.
@@ -801,6 +829,22 @@ bool pilot_set_wps_analysis(pilot_workload_t *wl, bool enabled);
 size_t pilot_set_session_duration_limit(pilot_workload_t *wl, size_t sec);
 
 double pilot_set_autocorrelation_coefficient(pilot_workload_t *wl, double ac);
+
+/**
+ * \brief Set the baseline for comparison
+ * This function sets the baseline for a certain reading type of a certain
+ * PIID. After setting this baseline, the workload will be kept running until a
+ * conclusion can be reached that can reject the null hypothesis, which is that
+ * the current workload equals the baseline workload
+ * @param[in] wl pointer to the workload struct
+ * @param piid the PIID to set baseline for
+ * @param rt the reaing type to set baseline for (readings, unit readings, or WPS)
+ * @param baseline_mean
+ * @param baseline_sample_size
+ * @param baseline_var
+ */
+void pilot_set_baseline(pilot_workload_t *wl, size_t piid, pilot_reading_type_t rt,
+        double baseline_mean, size_t baseline_sample_size, double baseline_var);
 
 #ifdef __cplusplus
 } // namespace pilot

@@ -123,7 +123,9 @@ void pilot_set_pi_info(pilot_workload_t* wl, int piid,
         const char *pi_unit,
         pilot_pi_display_format_func_t *format_reading_func,
         pilot_pi_display_format_func_t *format_unit_reading_func,
-        bool reading_must_satisfy, bool unit_reading_must_satisfy)
+        bool reading_must_satisfy, bool unit_reading_must_satisfy,
+        pilot_mean_method_t reading_mean_type,
+        pilot_mean_method_t unit_reading_mean_type)
 {
     ASSERT_VALID_POINTER(wl);
     ASSERT_VALID_POINTER(pi_name);
@@ -182,6 +184,9 @@ void pilot_set_num_of_pi(pilot_workload_t* wl, size_t num_of_pi) {
     wl->warm_up_phase_len_.resize(num_of_pi);
     wl->total_num_of_unit_readings_.resize(num_of_pi);
     wl->total_num_of_readings_.resize(num_of_pi);
+    wl->baseline_of_readings_.resize(num_of_pi);
+    wl->baseline_of_unit_readings_.resize(num_of_pi);
+    wl->analytical_result_.set_num_of_pi(num_of_pi);
 }
 
 int pilot_get_num_of_pi(const pilot_workload_t* wl, size_t *p_num_of_pi) {
@@ -327,7 +332,7 @@ int pilot_run_workload(pilot_workload_t *wl) {
 
         // refresh TUI
         if (wl->tui_) {
-            unique_ptr<pilot_workload_info_t> wi(wl->workload_info());
+            unique_ptr<pilot_analytical_result_t> wi(wl->get_analytical_result());
             *(wl->tui_) << *wi;
         }
 
@@ -480,7 +485,6 @@ int pilot_export(const pilot_workload_t *wl, const char *dirname) {
         return errno;
     }
 
-
     stringstream filename;
     ofstream of;
     try {
@@ -492,23 +496,30 @@ int pilot_export(const pilot_workload_t *wl, const char *dirname) {
         g_in_mem_log_buffer.str(string());
         of.close();
 
-        wl->refresh_wps_analysis_results();
+        // refresh analytical result
+        wl->get_analytical_result();
         filename.str(string());
         filename << dirname << "/" << "wps_analysis.csv";
         of.exceptions(ofstream::failbit | ofstream::badbit);
         of.open(filename.str().c_str());
-        of << "wps_naive_v,wps_naive_v_err,wps_naive_v_err_percent,wps_alpha,wps_v,wps_v_ci,wps_err,wps_err_percent,wps_v_dw_method,wps_v_ci_dw_method" << endl;
-        of << wl->wps_harmonic_mean_ << "," << wl->wps_naive_v_err_ << "," << wl->wps_naive_v_err_percent_ << ",";
-        if (wl->wps_has_data_) {
-            of << wl->wps_alpha_ << ","
-               << wl->wps_v_ << ","
-               << wl->wps_v_ci_ << ","
-               << wl->wps_err_ << ","
-               << wl->wps_err_percent_ << ","
-               << wl->wps_v_dw_method_ << ","
-               << wl->wps_v_ci_dw_method_ << endl;
+        of << "wps_naive_v,wps_naive_v_formatted,wps_naive_v_err,wps_naive_v_err_percent,wps_alpha,wps_alpha_formatted,wps_v,wps_v_formatted,wps_v_ci,wps_v_ci_formatted,wps_err,wps_err_percent,wps_v_dw_method,wps_v_ci_dw_method" << endl;
+        of << wl->analytical_result_.wps_harmonic_mean << ","
+           << wl->analytical_result_.wps_harmonic_mean_formatted << ","
+           << wl->analytical_result_.wps_naive_v_err << ","
+           << wl->analytical_result_.wps_naive_v_err_percent << ",";
+        if (wl->analytical_result_.wps_has_data) {
+            of << wl->analytical_result_.wps_alpha << ","
+               << wl->analytical_result_.wps_alpha_formatted << ","
+               << wl->analytical_result_.wps_v << ","
+               << wl->analytical_result_.wps_v_formatted << ","
+               << wl->analytical_result_.wps_v_ci << ","
+               << wl->analytical_result_.wps_v_ci_formatted << ","
+               << wl->analytical_result_.wps_err << ","
+               << wl->analytical_result_.wps_err_percent << ","
+               << wl->analytical_result_.wps_v_dw_method << ","
+               << wl->analytical_result_.wps_v_ci_dw_method << endl;
         } else {
-            of << ",,,,,," << endl;
+            of << ",,,,,,,,,," << endl;
         }
         of.close();
 
@@ -562,6 +573,38 @@ int pilot_export(const pilot_workload_t *wl, const char *dirname) {
                 }
             } /* round loop */
         of.close();
+
+        filename.str(string());
+        filename << dirname << "/" << "summary.csv";
+        of.exceptions(ofstream::failbit | ofstream::badbit);
+        of.open(filename.str().c_str());
+        of << "piid,readings_num,readings_mean,readings_mean_formatted,readings_var,readings_var_formatted,unit_readings_num,unit_readings_mean,unit_readings_mean_formatted,unit_readings_var,unit_readings_var_formatted,unit_readings_ci_width,unit_readings_ci_width_formatted,unit_readings_optimal_subsession_size" << endl;
+        for (size_t piid = 0; piid < wl->num_of_pi_; ++piid) {
+            of << piid << "," << wl->analytical_result_.readings_num[piid] << ",";
+            if (0 != wl->analytical_result_.readings_num[piid]) {
+                of << wl->analytical_result_.readings_mean[piid] << ","
+                   << wl->analytical_result_.readings_mean_formatted[piid] << ","
+                   << wl->analytical_result_.readings_var[piid] << ","
+                   << wl->analytical_result_.readings_var_formatted[piid] << ",";
+            } else {
+                of << ",,,,";
+            }
+
+            of << wl->analytical_result_.unit_readings_num[piid] << ",";
+            if (0 != wl->analytical_result_.unit_readings_num[piid]) {
+                of << wl->analytical_result_.unit_readings_mean[piid] << ","
+                   << wl->analytical_result_.unit_readings_mean_formatted[piid] << ","
+                   << wl->analytical_result_.unit_readings_optimal_subsession_var[piid] << ","
+                   << wl->analytical_result_.unit_readings_optimal_subsession_var_formatted[piid] << ","
+                   << wl->analytical_result_.unit_readings_optimal_subsession_ci_width[piid] << ","
+                   << wl->analytical_result_.unit_readings_optimal_subsession_ci_width_formatted[piid] << ","
+                   << wl->analytical_result_.unit_readings_optimal_subsession_size[piid];
+            } else {
+                of << ",,,,,,";
+            }
+            of << endl;
+        }
+        of.close();
     } catch (ofstream::failure &e) {
         error_log << "I/O error: " << strerror(errno);
         return ERR_IO;
@@ -595,79 +638,105 @@ pilot_round_info_t* pilot_round_info(const pilot_workload_t *wl, size_t round, p
     return wl->round_info(round, info);
 }
 
-pilot_workload_info_t* pilot_workload_info(const pilot_workload_t *wl, pilot_workload_info_t *info) {
+pilot_analytical_result_t* pilot_analytical_result(const pilot_workload_t *wl, pilot_analytical_result_t *info) {
     ASSERT_VALID_POINTER(wl);
-    return wl->workload_info(info);
+    return wl->get_analytical_result(info);
 }
 
-void pilot_free_workload_info(pilot_workload_info_t *info) {
-    ASSERT_VALID_POINTER(info);
-    delete info;
+void pilot_free_analytical_result(pilot_analytical_result_t *result) {
+    ASSERT_VALID_POINTER(result);
+    delete result;
 }
 
-void pilot_workload_info_t::_free_all_field() {
+void pilot_analytical_result_t::_free_all_field() {
 #define FREE_AND_NULL(field) free(field); field = NULL
 
-    FREE_AND_NULL(readings_arithmetic_mean);
-    FREE_AND_NULL(readings_harmonic_mean);
+    FREE_AND_NULL(readings_num);
+    FREE_AND_NULL(readings_mean);
+    FREE_AND_NULL(readings_mean_formatted);
+    FREE_AND_NULL(readings_mean_method);
     FREE_AND_NULL(readings_var);
+    FREE_AND_NULL(readings_var_formatted);
     FREE_AND_NULL(readings_autocorrelation_coefficient);
     FREE_AND_NULL(readings_optimal_subsession_size);
     FREE_AND_NULL(readings_optimal_subsession_var);
+    FREE_AND_NULL(readings_optimal_subsession_var_formatted);
     FREE_AND_NULL(readings_optimal_subsession_autocorrelation_coefficient);
-    FREE_AND_NULL(readings_optimal_subsession_confidence_interval);
+    FREE_AND_NULL(readings_optimal_subsession_ci_width);
+    FREE_AND_NULL(readings_optimal_subsession_ci_width_formatted);
     FREE_AND_NULL(readings_required_sample_size);
 
-    FREE_AND_NULL(total_num_of_unit_readings);
+    FREE_AND_NULL(unit_readings_num);
     FREE_AND_NULL(unit_readings_mean);
+    FREE_AND_NULL(unit_readings_mean_formatted);
+    FREE_AND_NULL(unit_readings_mean_method);
     FREE_AND_NULL(unit_readings_var);
+    FREE_AND_NULL(unit_readings_var_formatted);
     FREE_AND_NULL(unit_readings_autocorrelation_coefficient);
     FREE_AND_NULL(unit_readings_optimal_subsession_size);
     FREE_AND_NULL(unit_readings_optimal_subsession_var);
+    FREE_AND_NULL(unit_readings_optimal_subsession_var_formatted);
     FREE_AND_NULL(unit_readings_optimal_subsession_autocorrelation_coefficient);
-    FREE_AND_NULL(unit_readings_optimal_subsession_confidence_interval);
+    FREE_AND_NULL(unit_readings_optimal_subsession_ci_width);
+    FREE_AND_NULL(unit_readings_optimal_subsession_ci_width_formatted);
     FREE_AND_NULL(unit_readings_required_sample_size);
 
 #undef FREE_AND_NULL
 }
 
-void pilot_workload_info_t::_copyfrom(const pilot_workload_info_t &a) {
+void pilot_analytical_result_t::_copyfrom(const pilot_analytical_result_t &a) {
     num_of_pi = a.num_of_pi;
     num_of_rounds = a.num_of_rounds;
+    update_time = a.update_time;
 
 #define COPY_ARRAY(field) if (a.field) { field = (typeof(field[0])*)realloc(field, sizeof(field[0]) * num_of_pi); \
     memcpy(field, a.field, sizeof(field[0]) * num_of_pi); } else { field = NULL; }
 
-    COPY_ARRAY(readings_arithmetic_mean);
-    COPY_ARRAY(readings_harmonic_mean);
+    COPY_ARRAY(readings_num);
+    COPY_ARRAY(readings_mean);
+    COPY_ARRAY(readings_mean_formatted);
+    COPY_ARRAY(readings_mean_method);
     COPY_ARRAY(readings_var);
+    COPY_ARRAY(readings_var_formatted);
     COPY_ARRAY(readings_autocorrelation_coefficient);
     COPY_ARRAY(readings_optimal_subsession_size);
     COPY_ARRAY(readings_optimal_subsession_var);
+    COPY_ARRAY(readings_optimal_subsession_var_formatted);
     COPY_ARRAY(readings_optimal_subsession_autocorrelation_coefficient);
-    COPY_ARRAY(readings_optimal_subsession_confidence_interval);
+    COPY_ARRAY(readings_optimal_subsession_ci_width);
+    COPY_ARRAY(readings_optimal_subsession_ci_width_formatted);
     COPY_ARRAY(readings_required_sample_size);
 
-    COPY_ARRAY(total_num_of_unit_readings);
+    COPY_ARRAY(unit_readings_num);
     COPY_ARRAY(unit_readings_mean);
+    COPY_ARRAY(unit_readings_mean_formatted);
+    COPY_ARRAY(unit_readings_mean_method);
     COPY_ARRAY(unit_readings_var);
+    COPY_ARRAY(unit_readings_var_formatted);
     COPY_ARRAY(unit_readings_autocorrelation_coefficient);
     COPY_ARRAY(unit_readings_optimal_subsession_size);
     COPY_ARRAY(unit_readings_optimal_subsession_var);
+    COPY_ARRAY(unit_readings_optimal_subsession_var_formatted);
     COPY_ARRAY(unit_readings_optimal_subsession_autocorrelation_coefficient);
-    COPY_ARRAY(unit_readings_optimal_subsession_confidence_interval);
+    COPY_ARRAY(unit_readings_optimal_subsession_ci_width);
+    COPY_ARRAY(unit_readings_optimal_subsession_ci_width_formatted);
     COPY_ARRAY(unit_readings_required_sample_size);
 #undef COPY_ARRAY
 
 #define COPY_FIELD(field) field = a.field;
+    COPY_FIELD(wps_subsession_sample_size);
     COPY_FIELD(wps_harmonic_mean);
+    COPY_FIELD(wps_harmonic_mean_formatted);
     COPY_FIELD(wps_naive_v_err);
     COPY_FIELD(wps_naive_v_err_percent)
+    COPY_FIELD(wps_has_data);
     if (a.wps_has_data) {
-        COPY_FIELD(wps_has_data);
         COPY_FIELD(wps_alpha);
+        COPY_FIELD(wps_alpha_formatted);
         COPY_FIELD(wps_v);
+        COPY_FIELD(wps_v_formatted);
         COPY_FIELD(wps_v_ci);
+        COPY_FIELD(wps_v_ci_formatted);
         COPY_FIELD(wps_err);
         COPY_FIELD(wps_err_percent);
     }
@@ -676,21 +745,58 @@ void pilot_workload_info_t::_copyfrom(const pilot_workload_info_t &a) {
 #undef COPY_FIELD
 }
 
-pilot_workload_info_t::pilot_workload_info_t() {
+pilot_analytical_result_t::pilot_analytical_result_t() {
     memset(this, 0, sizeof(*this));
+    update_time = std::chrono::steady_clock::time_point::min();
+    wps_v_dw_method = -1;
+    wps_v_ci_dw_method = -1;
 }
 
-pilot_workload_info_t::pilot_workload_info_t(const pilot_workload_info_t &a) {
+pilot_analytical_result_t::pilot_analytical_result_t(const pilot_analytical_result_t &a) {
     memset(this, 0, sizeof(*this));
     _copyfrom(a);
 }
 
-pilot_workload_info_t::~pilot_workload_info_t() {
+pilot_analytical_result_t::~pilot_analytical_result_t() {
     _free_all_field();
 }
 
-pilot_workload_info_t& pilot_workload_info_t::operator=(const pilot_workload_info_t &a) {
-    _free_all_field();
+void pilot_analytical_result_t::set_num_of_pi(size_t new_num_of_pi) {
+    num_of_pi = new_num_of_pi;
+#define INIT_FIELD(field) field = (typeof(field[0])*)realloc(field, sizeof(field[0]) * num_of_pi)
+    INIT_FIELD(readings_num);
+    INIT_FIELD(readings_mean);
+    INIT_FIELD(readings_mean_formatted);
+    INIT_FIELD(readings_mean_method);
+    INIT_FIELD(readings_var);
+    INIT_FIELD(readings_var_formatted);
+    INIT_FIELD(readings_autocorrelation_coefficient);
+    INIT_FIELD(readings_optimal_subsession_size);
+    INIT_FIELD(readings_optimal_subsession_var);
+    INIT_FIELD(readings_optimal_subsession_var_formatted);
+    INIT_FIELD(readings_optimal_subsession_autocorrelation_coefficient);
+    INIT_FIELD(readings_optimal_subsession_ci_width);
+    INIT_FIELD(readings_optimal_subsession_ci_width_formatted);
+    INIT_FIELD(readings_required_sample_size);
+
+    INIT_FIELD(unit_readings_num);
+    INIT_FIELD(unit_readings_mean);
+    INIT_FIELD(unit_readings_mean_formatted);
+    INIT_FIELD(unit_readings_mean_method);
+    INIT_FIELD(unit_readings_var);
+    INIT_FIELD(unit_readings_var_formatted);
+    INIT_FIELD(unit_readings_autocorrelation_coefficient);
+    INIT_FIELD(unit_readings_optimal_subsession_size);
+    INIT_FIELD(unit_readings_optimal_subsession_var);
+    INIT_FIELD(unit_readings_optimal_subsession_var_formatted);
+    INIT_FIELD(unit_readings_optimal_subsession_autocorrelation_coefficient);
+    INIT_FIELD(unit_readings_optimal_subsession_ci_width);
+    INIT_FIELD(unit_readings_optimal_subsession_ci_width_formatted);
+    INIT_FIELD(unit_readings_required_sample_size);
+#undef INIT_FIELD
+}
+
+pilot_analytical_result_t& pilot_analytical_result_t::operator=(const pilot_analytical_result_t &a) {
     _copyfrom(a);
     return *this;
 }
@@ -745,6 +851,10 @@ double pilot_p_eq(double mean1, double mean2, size_t size1, size_t size2,
                   double var1, double var2, double *ci_left, double *ci_right,
                   double confidence_level) {
     using namespace boost::math;
+    if (var1 < 0 || var2 < 0) {
+        fatal_log << __func__ << "(): variance must be greater than or equal 0";
+        abort();
+    }
 
     double d = mean1 - mean2;
     double sc = sqrt(var1 / double(size1) + var2 / double(size2));
@@ -839,6 +949,7 @@ void pilot_import_benchmark_results(pilot_workload_t *wl, size_t round,
                                     const double * const *unit_readings) {
     ASSERT_VALID_POINTER(wl);
     die_if(round > wl->rounds_, ERR_WRONG_PARAM, string("Invalid round value for ") + __func__);
+    wl->raw_data_changed_time = chrono::steady_clock::now();
 
     // update work_amount
     if (round != wl->rounds_)
@@ -857,7 +968,7 @@ void pilot_import_benchmark_results(pilot_workload_t *wl, size_t round,
         // first subtract the number of the old unit readings from total_num_of_unit_readings_
         // before updating the data
         if (round != wl->rounds_) {
-            // remove old total_num_of_unit_readings
+            // remove old unit_readings_num
             wl->total_num_of_unit_readings_[piid] -= wl->unit_readings_[piid][round].size()
                                                      - wl->warm_up_phase_len_[piid][round];
         }
@@ -1005,9 +1116,9 @@ size_t calc_next_round_work_amount_from_wps(pilot_workload_t *wl) {
     if (wl->rounds_ > 3) {
         wl->refresh_wps_analysis_results();
 
-        if (wl->wps_has_data_ && wl->wps_subsession_sample_size_ > 10 &&
-            wl->wps_v_ > 0 && wl->wps_v_ci_ > 0 &&
-            wl->wps_v_ci_ < wl->required_ci_percent_of_mean_ * wl->wps_v_) {
+        if (wl->analytical_result_.wps_has_data && wl->analytical_result_.wps_subsession_sample_size > 20 &&
+            wl->analytical_result_.wps_v > 0 && wl->analytical_result_.wps_v_ci > 0 &&
+            wl->analytical_result_.wps_v_ci < wl->required_ci_percent_of_mean_ * wl->analytical_result_.wps_v) {
             info_log << "WPS confidence interval small enough";
             return 0;
         }
@@ -1035,6 +1146,35 @@ double pilot_set_autocorrelation_coefficient(pilot_workload_t *wl, double ac) {
     double old_ac = wl->autocorrelation_coefficient_limit_;
     wl->autocorrelation_coefficient_limit_ = ac;
     return old_ac;
+}
+
+    std::vector<baseline_info_t> baseline_of_readings_;
+void pilot_set_baseline(pilot_workload_t *wl, size_t piid, pilot_reading_type_t rt,
+        double baseline_mean, size_t baseline_sample_size, double baseline_var) {
+    ASSERT_VALID_POINTER(wl);
+    if (wl->num_of_pi_ <= piid) {
+        fatal_log << __func__ << "(): invalid parameter: piid: " << piid;
+        abort();
+    }
+    switch (rt) {
+    case READING_TYPE:
+        wl->baseline_of_readings_[piid].mean = baseline_mean;
+        wl->baseline_of_readings_[piid].sample_size = baseline_sample_size;
+        wl->baseline_of_readings_[piid].var = baseline_var;
+        break;
+    case UNIT_READING_TYPE:
+        wl->baseline_of_unit_readings_[piid].mean = baseline_mean;
+        wl->baseline_of_unit_readings_[piid].sample_size = baseline_sample_size;
+        wl->baseline_of_unit_readings_[piid].var = baseline_var;
+        break;
+    case WPS_TYPE:
+        fatal_log << __func__ << "(): unimplemented yet";
+        abort();
+        break;
+    default:
+        fatal_log << __func__ << "(): invalid parameter: rt: " << rt;
+        abort();
+    }
 }
 
 } // namespace pilot

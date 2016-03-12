@@ -211,7 +211,7 @@ private:
     const pilot_display_format_functor &format_wps_;
     static const int kLinesPerPI = 2;
 
-    pilot_workload_info_t wi_;
+    pilot_analytical_result_t wi_;
     std::stringstream draw_buf_;
     int next_draw_pos_x_;
     int next_draw_pos_y_; //! used by draw_data_line to track the location of the next line
@@ -319,10 +319,10 @@ private:
                 // draw the PI name as the separator
                 draw_with_decor(pi_name);
 
-                if (wi_.readings_arithmetic_mean) {
+                if (0 != wi_.readings_num[piid]) {
                     draw_buf_ << "READINGS ANALYSIS";
                     flush_buf_new_line();
-                    draw_data_line("naive mean: ", format_r(NULL, wi_.readings_arithmetic_mean[piid]), pi_unit);
+                    draw_data_line("mean: ", format_r(NULL, wi_.readings_mean[piid]), pi_unit);
                 } else {
                     draw_buf_ << "NO READING DATA";
                     flush_buf_new_line();
@@ -330,9 +330,9 @@ private:
 
                 draw_buf_ << "UNIT-READINGS ANALYSIS";
                 flush_buf_new_line();
-                size_t cur_ur = wi_.total_num_of_unit_readings[piid];
+                size_t cur_ur = wi_.unit_readings_num[piid];
                 draw_data_line("sample size: ", cur_ur, "");
-                if (0 == wi_.total_num_of_unit_readings[piid]) continue;
+                if (0 == wi_.unit_readings_num[piid]) continue;
                 double sm = wi_.unit_readings_mean[piid];
                 double var = wi_.unit_readings_var[piid];
                 double var_rt = var / sm;
@@ -382,7 +382,7 @@ private:
                 }
                 flush_buf_new_line();
 
-                double ci = wi_.unit_readings_optimal_subsession_confidence_interval[piid];
+                double ci = wi_.unit_readings_optimal_subsession_ci_width[piid];
                 double ci_rt = ci / sm;
                 double ci_low = format_ur(NULL, sm) * (1 - ci_rt/2);
                 double ci_high = format_ur(NULL, sm) * (1 + ci_rt/2) ;
@@ -455,7 +455,7 @@ private:
     }
 public:
 
-    void show_workload_info(const pilot_workload_info_t &wi) {
+    void show_workload_info(const pilot_analytical_result_t &wi) {
         wi_ = wi;
         draw();
     }
@@ -768,14 +768,14 @@ public:
         _flush_msg_ss_buf_nonlock();
         return *this;
     }
-    PilotTUI& operator<<(const pilot_workload_info_t &wi) {
+    PilotTUI& operator<<(const pilot_analytical_result_t &wi) {
         std::lock_guard<std::mutex> lock(lock_);
         assert (summary_box_);
         summary_box_->show_workload_info(wi);
         return *this;
     }
-    PilotTUI& operator<<(pilot_workload_info_t *wi) {
-        return (*this) << const_cast<const pilot_workload_info_t*>(wi);
+    PilotTUI& operator<<(pilot_analytical_result_t *wi) {
+        return (*this) << const_cast<const pilot_analytical_result_t*>(wi);
     }
 };
 

@@ -78,16 +78,21 @@ public:
     bool reading_must_satisfy;
     bool unit_reading_must_satisfy;
     bool wps_must_satisfy;
+    pilot_mean_method_t reading_mean_method;
+    pilot_mean_method_t unit_reading_mean_method;
 
     pilot_pi_info_t(std::string _name = "", std::string _unit = "",
            pilot_pi_display_format_func_t *_r_format_func = NULL,
            pilot_pi_display_format_func_t *_ur_format_func = NULL,
            bool _r_sat = false, bool _ur_sat = false,
-           bool _wps_sat = false) :
+           bool _wps_sat = false,
+           pilot_mean_method_t _reading_mean_method = ARITHMETIC_MEAN,
+           pilot_mean_method_t _unit_reading_mean_method = ARITHMETIC_MEAN) :
         name(_name), unit(_unit), format_reading(_r_format_func),
         format_unit_reading(_ur_format_func),
         reading_must_satisfy(_r_sat), unit_reading_must_satisfy(_ur_sat),
-        wps_must_satisfy(_wps_sat) {}
+        wps_must_satisfy(_wps_sat), reading_mean_method(_reading_mean_method),
+        unit_reading_mean_method(_unit_reading_mean_method) {}
 };
 
 typedef size_t calc_next_round_work_amount_func_t(pilot_workload_t* wl);
@@ -101,15 +106,18 @@ struct runtime_analysis_plugin_t {
         enabled(e), calc_next_round_work_amount(c) {}
 };
 
+struct baseline_info_t {
+    double mean;
+    size_t sample_size;
+    double var;
+};
+
 struct pilot_workload_t {
+    // Essential workload information
     std::string workload_name_;
-
-    typedef std::vector<double> reading_data_t; //! The data of one reading of all rounds
-    typedef std::vector<double> unit_reading_data_per_round_t;
-    typedef std::vector<unit_reading_data_per_round_t> unit_reading_data_t; //! Per round unit reading data
-
-    size_t num_of_pi_;                      //! Number of performance indices to collect for each round
-    size_t rounds_;                         //! Number of rounds we've done so far
+    std::chrono::steady_clock::time_point raw_data_changed_time;   //! The time when the latest raw data came in
+    size_t num_of_pi_;                               //! Number of performance indices to collect for each round
+    size_t rounds_;                                  //! Number of rounds we've done so far
     size_t init_work_amount_;
     size_t max_work_amount_;
     size_t min_work_amount_;
@@ -118,43 +126,42 @@ struct pilot_workload_t {
     pilot_display_format_functor format_wps_;
     bool wps_must_satisfy_;
 
-    PilotTUI *tui_;
-
-    std::vector<boost::timer::nanosecond_type> round_durations_; //! The duration of each round
-    std::vector<reading_data_t> readings_;       //! Reading data of each round. Format: readings_[piid][round_id].
-    std::vector<unit_reading_data_t> unit_readings_; //! Unit reading data of each round. Format: unit_readings_[piid][round_id].
-    std::vector<std::vector<size_t> > warm_up_phase_len_;  //! The length of the warm-up phase of each PI per round. Format: warm_up_phase_len_[piid][round_id].
-    std::vector<size_t> total_num_of_unit_readings_; //! Total number of unit readings per PI
-    std::vector<size_t> total_num_of_readings_;      //! Total number of readings per PI
-    std::vector<size_t> round_work_amounts_;      //! The work amount we used in each round
-
     double confidence_interval_;
     double confidence_level_;
     double autocorrelation_coefficient_limit_;
     double required_ci_percent_of_mean_;
     double required_ci_absolute_value_;
     size_t session_duration_limit_in_sec_;
-
     nanosecond_type short_round_detection_threshold_;
+
     bool short_workload_check_;
     pilot_warm_up_removal_detection_method_t warm_up_removal_detection_method_;
     double warm_up_removal_moving_average_window_size_in_seconds_;
-    size_t wholly_rejected_rounds_;  //! number of rounds that are wholly rejected due to too short a duration
+
+    // Baseline for comparison analysis
+    std::vector<baseline_info_t> baseline_of_readings_;
+    std::vector<baseline_info_t> baseline_of_unit_readings_;
+
+    // Raw data
+    typedef std::vector<double> reading_data_t;      //! The data of one reading of all rounds
+    typedef std::vector<double> unit_reading_data_per_round_t;
+    typedef std::vector<unit_reading_data_per_round_t> unit_reading_data_t; //! Per round unit reading data
+
+    std::vector<boost::timer::nanosecond_type> round_durations_; //! The duration of each round
+    std::vector<reading_data_t> readings_;           //! Reading data of each round. Format: readings_[piid][round_id].
+    std::vector<unit_reading_data_t> unit_readings_; //! Unit reading data of each round. Format: unit_readings_[piid][round_id].
+    std::vector<std::vector<size_t> > warm_up_phase_len_;  //! The length of the warm-up phase of each PI per round. Format: warm_up_phase_len_[piid][round_id].
+    std::vector<size_t> total_num_of_unit_readings_; //! Total number of unit readings per PI
+    std::vector<size_t> total_num_of_readings_;      //! Total number of readings per PI
+    std::vector<size_t> round_work_amounts_;         //! The work amount we used in each round
+
+    size_t wholly_rejected_rounds_;                  //! Number of rounds that are wholly rejected due to too short a duration
+
+    // Analytical result
+    mutable pilot_analytical_result_t analytical_result_;
 
     // WPS analysis bookkeeping
-    size_t wps_slices_;
-    mutable bool wps_has_data_;
-    mutable size_t wps_subsession_sample_size_;
-    mutable double wps_harmonic_mean_;
-    mutable double wps_naive_v_err_;
-    mutable double wps_naive_v_err_percent_;
-    mutable double wps_alpha_;
-    mutable double wps_v_;
-    mutable double wps_v_ci_;
-    mutable double wps_err_;
-    mutable double wps_err_percent_;
-    mutable double wps_v_dw_method_;
-    mutable double wps_v_ci_dw_method_;
+    size_t wps_slices_;                              //! The total number of slices, which is used to generate work amounts for WPS analysis
 
     // Hook functions
     next_round_work_amount_hook_t *next_round_work_amount_hook_; //! The hook function that calculates the work amount for next round
@@ -165,11 +172,14 @@ struct pilot_workload_t {
 
     std::vector<runtime_analysis_plugin_t> runtime_analysis_plugins_;
 
+    // Runtime data structures
+    PilotTUI *tui_;
+
     pilot_workload_t(const char *wl_name) :
                          num_of_pi_(0), rounds_(0), init_work_amount_(0),
                          max_work_amount_(0), min_work_amount_(0),
                          workload_func_(nullptr),
-                         wps_must_satisfy_(true), tui_(NULL),
+                         wps_must_satisfy_(true),
                          confidence_interval_(0.05), confidence_level_(.95),
                          autocorrelation_coefficient_limit_(0.1),
                          required_ci_percent_of_mean_(0.1), required_ci_absolute_value_(-1),
@@ -179,16 +189,11 @@ struct pilot_workload_t {
                          warm_up_removal_detection_method_(FIXED_PERCENTAGE),
                          warm_up_removal_moving_average_window_size_in_seconds_(3),
                          wholly_rejected_rounds_(0),
-                         wps_slices_(kWPSInitSlices), wps_has_data_(false),
-                         wps_subsession_sample_size_(0),
-                         wps_harmonic_mean_(0), wps_naive_v_err_(0),
-                         wps_alpha_(0), wps_v_(0), wps_v_ci_(0), wps_err_(0),
-                         wps_err_percent_(0),
-                         wps_v_dw_method_(-1), wps_v_ci_dw_method_(-1),
+                         analytical_result_(), wps_slices_(kWPSInitSlices),
                          next_round_work_amount_hook_(NULL),
                          hook_pre_workload_run_(NULL), hook_post_workload_run_(NULL),
                          calc_required_readings_func_(NULL),
-                         calc_required_unit_readings_func_(NULL) {
+                         calc_required_unit_readings_func_(NULL), tui_(NULL) {
         if (wl_name) workload_name_ = wl_name;
         runtime_analysis_plugins_.emplace_back(true, &calc_next_round_work_amount_from_readings);
         runtime_analysis_plugins_.emplace_back(true, &calc_next_round_work_amount_from_unit_readings);
@@ -213,6 +218,12 @@ struct pilot_workload_t {
     double unit_readings_autocorrelation_coefficient(int piid, size_t q, pilot_mean_method_t mean_method) const;
 
     /**
+     * Calculate the required number of readings
+     * @return
+     */
+    ssize_t required_num_of_readings(int piid) const;
+
+    /**
      * Calculate the required number of unit readings
      * @return
      */
@@ -233,18 +244,19 @@ struct pilot_workload_t {
     }
 
     /**
-     * \brief Get the basic and statistics information of a workload
-     * \details If info is NULL, this function allocates memory for a
-     * pilot_workload_info_t, fills information, and returns it. If
+     * \brief Get the basic and analytical result of a workload
+     * \details First this function update the cached analytical result if necessary.
+     * If info is NULL, this function allocates memory for a
+     * pilot_analytical_result_t, fills information, and returns it. If
      * info is provided, its information will be updated and no new
      * memory will be allocated. The allocated memory must eventually
      * be freed by using pilot_free_workload_info().
-     * @param info (optional) if provided, it must point to a pilot_workload_info_t
+     * @param info (optional) if provided, it must point to a pilot_analytical_result_t
      * that was returned by a previous call to pilot_workload_info()
-     * @return a pointer to a pilot_workload_info_t struct. You must use
-     * pilot_free_workload_info() to free it (you shall not use delete).
+     * @return a pointer to a pilot_analytical_result_t struct. You must use
+     * pilot_free_analytical_result() to free it (you shall not use delete).
      */
-    pilot_workload_info_t* workload_info(pilot_workload_info_t *winfo = NULL) const;
+    pilot_analytical_result_t* get_analytical_result(pilot_analytical_result_t *winfo = NULL) const;
 
     /**
      * \brief Get the basic and statistics information of a workload round

@@ -195,6 +195,7 @@ int main(int argc, char **argv) {
     // Don't use po::value<>()->required() here or --help wouldn't work
     desc.add_options()
             ("help", "produce help message")
+            ("baseline,b", po::value<string>(), "the input file ")
             ("fsync,f", "call fsync() after each I/O request")
             ("io-size,s", po::value<size_t>(), "the size of I/O operations (default to 1 MB)")
             ("length-limit,l", po::value<size_t>(), "the max. length of the workload in bytes (default to 2048*1024*1024); "

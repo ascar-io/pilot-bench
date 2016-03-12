@@ -160,11 +160,15 @@ double pilot_subsession_var(InputIterator first, size_t n, size_t q,
 template <typename InputIterator>
 double pilot_subsession_autocorrelation_coefficient(InputIterator first,
         size_t n, size_t q, double sample_mean, pilot_mean_method_t mean_method) {
+    if (n / q < 2) {
+        return 1;
+    }
+
     double res = pilot_subsession_auto_cov(first, n, q, sample_mean, mean_method) /
                  pilot_subsession_var(first, n, q, sample_mean, mean_method);
 
     // res can be NaN when the variance is 0, in this case we just return 1,
-    // which means the result is very autocorrelated.
+    // which means the result has high autocorrelation.
     if (isnan(res))
         return 1;
     else
@@ -355,7 +359,8 @@ int pilot_wps_warmup_removal_lr_method(size_t rounds, WorkAmountInputIterator ro
     double sum_var = pilot_subsession_var(round_work_amounts.begin(), round_work_amounts.size(), q, wa_mean, ARITHMETIC_MEAN) * (rounds -1);
     double std_err_v = sqrt(sigma_sqr / sum_var);
     double inv_v_ci = 2 * std_err_v;
-    *v_ci = 1.0 / (inv_v - inv_v_ci) - 1 / (inv_v + inv_v_ci);
+    // inv_v - inv_v_ci might be negative so we have to use abs() here
+    *v_ci = std::abs( 1.0 / (inv_v - inv_v_ci) - 1.0 / (inv_v + inv_v_ci) );
     return 0;
 }
 
