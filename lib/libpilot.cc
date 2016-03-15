@@ -687,7 +687,6 @@ void pilot_analytical_result_t::_free_all_field() {
 void pilot_analytical_result_t::_copyfrom(const pilot_analytical_result_t &a) {
     num_of_pi = a.num_of_pi;
     num_of_rounds = a.num_of_rounds;
-    update_time = a.update_time;
 
 #define COPY_ARRAY(field) if (a.field) { field = (typeof(field[0])*)realloc(field, sizeof(field[0]) * num_of_pi); \
     memcpy(field, a.field, sizeof(field[0]) * num_of_pi); } else { field = NULL; }
@@ -747,7 +746,6 @@ void pilot_analytical_result_t::_copyfrom(const pilot_analytical_result_t &a) {
 
 pilot_analytical_result_t::pilot_analytical_result_t() {
     memset(this, 0, sizeof(*this));
-    update_time = std::chrono::steady_clock::time_point::min();
     wps_v_dw_method = -1;
     wps_v_ci_dw_method = -1;
 }
@@ -949,7 +947,7 @@ void pilot_import_benchmark_results(pilot_workload_t *wl, size_t round,
                                     const double * const *unit_readings) {
     ASSERT_VALID_POINTER(wl);
     die_if(round > wl->rounds_, ERR_WRONG_PARAM, string("Invalid round value for ") + __func__);
-    wl->raw_data_changed_time = chrono::steady_clock::now();
+    wl->raw_data_changed_time_ = chrono::steady_clock::now();
 
     // update work_amount
     if (round != wl->rounds_)

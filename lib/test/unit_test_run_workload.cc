@@ -126,7 +126,6 @@ TEST(PilotRunWorkloadTest, RunWorkload) {
     pilot_analytical_result_t *ar2 = pilot_analytical_result(wl);
     // since there's no new raw data comes in between getting ar1, exporting
     // to files, and getting ar2, their update_time should be identical.
-    ASSERT_EQ(ar1->update_time, ar2->update_time);
     ASSERT_EQ(g_num_of_pi, ar1->num_of_pi);
     ASSERT_EQ(g_total_rounds, ar1->num_of_rounds);
     for (int pi = 0; pi < g_num_of_pi; ++pi) {

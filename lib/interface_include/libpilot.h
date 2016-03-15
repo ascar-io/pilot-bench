@@ -551,7 +551,6 @@ pilot_round_info_t* pilot_round_info(const pilot_workload_t *wl, size_t round, p
  */
 #pragma pack(push, 1)
 struct pilot_analytical_result_t {
-    std::chrono::steady_clock::time_point update_time; //! The time when this data is updated
     size_t  num_of_pi;
     size_t  num_of_rounds;
     // Readings analysis

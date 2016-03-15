@@ -120,8 +120,8 @@ size_t pilot_workload_t::calc_next_round_work_amount(void) {
 }
 
 pilot_analytical_result_t* pilot_workload_t::get_analytical_result(pilot_analytical_result_t *info) const {
-    if (raw_data_changed_time > analytical_result_.update_time) {
-        analytical_result_.update_time = chrono::steady_clock::now();
+    if (raw_data_changed_time_ > analytical_result_update_time_) {
+        analytical_result_update_time_ = chrono::steady_clock::now();
         analytical_result_.num_of_pi = num_of_pi_;
         analytical_result_.num_of_rounds = rounds_;
 

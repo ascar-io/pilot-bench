@@ -115,7 +115,7 @@ struct baseline_info_t {
 struct pilot_workload_t {
     // Essential workload information
     std::string workload_name_;
-    std::chrono::steady_clock::time_point raw_data_changed_time;   //! The time when the latest raw data came in
+    std::chrono::steady_clock::time_point raw_data_changed_time_; //! The time when the latest raw data came in
     size_t num_of_pi_;                               //! Number of performance indices to collect for each round
     size_t rounds_;                                  //! Number of rounds we've done so far
     size_t init_work_amount_;
@@ -159,6 +159,7 @@ struct pilot_workload_t {
 
     // Analytical result
     mutable pilot_analytical_result_t analytical_result_;
+    mutable std::chrono::steady_clock::time_point analytical_result_update_time_; //! The time when analytical_result_ is updated
 
     // WPS analysis bookkeeping
     size_t wps_slices_;                              //! The total number of slices, which is used to generate work amounts for WPS analysis
@@ -189,7 +190,9 @@ struct pilot_workload_t {
                          warm_up_removal_detection_method_(FIXED_PERCENTAGE),
                          warm_up_removal_moving_average_window_size_in_seconds_(3),
                          wholly_rejected_rounds_(0),
-                         analytical_result_(), wps_slices_(kWPSInitSlices),
+                         analytical_result_(),
+                         analytical_result_update_time_(std::chrono::steady_clock::time_point::min()),
+                         wps_slices_(kWPSInitSlices),
                          next_round_work_amount_hook_(NULL),
                          hook_pre_workload_run_(NULL), hook_post_workload_run_(NULL),
                          calc_required_readings_func_(NULL),
