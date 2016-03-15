@@ -38,6 +38,7 @@
 #include <boost/accumulators/statistics/stats.hpp>
 #include <boost/accumulators/statistics/mean.hpp>
 #include <boost/timer/timer.hpp>
+#include <chrono>
 #include <functional>
 #include <vector>
 #include "common.h"
