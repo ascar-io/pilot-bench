@@ -72,7 +72,10 @@ TEST(StatisticsUnitTest, AutocorrelationCoefficient) {
     size_t q = 4;
     ASSERT_DOUBLE_EQ(q, pilot_optimal_subsession_size_p(g_response_time.data(), g_response_time.size(), ARITHMETIC_MEAN));
 
-    ASSERT_DOUBLE_EQ(34 * q, pilot_optimal_sample_size_p(g_response_time.data(), g_response_time.size(), sample_mean * 0.1, ARITHMETIC_MEAN, .95, .1));
+    size_t opt_sample_size;
+    ASSERT_EQ(true, pilot_optimal_sample_size_p(g_response_time.data(), g_response_time.size(), sample_mean * 0.1, ARITHMETIC_MEAN, &q, &opt_sample_size, .95, .1));
+    ASSERT_EQ(4, q);
+    ASSERT_EQ(34, opt_sample_size);
 
     //! TODO Tests function pilot_est_sample_var_dist_unknown()
 }

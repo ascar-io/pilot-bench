@@ -871,14 +871,18 @@ double pilot_p_eq(double mean1, double mean2, size_t size1, size_t size2,
     return p;
 }
 
-ssize_t
+bool
 pilot_optimal_sample_size_p(const double *data, size_t n,
                             double confidence_interval_width,
                             pilot_mean_method_t mean_method,
+                            size_t *q, size_t *opt_sample_size,
                             double confidence_level,
                             double max_autocorrelation_coefficient) {
+    ASSERT_VALID_POINTER(q);
+    ASSERT_VALID_POINTER(opt_sample_size);
     return pilot_optimal_sample_size(data, n, confidence_interval_width,
                                      mean_method,
+                                     q, opt_sample_size,
                                      confidence_level,
                                      max_autocorrelation_coefficient);
 }
@@ -1173,6 +1177,11 @@ void pilot_set_baseline(pilot_workload_t *wl, size_t piid, pilot_reading_type_t 
         fatal_log << __func__ << "(): invalid parameter: rt: " << rt;
         abort();
     }
+}
+
+size_t pilot_set_min_sample_size(pilot_workload_t *wl, size_t min_sample_size) {
+    ASSERT_VALID_POINTER(wl);
+    return wl->set_min_sample_size(min_sample_size);
 }
 
 } // namespace pilot

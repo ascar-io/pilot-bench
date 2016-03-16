@@ -220,19 +220,26 @@ double pilot_subsession_confidence_interval(InputIterator first, size_t n,
     return T * sqrt(var / double(h)) * 2;
 }
 
-
-template <typename InputIterator> ssize_t
-pilot_optimal_sample_size(InputIterator first, size_t n, double confidence_interval_width,
+/**
+ * See pilot_optimal_sample_size_p()
+ */
+template <typename InputIterator> bool
+pilot_optimal_sample_size(InputIterator first, size_t n,
+                          double confidence_interval_width,
                           pilot_mean_method_t mean_method,
+                          size_t *q, size_t *opt_sample_size,
                           double confidence_level = 0.95,
                           double max_autocorrelation_coefficient = 0.1) {
     using namespace boost::math;
+    assert(q);
+    assert(opt_sample_size);
 
-    int q = pilot_optimal_subsession_size(first, n, mean_method, max_autocorrelation_coefficient);
-    if (q < 0) return q;
-    debug_log << "optimal subsession size (q) = " << q;
+    int res = pilot_optimal_subsession_size(first, n, mean_method, max_autocorrelation_coefficient);
+    if (res < 0) return false;
+    *q = static_cast<size_t>(res);
+    debug_log << "optimal subsession size (q) = " << *q;
 
-    size_t h = n / q;
+    size_t h = n / *q;
     students_t dist(h-1);
     // T is called z' in [Ferrari78], page 60.
     double T = ::boost::math::quantile(complement(dist, (1 - confidence_level) / 2));
@@ -241,12 +248,11 @@ pilot_optimal_sample_size(InputIterator first, size_t n, double confidence_inter
     double e = confidence_interval_width / 2;
 
     double sm = pilot_subsession_mean(first, n, mean_method);
-    double var = pilot_subsession_var(first, n, q, sm, mean_method);
-    size_t sample_size_req = ceil(var * pow(T / e, 2));
-    debug_log << "subsession sample size required: " << sample_size_req;
-    size_t ur_req = sample_size_req * q;
-    debug_log << "number of unit readings required: " << ur_req;
-    return ur_req;
+    double var = pilot_subsession_var(first, n, *q, sm, mean_method);
+    *opt_sample_size = ceil(var * pow(T / e, 2));
+    debug_log << "subsession sample size required: " << *opt_sample_size;
+    debug_log << "number of unit readings required: " << *opt_sample_size * *q;
+    return true;
 }
 
 template <typename T1, typename T2>

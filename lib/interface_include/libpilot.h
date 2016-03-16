@@ -561,13 +561,13 @@ struct pilot_analytical_result_t {
     double* readings_var;
     double* readings_var_formatted;
     double* readings_autocorrelation_coefficient;
-    size_t* readings_optimal_subsession_size;
+    ssize_t* readings_optimal_subsession_size;
     double* readings_optimal_subsession_var;
     double* readings_optimal_subsession_var_formatted;
     double* readings_optimal_subsession_autocorrelation_coefficient;
     double* readings_optimal_subsession_ci_width;
     double* readings_optimal_subsession_ci_width_formatted;
-    size_t* readings_required_sample_size;
+    ssize_t* readings_required_sample_size;
     // Unit-readings analysis
     size_t* unit_readings_num;
     double* unit_readings_mean;
@@ -576,13 +576,13 @@ struct pilot_analytical_result_t {
     double* unit_readings_var;
     double* unit_readings_var_formatted;
     double* unit_readings_autocorrelation_coefficient;
-    size_t* unit_readings_optimal_subsession_size;
+    ssize_t* unit_readings_optimal_subsession_size;
     double* unit_readings_optimal_subsession_var;
     double* unit_readings_optimal_subsession_var_formatted;
     double* unit_readings_optimal_subsession_autocorrelation_coefficient;
     double* unit_readings_optimal_subsession_ci_width;
     double* unit_readings_optimal_subsession_ci_width_formatted;
-    size_t* unit_readings_required_sample_size;
+    ssize_t* unit_readings_required_sample_size;
     // Work amount-per-second analysis
     size_t wps_subsession_sample_size; //! sample size after merging adjacent samples to reduce autocorrelation coefficient
     double wps_harmonic_mean;          //! wps is a rate so only harmonic mean is valid
@@ -695,15 +695,21 @@ double pilot_p_eq(double mean1, double mean2, size_t size1, size_t size2,
  * @param[in] data the input data
  * @param n size of the input data
  * @param confidence_interval_width
+ * @param mean_method the method for calculating means
+ * @param[out] q the desired subsession size
+ * @param[out] opt_sample_size the optimal subsession sample size
  * @param confidence_level
  * @param max_autocorrelation_coefficient
- * @return the recommended sample size; -1 if the max_autocorrelation_coefficient cannot be met
+ * @return true if the calculation was successful; false if there was not
+ * enough data for calculation
  */
-ssize_t pilot_optimal_sample_size_p(const double *data, size_t n,
-                                    double confidence_interval_width,
-                                    pilot_mean_method_t mean_method,
-                                    double confidence_level = 0.95,
-                                    double max_autocorrelation_coefficient = 0.1);
+bool
+pilot_optimal_sample_size_p(const double *data, size_t n,
+                            double confidence_interval_width,
+                            pilot_mean_method_t mean_method,
+                            size_t *q, size_t *opt_sample_size,
+                            double confidence_level = 0.95,
+                            double max_autocorrelation_coefficient = 0.1);
 
 struct pilot_pi_unit_readings_iter_t;
 
@@ -844,6 +850,15 @@ double pilot_set_autocorrelation_coefficient(pilot_workload_t *wl, double ac);
  */
 void pilot_set_baseline(pilot_workload_t *wl, size_t piid, pilot_reading_type_t rt,
         double baseline_mean, size_t baseline_sample_size, double baseline_var);
+
+/**
+ * \brief Set the lower threshold of sample size used in all statistical
+ * analyses. Default to 200.
+ * @param[in] wl pointer to the workload struct
+ * @param min_sample_size the new minimum sample size
+ * @return the old min sample size
+ */
+size_t pilot_set_min_sample_size(pilot_workload_t *wl, size_t min_sample_size);
 
 #ifdef __cplusplus
 } // namespace pilot

@@ -76,8 +76,22 @@ ssize_t pilot_workload_t::required_num_of_readings(int piid) const {
         ci_width = required_ci_absolute_value_;
     }
 
-    return pilot_optimal_sample_size(readings_[piid].begin(), readings_[piid].size(),
-                                     ci_width, pi_info_[piid].reading_mean_method);
+    size_t q, opt_sample_size;
+    if (!pilot_optimal_sample_size(readings_[piid].begin(), readings_[piid].size(),
+                                   ci_width, pi_info_[piid].reading_mean_method,
+                                   &q, &opt_sample_size)) {
+        // we don't have enough data
+        return -1;
+    } else {
+        if (opt_sample_size < min_sample_size_) {
+            info_log << __func__ << "(): optimal sample size ("
+                     << opt_sample_size << ") is smaller than the sample size lower threshold ("
+                     << min_sample_size_
+                     << "). Using the lower threshold instead.";
+            opt_sample_size = min_sample_size_;
+        }
+        return q * opt_sample_size;
+    }
 }
 
 ssize_t pilot_workload_t::required_num_of_unit_readings(int piid) const {
@@ -95,16 +109,30 @@ ssize_t pilot_workload_t::required_num_of_unit_readings(int piid) const {
         ci_width = required_ci_absolute_value_;
     }
 
-    return pilot_optimal_sample_size(pilot_pi_unit_readings_iter_t(this, piid),
-                                     total_num_of_unit_readings_[piid], ci_width,
-                                     pi_info_[piid].unit_reading_mean_method);
+    size_t q, opt_sample_size;
+    if (!pilot_optimal_sample_size(pilot_pi_unit_readings_iter_t(this, piid),
+                                   total_num_of_unit_readings_[piid], ci_width,
+                                   pi_info_[piid].unit_reading_mean_method,
+                                   &q, &opt_sample_size)) {
+        // we don't have enough data
+        return -1;
+    } else {
+        if (opt_sample_size < min_sample_size_) {
+            info_log << __func__ << "(): optimal sample size ("
+                     << opt_sample_size << ") is smaller than the sample size lower threshold ("
+                     << min_sample_size_
+                     << "). Using the lower threshold instead.";
+            opt_sample_size = min_sample_size_;
+        }
+        return q * opt_sample_size;
+    }
+
 }
 
 size_t pilot_workload_t::calc_next_round_work_amount(void) {
     if (next_round_work_amount_hook_) {
         return next_round_work_amount_hook_(this);
     }
-
 
     size_t max_work_amount = 0;
     for (auto &r : runtime_analysis_plugins_) {
@@ -187,7 +215,7 @@ pilot_analytical_result_t* pilot_workload_t::get_analytical_result(pilot_analyti
             double var_rt = analytical_result_.unit_readings_var[piid] / sm;
             analytical_result_.unit_readings_var_formatted[piid] = var_rt * analytical_result_.unit_readings_mean_formatted[piid];
             analytical_result_.unit_readings_autocorrelation_coefficient[piid] = unit_readings_autocorrelation_coefficient(piid, 1, ARITHMETIC_MEAN);
-            size_t q = pilot_optimal_subsession_size(pilot_pi_unit_readings_iter_t(this, piid),
+            ssize_t q = pilot_optimal_subsession_size(pilot_pi_unit_readings_iter_t(this, piid),
                     total_num_of_unit_readings_[piid], ARITHMETIC_MEAN);
             analytical_result_.unit_readings_optimal_subsession_size[piid] = q;
             if (analytical_result_.unit_readings_optimal_subsession_size[piid] > 0) {
@@ -210,7 +238,7 @@ pilot_analytical_result_t* pilot_workload_t::get_analytical_result(pilot_analyti
     if (!info) {
         info = new pilot_analytical_result_t(analytical_result_);
     } else {
-        info = &analytical_result_;
+        *info = analytical_result_;
     }
     return info;
 }
@@ -281,15 +309,15 @@ char* pilot_workload_t::text_workload_summary(void) const {
         s << "subsession variance (q=" << q << "): " << analytical_result_.unit_readings_optimal_subsession_var_formatted[piid] << endl;
         s << "subsession variance (q=" << q << ") to sample mean ratio: " << analytical_result_.unit_readings_optimal_subsession_var[piid] * 100 / sm << "%" << endl;
         size_t min_ur = analytical_result_.unit_readings_required_sample_size[piid];
-        s << "minimum numbers of unit readings according to t-distribution (q=" << q << "): " << min_ur << endl;
+        s << "minimum numbers of unit readings required (q=" << q << "): " << min_ur << endl;
         s << "current number of significant unit readings: " << cur_ur << endl;
-        if (cur_ur >= min_ur && cur_ur / q >= 200) {
+        if (cur_ur >= min_ur) {
             s << "We have a large enough sample size." << endl;
         } else {
-            if (cur_ur < min_ur) {
+            if (cur_ur / q < min_sample_size_) {
+                s << "sample size is smaller than the sample size threshold (" << min_sample_size_ << ")" << endl;
+            } else if (cur_ur < min_ur) {
                 s << "sample size is not yet large enough to achieve a confidence interval width of " << required_ci_percent_of_mean_ << " * sample_mean." << endl;
-            } else {
-                s << "sample size MIGHT NOT be large enough (subsample size >200 is recommended)" << endl;
             }
         }
         double ci = analytical_result_.unit_readings_optimal_subsession_ci_width_formatted[piid];
@@ -410,4 +438,12 @@ size_t pilot_workload_t::set_session_duration_limit(size_t sec) {
     size_t old_val = session_duration_limit_in_sec_;
     session_duration_limit_in_sec_ = sec;
     return old_val;
+}
+
+size_t pilot_workload_t::set_min_sample_size(size_t min_sample_size) {
+    size_t old_min_sample_size = min_sample_size_;
+    min_sample_size_ = min_sample_size;
+    // invalidate the cache because re-calculation is needed
+    analytical_result_update_time_ = chrono::steady_clock::time_point::min();
+    return old_min_sample_size;
 }

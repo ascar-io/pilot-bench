@@ -126,6 +126,7 @@ struct pilot_workload_t {
     std::vector<pilot_pi_info_t> pi_info_;
     pilot_display_format_functor format_wps_;
     bool wps_must_satisfy_;
+    size_t min_sample_size_;                         //! the lower threshold of sample size. Do not change it directly, use set_min_sample_size().
 
     double confidence_interval_;
     double confidence_level_;
@@ -181,7 +182,7 @@ struct pilot_workload_t {
                          num_of_pi_(0), rounds_(0), init_work_amount_(0),
                          max_work_amount_(0), min_work_amount_(0),
                          workload_func_(nullptr),
-                         wps_must_satisfy_(true),
+                         wps_must_satisfy_(true), min_sample_size_(200),
                          confidence_interval_(0.05), confidence_level_(.95),
                          autocorrelation_coefficient_limit_(0.1),
                          required_ci_percent_of_mean_(0.1), required_ci_absolute_value_(-1),
@@ -306,7 +307,7 @@ struct pilot_workload_t {
     void refresh_wps_analysis_results(void) const;
 
     size_t set_session_duration_limit(size_t sec);
-
+    size_t set_min_sample_size(size_t min_sample_size);
 };
 
 struct pilot_pi_unit_readings_iter_t {

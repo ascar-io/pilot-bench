@@ -148,7 +148,8 @@ TEST(PilotRunWorkloadTest, RunWorkload) {
         ASSERT_EQ(exp_readings_var / (g_total_rounds-1), ar1->readings_optimal_subsession_var[pi]);
         ASSERT_EQ(0, ar1->readings_optimal_subsession_autocorrelation_coefficient[pi]);
         ASSERT_DOUBLE_EQ(4.9682754235006596, ar1->readings_optimal_subsession_ci_width[pi]);
-        ASSERT_EQ(5, ar1->readings_required_sample_size[pi]);
+        // the required sample size is the sample size lower threshold (default to 200)
+        ASSERT_EQ(200, ar1->readings_required_sample_size[pi]);
 
         size_t exp_ur_num = 0;
         double exp_ur_sum = 0;
@@ -173,6 +174,12 @@ TEST(PilotRunWorkloadTest, RunWorkload) {
         // we don't have enough data for calculating the required sample size
         ASSERT_EQ(-1, ar1->unit_readings_required_sample_size[pi]);
     }
+
+    // when we disable the sample size threshold, we can get the real
+    // required size
+    pilot_set_min_sample_size(wl, 0);
+    pilot_analytical_result(wl, ar1);
+    ASSERT_EQ(5, ar1->readings_required_sample_size[0]);
 
     pilot_free_analytical_result(ar1);
     pilot_free_analytical_result(ar2);
