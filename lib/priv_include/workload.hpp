@@ -108,9 +108,12 @@ struct runtime_analysis_plugin_t {
 };
 
 struct baseline_info_t {
+    bool set;
     double mean;
     size_t sample_size;
     double var;
+
+    baseline_info_t() : set(false), mean(0), sample_size(0), var(0) {}
 };
 
 struct pilot_workload_t {
@@ -204,6 +207,13 @@ struct pilot_workload_t {
         runtime_analysis_plugins_.emplace_back(true, &calc_next_round_work_amount_from_unit_readings);
         runtime_analysis_plugins_.emplace_back(true, &calc_next_round_work_amount_from_wps);
     }
+
+    /**
+     * \brief Set the number of PIs
+     * See pilot_set_num_of_pi() for detail.
+     * @param num_of_pi the desired number of PIs
+     */
+    void set_num_of_pi(size_t num_of_pi);
 
     /**
      * \brief Return the mean of the unit readings
@@ -308,6 +318,7 @@ struct pilot_workload_t {
 
     size_t set_session_duration_limit(size_t sec);
     size_t set_min_sample_size(size_t min_sample_size);
+    int load_baseline_file(const char *filename);
 };
 
 struct pilot_pi_unit_readings_iter_t {

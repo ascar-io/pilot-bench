@@ -45,6 +45,7 @@
 #include "common.h"
 #include "config.h"
 #include <cstdio>
+#include "csv.h"
 #include <fstream>
 #include "libpilot.h"
 #include "libpilotcpp.h"
@@ -173,20 +174,7 @@ void pilot_set_calc_required_unit_readings_func(pilot_workload_t* wl,
 
 void pilot_set_num_of_pi(pilot_workload_t* wl, size_t num_of_pi) {
     ASSERT_VALID_POINTER(wl);
-    if (wl->num_of_pi_ != 0) {
-        fatal_log << "Changing the number of performance indices is not supported";
-        abort();
-    }
-    wl->num_of_pi_ = num_of_pi;
-    wl->pi_info_.resize(num_of_pi);
-    wl->readings_.resize(num_of_pi);
-    wl->unit_readings_.resize(num_of_pi);
-    wl->warm_up_phase_len_.resize(num_of_pi);
-    wl->total_num_of_unit_readings_.resize(num_of_pi);
-    wl->total_num_of_readings_.resize(num_of_pi);
-    wl->baseline_of_readings_.resize(num_of_pi);
-    wl->baseline_of_unit_readings_.resize(num_of_pi);
-    wl->analytical_result_.set_num_of_pi(num_of_pi);
+    wl->set_num_of_pi(num_of_pi);
 }
 
 int pilot_get_num_of_pi(const pilot_workload_t* wl, size_t *p_num_of_pi) {
@@ -1163,11 +1151,13 @@ void pilot_set_baseline(pilot_workload_t *wl, size_t piid, pilot_reading_type_t 
         wl->baseline_of_readings_[piid].mean = baseline_mean;
         wl->baseline_of_readings_[piid].sample_size = baseline_sample_size;
         wl->baseline_of_readings_[piid].var = baseline_var;
+        wl->baseline_of_readings_[piid].set = true;
         break;
     case UNIT_READING_TYPE:
         wl->baseline_of_unit_readings_[piid].mean = baseline_mean;
         wl->baseline_of_unit_readings_[piid].sample_size = baseline_sample_size;
         wl->baseline_of_unit_readings_[piid].var = baseline_var;
+        wl->baseline_of_unit_readings_[piid].set = true;
         break;
     case WPS_TYPE:
         fatal_log << __func__ << "(): unimplemented yet";
@@ -1177,6 +1167,49 @@ void pilot_set_baseline(pilot_workload_t *wl, size_t piid, pilot_reading_type_t 
         fatal_log << __func__ << "(): invalid parameter: rt: " << rt;
         abort();
     }
+}
+
+int pilot_get_baseline(const pilot_workload_t *wl, size_t piid, pilot_reading_type_t rt,
+        double *p_baseline_mean, size_t *p_baseline_sample_size,
+        double *p_baseline_var) {
+    ASSERT_VALID_POINTER(wl);
+    ASSERT_VALID_POINTER(p_baseline_mean);
+    ASSERT_VALID_POINTER(p_baseline_sample_size);
+    ASSERT_VALID_POINTER(p_baseline_var);
+    if (0 == wl->num_of_pi_) {
+        return ERR_NOT_INIT;
+    }
+    die_if(piid >= wl->num_of_pi_, ERR_WRONG_PARAM, "PIID out of bound");
+
+    switch (rt) {
+    case READING_TYPE:
+        if (!wl->baseline_of_readings_[piid].set)
+            return ERR_NOT_INIT;
+        *p_baseline_mean        = wl->baseline_of_readings_[piid].mean;
+        *p_baseline_sample_size = wl->baseline_of_readings_[piid].sample_size;
+        *p_baseline_var         = wl->baseline_of_readings_[piid].var;
+        break;
+    case UNIT_READING_TYPE:
+        if (!wl->baseline_of_unit_readings_[piid].set)
+            return ERR_NOT_INIT;
+        *p_baseline_mean        = wl->baseline_of_unit_readings_[piid].mean;
+        *p_baseline_sample_size = wl->baseline_of_unit_readings_[piid].sample_size;
+        *p_baseline_var         = wl->baseline_of_unit_readings_[piid].var;
+        break;
+    case WPS_TYPE:
+        fatal_log << __func__ << "(): unimplemented yet";
+        abort();
+        break;
+    default:
+        fatal_log << __func__ << "(): invalid parameter: rt: " << rt;
+        abort();
+    }
+    return 0;
+}
+
+int pilot_load_baseline_file(pilot_workload_t *wl, const char *filename) {
+    ASSERT_VALID_POINTER(wl);
+    return wl->load_baseline_file(filename);
 }
 
 size_t pilot_set_min_sample_size(pilot_workload_t *wl, size_t min_sample_size) {

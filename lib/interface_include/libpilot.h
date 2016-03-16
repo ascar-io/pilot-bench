@@ -840,7 +840,7 @@ double pilot_set_autocorrelation_coefficient(pilot_workload_t *wl, double ac);
  * This function sets the baseline for a certain reading type of a certain
  * PIID. After setting this baseline, the workload will be kept running until a
  * conclusion can be reached that can reject the null hypothesis, which is that
- * the current workload equals the baseline workload
+ * the current workload equals the baseline workload.
  * @param[in] wl pointer to the workload struct
  * @param piid the PIID to set baseline for
  * @param rt the reaing type to set baseline for (readings, unit readings, or WPS)
@@ -850,6 +850,29 @@ double pilot_set_autocorrelation_coefficient(pilot_workload_t *wl, double ac);
  */
 void pilot_set_baseline(pilot_workload_t *wl, size_t piid, pilot_reading_type_t rt,
         double baseline_mean, size_t baseline_sample_size, double baseline_var);
+
+/**
+ * \brief Get the comparison baseline
+ * This function gets the baseline for a certain reading type of a certain
+ * PIID. The baseline is either set by using pilot_set_baseline() or loaded
+ * from a summary file by using pilot_load_baseline_file().
+ * @param[in] wl pointer to the workload struct
+ * @param piid the PIID to get baseline for
+ * @param rt the reaing type to get baseline for (readings, unit readings, or WPS)
+ * @param p_baseline_mean the pointer for storing the baseline mean
+ * @param p_baseline_sample_size the pointer for storing the baseline sample size
+ * @param p_baseline_var the pointer for storing the baseline variance
+ * @return 0 on success; ERR_NOT_INIT if the baseline is not set
+ */
+int pilot_get_baseline(const pilot_workload_t *wl, size_t piid, pilot_reading_type_t rt,
+        double *p_baseline_mean, size_t *p_baseline_sample_size,
+        double *p_baseline_var);
+
+/**
+ * \brief Load baseline data from a CSV file
+ * @return 0 on a successful read; ERR_IO on failures
+ */
+int pilot_load_baseline_file(pilot_workload_t *wl, const char *filename);
 
 /**
  * \brief Set the lower threshold of sample size used in all statistical

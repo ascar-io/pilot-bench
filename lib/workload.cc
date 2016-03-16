@@ -32,15 +32,36 @@
  */
 
 #include <algorithm>
+#include <chrono>
 #include "common.h"
+#include "csv.h"
 #include "libpilot.h"
 #include "libpilotcpp.h"
 #include <numeric>
 #include <sstream>
+#include <vector>
 #include "workload.hpp"
 
 using namespace std;
 using namespace pilot;
+
+void pilot_workload_t::set_num_of_pi(size_t num_of_pi) {
+    if (num_of_pi_ != 0) {
+        fatal_log << "Changing the number of performance indices is not supported";
+        abort();
+    }
+    num_of_pi_ = num_of_pi;
+    pi_info_.resize(num_of_pi);
+    readings_.resize(num_of_pi);
+    unit_readings_.resize(num_of_pi);
+    warm_up_phase_len_.resize(num_of_pi);
+    total_num_of_unit_readings_.resize(num_of_pi);
+    total_num_of_readings_.resize(num_of_pi);
+    baseline_of_readings_.resize(num_of_pi);
+    baseline_of_unit_readings_.resize(num_of_pi);
+    analytical_result_.set_num_of_pi(num_of_pi);
+    analytical_result_update_time_ = chrono::steady_clock::time_point::min();
+}
 
 double pilot_workload_t::unit_readings_mean(int piid) const {
     // TODO: add support for HARMONIC_MEAN
@@ -446,4 +467,82 @@ size_t pilot_workload_t::set_min_sample_size(size_t min_sample_size) {
     // invalidate the cache because re-calculation is needed
     analytical_result_update_time_ = chrono::steady_clock::time_point::min();
     return old_min_sample_size;
+}
+
+int pilot_workload_t::load_baseline_file(const char *filename) {
+    // piid, readings_num, readings_mean, reading_var, ur_num, ur_mean, ur_var
+    typedef tuple<size_t, ssize_t, double, double, ssize_t, double, double> rec_t;
+    size_t piid;
+    ssize_t r_num, ur_num;
+    double r_mean, r_var, ur_mean, ur_var;
+    vector<rec_t> data;
+
+    ASSERT_VALID_POINTER(filename);
+    using namespace csv;
+
+    CSVReader<14> in(filename);
+    in.read_header(ignore_missing_column, "piid", "readings_num",
+            "readings_mean", "readings_mean_formatted", "readings_var",
+            "readings_var_formatted", "unit_readings_num",
+            "unit_readings_mean", "unit_readings_mean_formatted",
+            "unit_readings_var", "unit_readings_var_formatted",
+            "unit_readings_ci_width", "unit_readings_ci_width_formatted",
+            "unit_readings_optimal_subsession_size");
+    double ignore;
+    r_num = ur_num = -1;
+    r_mean = r_var = ur_mean = ur_var = 0;
+    while (in.read_row(piid, r_num, r_mean, ignore, r_var, ignore,
+                      ur_num, ur_mean, ignore, ur_var, ignore,
+                      ignore, ignore, ignore)) {
+        data.emplace_back(piid, r_num, r_mean, r_var,
+                          ur_num, ur_mean, ur_var);
+        r_num = ur_num = -1;
+    }
+
+    if (0 != num_of_pi_ && data.size() > num_of_pi_) {
+        fatal_log << __func__ << "(): the input file (" << filename
+                  << ") has " << data.size() << " lines, which are greater "
+                  << "than the number of PIs (" << num_of_pi_ << "). "
+                  << "Are you trying to load the wrong file?";
+        abort();
+    }
+    if (0 == num_of_pi_) {
+        set_num_of_pi(data.size());
+    }
+    int line = 0;
+    for (const auto &a : data) {
+        // check piid
+        piid = get<0>(a);
+        if (piid >= num_of_pi_) {
+            fatal_log << __func__ << "(): PIID out of range at line " << line;
+            abort();
+        }
+        // process readings
+        r_num = get<1>(a);
+        if (r_num <= 0) {
+            baseline_of_readings_[piid].set = false;
+        } else {
+            baseline_of_readings_[piid].set = true;
+            r_mean = get<2>(a);
+            r_var  = get<3>(a);
+            baseline_of_readings_[piid].sample_size = r_num;
+            baseline_of_readings_[piid].mean = r_mean;
+            baseline_of_readings_[piid].var = r_var;
+        }
+        // process unit readings
+        ur_num = get<4>(a);
+        if (ur_num <= 0) {
+            baseline_of_unit_readings_[piid].set = false;
+        } else {
+            baseline_of_unit_readings_[piid].set = true;
+            ur_mean = get<5>(a);
+            ur_var  = get<6>(a);
+            baseline_of_unit_readings_[piid].sample_size = ur_num;
+            baseline_of_unit_readings_[piid].mean = ur_mean;
+            baseline_of_unit_readings_[piid].var = ur_var;
+        }
+
+        ++line;
+    }
+    return 0;
 }

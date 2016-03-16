@@ -2,7 +2,7 @@
  * unit_test_unit_readings_iter.cc: unit tests for the unit readings
  * access iterator
  *
- * Copyright (c) 2015, University of California, Santa Cruz, CA, USA.
+ * Copyright (c) 2015, 2016, University of California, Santa Cruz, CA, USA.
  * Created by Yan Li <yanli@ucsc.edu, elliot.li.tech@gmail.com>,
  * Department of Computer Science, Baskin School of Engineering.
  *
