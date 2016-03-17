@@ -688,6 +688,24 @@ double pilot_p_eq(double mean1, double mean2, size_t size1, size_t size2,
                   double confidence_level = 0.95);
 
 /**
+ * \brief Calculate the sample size needed for comparing against a baseline
+ * to achieve a certain p-value
+ * @param baseline_mean
+ * @param baseline_sample_size
+ * @param baseline_var
+ * @param new_mean
+ * @param new_sample_size
+ * @param new_var
+ * @param required_p
+ * @param[out] opt_new_sample_size the optimal sample size needed for new
+ * @return 0 on success; error code otherwise
+ */
+int pilot_optimal_sample_size_for_eq_test(double baseline_mean,
+        size_t baseline_sample_size, double baseline_var,
+        double new_mean, size_t new_sample_size, double new_var,
+        double required_p, size_t *opt_new_sample_size);
+
+/**
  * \brief Calculate the optimal length of the benchmark session given observed
  *        data, confidence interval, confidence level, and maximal
  *        autocorrelation coefficient. This function uses a pointer as data

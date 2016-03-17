@@ -841,6 +841,11 @@ double pilot_p_eq(double mean1, double mean2, size_t size1, size_t size2,
         fatal_log << __func__ << "(): variance must be greater than or equal 0";
         abort();
     }
+    if (size1 < 2 || size2 < 2) {
+        info_log << __func__ << "(): sample size (" << size1 << ", " << size2 << ") too small";
+        // p = 0.5 means we cannot decide whether they are equal
+        return 0.5;
+    }
 
     double d = mean1 - mean2;
     double sc = sqrt(var1 / double(size1) + var2 / double(size2));
@@ -857,6 +862,33 @@ double pilot_p_eq(double mean1, double mean2, size_t size1, size_t size2,
     if (ci_left)  *ci_left = d - t * sc;
     if (ci_right) *ci_right = d + t * sc;
     return p;
+}
+
+int pilot_optimal_sample_size_for_eq_test(double baseline_mean,
+        size_t baseline_sample_size, double baseline_var,
+        double new_mean, size_t new_sample_size, double new_var,
+        double required_p, size_t *opt_new_sample_size) {
+    using namespace boost::math;
+    if (baseline_var < 0 || new_var < 0) {
+        fatal_log << __func__ << "(): variance must be greater than or equal 0";
+        abort();
+    }
+    if (baseline_sample_size < 2 || new_sample_size < 2) {
+        info_log << __func__ << "(): sample size (" << baseline_sample_size
+                 << ", " << new_sample_size << ") too small";
+        // p = 0.5 means we cannot decide whether they are equal
+        return ERR_NOT_ENOUGH_DATA;
+    }
+
+    size_t deg_of_freedom = min(baseline_sample_size, new_sample_size) - 1;
+    students_t dist(deg_of_freedom);
+    double t = quantile(dist, required_p / 2);
+
+    double d = baseline_mean - new_mean;
+    double opt_ss = new_var / (pow(d / t, 2) -
+                             baseline_var / baseline_sample_size);
+    *opt_new_sample_size = static_cast<size_t>(opt_ss);
+    return 0;
 }
 
 bool

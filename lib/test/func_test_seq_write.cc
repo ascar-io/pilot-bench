@@ -195,7 +195,7 @@ int main(int argc, char **argv) {
     // Don't use po::value<>()->required() here or --help wouldn't work
     desc.add_options()
             ("help", "produce help message")
-            ("baseline,b", po::value<string>(), "the input file ")
+            ("baseline,b", po::value<string>(), "the input file that contains baseline data for comparison")
             ("fsync,f", "call fsync() after each I/O request")
             ("io-size,s", po::value<size_t>(), "the size of I/O operations (default to 1 MB)")
             ("length-limit,l", po::value<size_t>(), "the max. length of the workload in bytes (default to 2048*1024*1024); "
@@ -293,6 +293,10 @@ int main(int argc, char **argv) {
     if (vm.count("no-tui"))
         use_tui = false;
 
+    string baseline_file;
+    if (vm.count("baseline")) {
+        baseline_file = vm["output"].as<string>();
+    }
 
 //    size_t warmupio = io_limit / g_io_size / 5;
 //    if (vm.count("warm-up-io")) {
@@ -310,6 +314,8 @@ int main(int argc, char **argv) {
     pilot_set_init_work_amount(wl, init_length);
     pilot_set_workload_func(wl, &workload_func);
     pilot_set_required_confidence_interval(wl, 0.4, -1);
+    if (0 != baseline_file.size())
+        pilot_load_baseline_file(wl, baseline_file.c_str());
     // Set up hooks for displaying progress information
     pilot_set_hook_func(wl, PRE_WORKLOAD_RUN, &pre_workload_run_hook);
     pilot_set_hook_func(wl, POST_WORKLOAD_RUN, &post_workload_run_hook);

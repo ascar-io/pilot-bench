@@ -189,6 +189,12 @@ TEST(StatisticsUnitTest, TestOfSignificance) {
     ASSERT_NEAR(0.025696808408668472, p, 0.000000001);
     ASSERT_NEAR(-0.5417739890521083, ci_left, 0.000000001);
     ASSERT_NEAR(-0.03622601094789468, ci_right, 0.000000001);
+
+    size_t opt_sample_size;
+    ASSERT_EQ(0, pilot_optimal_sample_size_for_eq_test(mean_male,
+            sample_size_male, var_male, mean_female, sample_size_female,
+            var_female, p, &opt_sample_size));
+    ASSERT_EQ(sample_size_female, opt_sample_size);
 }
 
 int main(int argc, char **argv) {
