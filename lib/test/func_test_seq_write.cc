@@ -295,7 +295,7 @@ int main(int argc, char **argv) {
 
     string baseline_file;
     if (vm.count("baseline")) {
-        baseline_file = vm["output"].as<string>();
+        baseline_file = vm["baseline"].as<string>();
     }
 
 //    size_t warmupio = io_limit / g_io_size / 5;

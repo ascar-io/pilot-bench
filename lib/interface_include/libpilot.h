@@ -834,6 +834,15 @@ size_t calc_next_round_work_amount_from_unit_readings(pilot_workload_t *wl);
  */
 size_t calc_next_round_work_amount_from_wps(pilot_workload_t *wl);
 
+
+/**
+ * \brief Calculate the work amount for next round for getting the desired
+ * p-value for comparison
+ * @param[in] wl pointer to the workload struct
+ * @return the work amount needed
+ */
+size_t calc_next_round_work_amount_for_comparison(pilot_workload_t *wl);
+
 /**
  * \brief Set if WPS analysis should be enabled
  * @param[in] wl pointer to the workload struct

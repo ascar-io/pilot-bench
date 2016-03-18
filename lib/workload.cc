@@ -115,6 +115,36 @@ ssize_t pilot_workload_t::required_num_of_readings(int piid) const {
     }
 }
 
+ssize_t pilot_workload_t::required_num_of_unit_readings_for_comparison(int piid) const {
+    assert (baseline_of_unit_readings_[piid].set);
+    // refresh the analytical result
+    get_analytical_result();
+    ssize_t q = analytical_result_.unit_readings_optimal_subsession_size[piid];
+    if (q < 0)
+        return -1;
+
+    size_t opt_sample_size;
+    int res = pilot_optimal_sample_size_for_eq_test(baseline_of_unit_readings_[piid].mean,
+            baseline_of_unit_readings_[piid].sample_size,
+            baseline_of_unit_readings_[piid].var,
+            analytical_result_.unit_readings_mean[piid],
+            analytical_result_.unit_readings_num[piid] / q,
+            analytical_result_.unit_readings_optimal_subsession_var[piid],
+            desired_p_value_, &opt_sample_size);
+    if (0 != res) {
+        info_log << __func__ << "(): cannot calculate sample size for eq test";
+        return -abs(res);
+    }
+    if (opt_sample_size < min_sample_size_) {
+        info_log << __func__ << "(): optimal sample size for eq test ("
+                 << opt_sample_size << ") is smaller than the sample size lower threshold ("
+                 << min_sample_size_
+                 << "). Using the lower threshold instead.";
+        opt_sample_size = min_sample_size_;
+    }
+    return q * opt_sample_size;
+}
+
 ssize_t pilot_workload_t::required_num_of_unit_readings(int piid) const {
     if (calc_required_unit_readings_func_) {
         return calc_required_unit_readings_func_(this, piid);
@@ -469,6 +499,48 @@ size_t pilot_workload_t::set_min_sample_size(size_t min_sample_size) {
     return old_min_sample_size;
 }
 
+void pilot_workload_t::enable_runtime_analysis_plugin(calc_next_round_work_amount_func_t *p) {
+    for (auto &c : runtime_analysis_plugins_) {
+        if (p == c.calc_next_round_work_amount) {
+            c.enabled = true;
+            return;
+        }
+    }
+    runtime_analysis_plugins_.emplace_back(true, p);
+}
+
+
+void pilot_workload_t::set_baseline(size_t piid, pilot_reading_type_t rt,
+        double baseline_mean, size_t baseline_sample_size, double baseline_var) {
+    if (num_of_pi_ <= piid) {
+        fatal_log << __func__ << "(): invalid parameter: piid: " << piid;
+        abort();
+    }
+    switch (rt) {
+    case READING_TYPE:
+        baseline_of_readings_[piid].mean = baseline_mean;
+        baseline_of_readings_[piid].sample_size = baseline_sample_size;
+        baseline_of_readings_[piid].var = baseline_var;
+        baseline_of_readings_[piid].set = true;
+        break;
+    case UNIT_READING_TYPE:
+        baseline_of_unit_readings_[piid].mean = baseline_mean;
+        baseline_of_unit_readings_[piid].sample_size = baseline_sample_size;
+        baseline_of_unit_readings_[piid].var = baseline_var;
+        baseline_of_unit_readings_[piid].set = true;
+        break;
+    case WPS_TYPE:
+        fatal_log << __func__ << "(): unimplemented yet";
+        abort();
+        break;
+    default:
+        fatal_log << __func__ << "(): invalid parameter: rt: " << rt;
+        abort();
+    }
+    enable_runtime_analysis_plugin(&calc_next_round_work_amount_for_comparison);
+}
+
+
 int pilot_workload_t::load_baseline_file(const char *filename) {
     // piid, readings_num, readings_mean, reading_var, ur_num, ur_mean, ur_var
     typedef tuple<size_t, ssize_t, double, double, ssize_t, double, double> rec_t;
@@ -480,6 +552,7 @@ int pilot_workload_t::load_baseline_file(const char *filename) {
     ASSERT_VALID_POINTER(filename);
     using namespace csv;
 
+    debug_log << __func__ << "(): starting to load baseline from " << filename;
     CSVReader<14> in(filename);
     in.read_header(ignore_missing_column, "piid", "readings_num",
             "readings_mean", "readings_mean_formatted", "readings_var",
@@ -540,9 +613,13 @@ int pilot_workload_t::load_baseline_file(const char *filename) {
             baseline_of_unit_readings_[piid].sample_size = ur_num;
             baseline_of_unit_readings_[piid].mean = ur_mean;
             baseline_of_unit_readings_[piid].var = ur_var;
+            info_log << __func__ << "(): loaded unit reading baseline for PI "
+                     << piid << ": mean " << ur_mean << ", sample_size "
+                     << ur_num << ", var " << ur_var;
         }
 
         ++line;
     }
+    enable_runtime_analysis_plugin(&calc_next_round_work_amount_for_comparison);
     return 0;
 }

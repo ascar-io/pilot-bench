@@ -117,6 +117,8 @@ struct baseline_info_t {
 };
 
 struct pilot_workload_t {
+public:  // FIXME: most of the following members should be private and controlled
+         // by getters and setters
     // Essential workload information
     std::string workload_name_;
     std::chrono::steady_clock::time_point raw_data_changed_time_; //! The time when the latest raw data came in
@@ -138,6 +140,7 @@ struct pilot_workload_t {
     double required_ci_absolute_value_;
     size_t session_duration_limit_in_sec_;
     nanosecond_type short_round_detection_threshold_;
+    double desired_p_value_;
 
     bool short_workload_check_;
     pilot_warm_up_removal_detection_method_t warm_up_removal_detection_method_;
@@ -191,6 +194,7 @@ struct pilot_workload_t {
                          required_ci_percent_of_mean_(0.1), required_ci_absolute_value_(-1),
                          session_duration_limit_in_sec_(0),
                          short_round_detection_threshold_(1 * pilot::ONE_SECOND),
+                         desired_p_value_(0.05),
                          short_workload_check_(true),
                          warm_up_removal_detection_method_(FIXED_PERCENTAGE),
                          warm_up_removal_moving_average_window_size_in_seconds_(3),
@@ -203,9 +207,9 @@ struct pilot_workload_t {
                          calc_required_readings_func_(NULL),
                          calc_required_unit_readings_func_(NULL), tui_(NULL) {
         if (wl_name) workload_name_ = wl_name;
-        runtime_analysis_plugins_.emplace_back(true, &calc_next_round_work_amount_from_readings);
-        runtime_analysis_plugins_.emplace_back(true, &calc_next_round_work_amount_from_unit_readings);
-        runtime_analysis_plugins_.emplace_back(true, &calc_next_round_work_amount_from_wps);
+        enable_runtime_analysis_plugin(&calc_next_round_work_amount_from_readings);
+        enable_runtime_analysis_plugin(&calc_next_round_work_amount_from_unit_readings);
+        enable_runtime_analysis_plugin(&calc_next_round_work_amount_from_wps);
     }
 
     /**
@@ -240,9 +244,15 @@ struct pilot_workload_t {
 
     /**
      * Calculate the required number of unit readings
-     * @return
+     * @return negative if not enough data, otherwise the required number of unit readings
      */
     ssize_t required_num_of_unit_readings(int piid) const;
+
+    /**
+     * Calculate the required number of unit readings for comparison
+     * @return negative if not enough data, otherwise the required number of unit readings
+     */
+    ssize_t required_num_of_unit_readings_for_comparison(int piid) const;
 
     size_t calc_next_round_work_amount(void);
 
@@ -318,6 +328,12 @@ struct pilot_workload_t {
 
     size_t set_session_duration_limit(size_t sec);
     size_t set_min_sample_size(size_t min_sample_size);
+
+    void enable_runtime_analysis_plugin(calc_next_round_work_amount_func_t *p);
+
+    void set_baseline(size_t piid, pilot_reading_type_t rt,
+                      double baseline_mean, size_t baseline_sample_size,
+                      double baseline_var);
     int load_baseline_file(const char *filename);
 };
 
