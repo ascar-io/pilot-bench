@@ -1163,6 +1163,9 @@ size_t calc_next_round_work_amount_from_wps(pilot_workload_t *wl) {
 }
 
 size_t calc_next_round_work_amount_for_comparison(pilot_workload_t *wl) {
+    if (0 == wl->rounds_)
+        return 0 == wl->init_work_amount_ ? wl->max_work_amount_ / 10 : wl->init_work_amount_;
+
     size_t max_work_amount_needed = 0;
     for (size_t piid = 0; piid != wl->num_of_pi_; ++piid) {
         // TODO: handle comparison of readings
