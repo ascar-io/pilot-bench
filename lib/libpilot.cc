@@ -833,15 +833,6 @@ double pilot_subsession_confidence_interval_p(const double *data, size_t n, size
     return pilot_subsession_confidence_interval(data, n, q, confidence_level, mean_method);
 }
 
-/**
- * \brief Calculate the degree of freedom using Welch–Satterthwaite equation
- * @param var1
- * @param var2
- * @param size1
- * @param size2
- * @return the floor value of the Welch–Satterthwaite equation as the degree
- * of freedom
- */
 double __attribute__ ((const)) pilot_calc_deg_of_freedom(double var1, double var2, size_t size1, size_t size2) {
     assert (size1 > 1);
     assert (size2 > 1);
