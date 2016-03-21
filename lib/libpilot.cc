@@ -833,6 +833,24 @@ double pilot_subsession_confidence_interval_p(const double *data, size_t n, size
     return pilot_subsession_confidence_interval(data, n, q, confidence_level, mean_method);
 }
 
+/**
+ * \brief Calculate the degree of freedom using Welch–Satterthwaite equation
+ * @param var1
+ * @param var2
+ * @param size1
+ * @param size2
+ * @return the floor value of the Welch–Satterthwaite equation as the degree
+ * of freedom
+ */
+double __attribute__ ((const)) pilot_calc_deg_of_freedom(double var1, double var2, size_t size1, size_t size2) {
+    assert (size1 > 1);
+    assert (size2 > 1);
+    double num = pow(var1 / static_cast<double>(size1) + var2 / static_cast<double>(size2), 2);
+    double denom = pow(var1 / static_cast<double>(size1), 2) / (static_cast<double>(size1) - 1) +
+                   pow(var2 / static_cast<double>(size2), 2) / (static_cast<double>(size2) - 1);
+    return num / denom;
+}
+
 double pilot_p_eq(double mean1, double mean2, size_t size1, size_t size2,
                   double var1, double var2, double *ci_left, double *ci_right,
                   double confidence_level) {
@@ -851,7 +869,7 @@ double pilot_p_eq(double mean1, double mean2, size_t size1, size_t size2,
     double sc = sqrt(var1 / double(size1) + var2 / double(size2));
     double t = d / sc;
 
-    size_t deg_of_freedom = min(size1, size2) - 1;
+    double deg_of_freedom = pilot_calc_deg_of_freedom(var1, var2, size1, size2);
     students_t dist(deg_of_freedom);
     double p = cdf(dist, -abs(t));
     // two sided
@@ -880,7 +898,7 @@ int pilot_optimal_sample_size_for_eq_test(double baseline_mean,
         return ERR_NOT_ENOUGH_DATA;
     }
 
-    size_t deg_of_freedom = min(baseline_sample_size, new_sample_size) - 1;
+    double deg_of_freedom = pilot_calc_deg_of_freedom(baseline_var, new_var, baseline_sample_size, new_sample_size);
     students_t dist(deg_of_freedom);
     double t = quantile(dist, required_p / 2);
 

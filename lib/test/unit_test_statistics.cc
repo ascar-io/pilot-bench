@@ -186,15 +186,41 @@ TEST(StatisticsUnitTest, TestOfSignificance) {
                           sample_size_male, sample_size_female,
                           var_male, var_female,
                           &ci_left, &ci_right);
-    ASSERT_NEAR(0.025696808408668472, p, 0.000000001);
-    ASSERT_NEAR(-0.5417739890521083, ci_left, 0.000000001);
-    ASSERT_NEAR(-0.03622601094789468, ci_right, 0.000000001);
+    ASSERT_NEAR(0.024, p, 0.001);
+    ASSERT_NEAR(-0.540, ci_left, 0.001);
+    ASSERT_NEAR(-0.039, ci_right, 0.001);
 
     size_t opt_sample_size;
     ASSERT_EQ(0, pilot_optimal_sample_size_for_eq_test(mean_male,
             sample_size_male, var_male, mean_female, sample_size_female,
             var_female, p, &opt_sample_size));
     ASSERT_EQ(sample_size_female, opt_sample_size);
+}
+
+TEST(StatisticsUnitTest, TestSpeedOfLight) {
+    // Test data from http://math.arizona.edu/~ghystad/chapter12.pdf
+    vector<double> vel1{850, 740, 900,1070, 930, 850, 950, 980, 980, 880,1000, 980, 930, 650, 760,
+                        810,1000,1000, 960, 960, 960, 940, 960, 940, 880, 800, 850, 880, 900, 840,
+                        830, 790, 810, 880, 880, 830, 800, 790, 760, 800, 880, 880, 880, 860, 720,
+                        720, 620, 860, 970, 950, 880, 910, 850, 870, 840, 840, 850, 840, 840, 840,
+                        890, 810, 810, 820, 800, 770, 760, 740, 750, 760, 910, 920, 890, 860, 880,
+                        720, 840, 850, 850, 780, 890, 840, 780, 810, 760, 810, 790, 810, 820, 850,
+                        870, 870, 810, 740, 810, 940, 950, 800, 810, 870};
+    vector<double> vel2{883, 816, 778, 796, 682, 711, 611, 599,1051, 781, 578, 796, 774, 820, 772,
+                        696, 573, 748, 748, 797, 851, 809, 723};
+    double mean1 = pilot_subsession_mean_p(vel1.data(), vel1.size(), ARITHMETIC_MEAN);
+    double var1 = pilot_subsession_var_p(vel1.data(), vel1.size(), 1, mean1, ARITHMETIC_MEAN);
+    double mean2 = pilot_subsession_mean_p(vel2.data(), vel2.size(), ARITHMETIC_MEAN);
+    double var2 = pilot_subsession_var_p(vel2.data(), vel2.size(), 1, mean2, ARITHMETIC_MEAN);
+    ASSERT_NEAR(pow(79.0105478191, 2), var1, 0.0001);
+    ASSERT_NEAR(pow(107.114618526, 2), var2, 0.0001);
+    ASSERT_NEAR(27.754, pilot_calc_deg_of_freedom(var1, var2, vel1.size(), vel2.size()), 0.001);
+    double ci_left, ci_right;
+    ASSERT_NEAR(0.0003625357,
+                pilot_p_eq(mean1, mean2, vel1.size(), vel2.size(), var1, var2, &ci_left, &ci_right, 0.99),
+                0.0000000001);
+    ASSERT_NEAR(30.67544, ci_left, 0.00001);
+    ASSERT_NEAR(161.68977, ci_right, 0.00001);
 }
 
 int main(int argc, char **argv) {

@@ -669,6 +669,15 @@ int pilot_optimal_subsession_size_p(const double *data, size_t n, pilot_mean_met
  */
 double pilot_subsession_confidence_interval_p(const double *data, size_t n, size_t q, double confidence_level, pilot_mean_method_t mean_method);
 
+/**
+ * \brief Calculate the degree of freedom using Welch–Satterthwaite equation
+ * @param var1
+ * @param var2
+ * @param size1
+ * @param size2
+ * @return the degree of freedom
+ */
+double __attribute__ ((const)) pilot_calc_deg_of_freedom(double var1, double var2, size_t size1, size_t size2);
 
 /**
  * \brief Calculate the p-value for the hypothesis mean1 == mean2
