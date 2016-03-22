@@ -1,4 +1,6 @@
 #!/bin/bash
+# A handy wrapper for func_test_seq_write
+#
 # Copyright (c) 2015, 2016 University of California, Santa Cruz, CA, USA.
 # Created by Yan Li <yanli@ucsc.edu, elliot.li.tech@gmail.com>,
 # Department of Computer Science, Baskin School of Engineering.
@@ -31,22 +33,30 @@ set -e -u
 
 if [ $# -eq 0 ]; then
     cat<<EOF
-This script accepts same options as func_test_seq_write does.
+Run test_func_test_seq_write, save the result in a timestamped directory, and
+plot the unit readings as PDF figures.
+
+This script accepts same options as func_test_seq_write does. For example:
+$0 -r test-out-dir -o /mnt/test-device/test-file
 EOF
     exit 2
 fi
 
-OUTPUT_FILE_NAME=seq-write.csv
+OUTPUT_DIR_NAME=seq-write
 declare -a OPTS
 while [ $# -ge 1 ]; do
     if [ "x$1" = "x-r" ]; then
-        OUTPUT_FILE_NAME=$2
+        OUTPUT_DIR_NAME=$2
     fi
     OPTS+=($1)
     shift
 done
-PDF_FILE_NAME=${OUTPUT_FILE_NAME%.*}.pdf
-OUT_FILE_NAME=${OUTPUT_FILE_NAME%.*}.txt
+TS=`date +%F_%T`
+OUTPUT_DIR_NAME=${OUTPUT_DIR_NAME}_${TS}
+echo "Saving results to ${OUTPUT_DIR_NAME}"
+PDF_FILE_NAME=${OUTPUT_DIR_NAME%.*}.pdf
 
-./func_test_seq_write "${OPTS[@]}" | tee "${OUT_FILE_NAME}"
-python `dirname $0`/plot_seq_write_throughput.py "${PDF_FILE_NAME}" "${OUTPUT_FILE_NAME}"
+./func_test_seq_write "${OPTS[@]}"
+PLOT_DIR=${OUTPUT_DIR_NAME}/unit_reading_plot
+mkdir -p "$PLOT_DIR"
+python `dirname $0`/plot_seq_write_throughput.py  "${OUTPUT_DIR_NAME}/unit_readings.csv" "${PLOT_DIR}/"

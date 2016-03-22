@@ -47,8 +47,8 @@ matplotlib.rc('text', usetex=True)
 
 # Plot no more than this max OBD to avoid cluttering the graph.
 # Note: Write BW is always aggregated no matter how many OBDs are chosen here.
-MAX_OBD=1
-COLUMNS_PER_OBD=7
+MAX_OBD = 1
+COLUMNS_PER_OBD = 7
 # debug level: 0, 1, or 2
 debug = 0
 
