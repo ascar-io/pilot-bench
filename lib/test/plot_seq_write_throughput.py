@@ -56,7 +56,7 @@ if len(sys.argv) < 3:
     print("Usage:", sys.argv[0], "input_csv output_file_prefix")
     exit(2)
 
-file_count = 1
+file_count = 0
 
 
 def plot(xdata, ydata):

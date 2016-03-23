@@ -65,4 +65,4 @@ echo "Saving results to ${OUTPUT_DIR_NAME}"
 PLOT_DIR=${OUTPUT_DIR_NAME}/unit_reading_plot
 mkdir -p "$PLOT_DIR"
 echo "Plotting unit reading figures"
-python `dirname $0`/plot_seq_write_throughput.py  "${OUTPUT_DIR_NAME}/unit_readings.csv" "${PLOT_DIR}/"
+python `dirname $0`/plot_seq_write_throughput.py  "${OUTPUT_DIR_NAME}/unit_readings.csv" "${PLOT_DIR}/round_"
