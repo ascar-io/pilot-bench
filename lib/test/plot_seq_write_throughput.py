@@ -61,13 +61,12 @@ file_count = 1
 
 def plot(xdata, ydata):
     global file_count
-    print('len(xdata)={0}, len(ydata)={1}'.format(len(xdata), len(ydata)))
 
     colors = ('b', 'g', 'r', 'c', 'm', 'y', 'k')
     line_no = 0
 
     if debug >= 1:
-        print("Plotting line %d" % (line_no))
+        print('Plotting file {0} (with {1} points)'.format(file_count, len(xdata)))
 
     color = colors[line_no % len(colors)]
 

@@ -43,20 +43,26 @@ EOF
 fi
 
 OUTPUT_DIR_NAME=seq-write
+TS=`date +%F_%T`
 declare -a OPTS
 while [ $# -ge 1 ]; do
     if [ "x$1" = "x-r" ]; then
-        OUTPUT_DIR_NAME=$2
+        OUTPUT_DIR_NAME=${2}_${TS}
+        OPTS+=(-r "$OUTPUT_DIR_NAME")
+        shift
+    else
+        OPTS+=($1)
     fi
-    OPTS+=($1)
     shift
 done
-TS=`date +%F_%T`
-OUTPUT_DIR_NAME=${OUTPUT_DIR_NAME}_${TS}
+if [ "${OUTPUT_DIR_NAME:-}" = "" ]; then
+    OUTPUT_DIR_NAME=seq-write_${TS}
+    OPTS+=(-r "$OUTPUT_DIR_NAME")
+fi
 echo "Saving results to ${OUTPUT_DIR_NAME}"
-PDF_FILE_NAME=${OUTPUT_DIR_NAME%.*}.pdf
 
 ./func_test_seq_write "${OPTS[@]}"
 PLOT_DIR=${OUTPUT_DIR_NAME}/unit_reading_plot
 mkdir -p "$PLOT_DIR"
+echo "Plotting unit reading figures"
 python `dirname $0`/plot_seq_write_throughput.py  "${OUTPUT_DIR_NAME}/unit_readings.csv" "${PLOT_DIR}/"
