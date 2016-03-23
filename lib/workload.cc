@@ -187,7 +187,7 @@ size_t pilot_workload_t::calc_next_round_work_amount(void) {
 
     size_t max_work_amount = 0;
     for (auto &r : runtime_analysis_plugins_) {
-        if (!r.enabled) continue;
+        if (!r.enabled || r.finished) continue;
         max_work_amount = max(max_work_amount, r.calc_next_round_work_amount(this));
     }
 
@@ -509,6 +509,16 @@ void pilot_workload_t::enable_runtime_analysis_plugin(calc_next_round_work_amoun
     runtime_analysis_plugins_.emplace_back(true, p);
 }
 
+void pilot_workload_t::finish_runtime_analysis_plugin(calc_next_round_work_amount_func_t *p) {
+    for (auto &c : runtime_analysis_plugins_) {
+        if (p == c.calc_next_round_work_amount) {
+            c.finished = true;
+            return;
+        }
+    }
+    fatal_log << "Trying to set a non-exist plugin as finished: " << p;
+    abort();
+}
 
 void pilot_workload_t::set_baseline(size_t piid, pilot_reading_type_t rt,
         double baseline_mean, size_t baseline_sample_size, double baseline_var) {

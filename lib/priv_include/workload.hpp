@@ -99,12 +99,13 @@ public:
 typedef size_t calc_next_round_work_amount_func_t(pilot_workload_t* wl);
 struct runtime_analysis_plugin_t {
     bool enabled;
+    bool finished;  //! If this plugin is finished. A finished plugin will not be run in the future.
     calc_next_round_work_amount_func_t *calc_next_round_work_amount;
 
     runtime_analysis_plugin_t(calc_next_round_work_amount_func_t *c) :
-        enabled(true), calc_next_round_work_amount(c) {}
+        enabled(true), finished(false), calc_next_round_work_amount(c) {}
     runtime_analysis_plugin_t(bool e, calc_next_round_work_amount_func_t *c) :
-        enabled(e), calc_next_round_work_amount(c) {}
+        enabled(e), finished(false), calc_next_round_work_amount(c) {}
 };
 
 struct baseline_info_t {
@@ -125,8 +126,9 @@ public:  // FIXME: most of the following members should be private and controlle
     size_t num_of_pi_;                               //! Number of performance indices to collect for each round
     size_t rounds_;                                  //! Number of rounds we've done so far
     size_t init_work_amount_;
-    size_t max_work_amount_;
-    size_t min_work_amount_;
+    size_t max_work_amount_;                         //! The maximum work amount set by user
+    size_t min_work_amount_;                         //! The minimum work amount set by user
+    ssize_t adjusted_min_work_amount_;                //! The minimum work amount that can make the round no shorter than short_round_detection_threshold_. -1 means not found yet.
     pilot_workload_func_t *workload_func_;
     std::vector<pilot_pi_info_t> pi_info_;
     pilot_display_format_functor format_wps_;
@@ -187,6 +189,7 @@ public:  // FIXME: most of the following members should be private and controlle
     pilot_workload_t(const char *wl_name) :
                          num_of_pi_(0), rounds_(0), init_work_amount_(0),
                          max_work_amount_(0), min_work_amount_(0),
+                         adjusted_min_work_amount_(-1),
                          workload_func_(nullptr),
                          wps_must_satisfy_(true), min_sample_size_(200),
                          confidence_interval_(0.05), confidence_level_(.95),
@@ -207,6 +210,7 @@ public:  // FIXME: most of the following members should be private and controlle
                          calc_required_readings_func_(NULL),
                          calc_required_unit_readings_func_(NULL), tui_(NULL) {
         if (wl_name) workload_name_ = wl_name;
+        enable_runtime_analysis_plugin(&calc_next_round_work_amount_meet_lower_bound);
         enable_runtime_analysis_plugin(&calc_next_round_work_amount_from_readings);
         enable_runtime_analysis_plugin(&calc_next_round_work_amount_from_unit_readings);
         enable_runtime_analysis_plugin(&calc_next_round_work_amount_from_wps);
@@ -330,6 +334,12 @@ public:  // FIXME: most of the following members should be private and controlle
     size_t set_min_sample_size(size_t min_sample_size);
 
     void enable_runtime_analysis_plugin(calc_next_round_work_amount_func_t *p);
+
+    /**
+     * Set a runtime analysis plugin as finished
+     * @param p pointer to the analysis function
+     */
+    void finish_runtime_analysis_plugin(calc_next_round_work_amount_func_t *p);
 
     void set_baseline(size_t piid, pilot_reading_type_t rt,
                       double baseline_mean, size_t baseline_sample_size,

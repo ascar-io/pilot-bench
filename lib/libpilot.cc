@@ -948,7 +948,9 @@ ssize_t pilot_warm_up_removal_detect(const pilot_workload_t *wl,
 
     // we reject any round that is too short
     if (round_duration < wl->short_round_detection_threshold_) {
-        info_log << "Round duration shorter than 1 second, rejecting";
+        info_log << "Round duration shorter than the lower bound ("
+                 << wl->short_round_detection_threshold_ / ONE_SECOND
+                 << "s), rejecting";
         return num_of_readings;
     }
 
@@ -1099,16 +1101,38 @@ void pilot_set_required_confidence_interval(pilot_workload_t *wl, double percent
     wl->required_ci_absolute_value_ = absolute_value;
 }
 
+size_t calc_next_round_work_amount_meet_lower_bound(pilot_workload_t *wl) {
+    // use the init value for the first round
+    if (0 == wl->rounds_)
+        return 0 == wl->init_work_amount_ ? wl->max_work_amount_ / 10 : wl->init_work_amount_;
+
+    if (wl->round_durations_.back() < wl->short_round_detection_threshold_) {
+        info_log << "previous round duration (" << wl->round_durations_.back() << ") "
+                 << "is shorter than the lower bound (" << wl->short_round_detection_threshold_ << "), "
+                 "double the previous work amount";
+        return wl->round_work_amounts_.back() * 2;
+    } else if (wl->adjusted_min_work_amount_ < 0) {
+        info_log << "setting adjusted_min_work_amount to " << wl->round_work_amounts_.back();
+        wl->adjusted_min_work_amount_ = wl->round_work_amounts_.back();
+        wl->finish_runtime_analysis_plugin(&calc_next_round_work_amount_meet_lower_bound);
+    }
+    return 0;
+}
+
 size_t calc_next_round_work_amount_from_readings(pilot_workload_t *wl) {
-    // use the default value for first round
-    if (0 == wl->rounds_) return 0;
+    // use the init value for the first round
+    if (0 == wl->rounds_)
+        return 0 == wl->init_work_amount_ ? wl->max_work_amount_ / 10 : wl->init_work_amount_;
+
     // not implemented yet
     return 0;
 }
 
 size_t calc_next_round_work_amount_from_unit_readings(pilot_workload_t *wl) {
+    // use the init value for the first round
     if (0 == wl->rounds_)
         return 0 == wl->init_work_amount_ ? wl->max_work_amount_ / 10 : wl->init_work_amount_;
+
 
     size_t max_work_amount_needed = 0;
     for (size_t piid = 0; piid != wl->num_of_pi_; ++piid) {
@@ -1148,7 +1172,8 @@ size_t calc_next_round_work_amount_from_unit_readings(pilot_workload_t *wl) {
 
 size_t calc_next_round_work_amount_from_wps(pilot_workload_t *wl) {
     if (!wl->wps_must_satisfy_) return 0;
-    size_t wa_slice_size = wl->max_work_amount_ / wl->wps_slices_;
+    size_t min_wa = max(wl->adjusted_min_work_amount_, ssize_t(wl->min_work_amount_));
+    size_t wa_slice_size = (wl->max_work_amount_ - min_wa) / wl->wps_slices_;
     if (0 == wl->rounds_) return wa_slice_size;
 
     if (wl->rounds_ > 3) {
@@ -1163,15 +1188,20 @@ size_t calc_next_round_work_amount_from_wps(pilot_workload_t *wl) {
     }
 
     size_t last_round_wa = wl->round_work_amounts_.back();
+    if (last_round_wa < min_wa) {
+        return min_wa + wa_slice_size;
+    }
     if (last_round_wa > wl->max_work_amount_ - wa_slice_size) {
         wl->wps_slices_ *= 2;
         wa_slice_size /= 2;
-        return wa_slice_size;
+        return min_wa + wa_slice_size;
     }
-    return (last_round_wa / wa_slice_size + 1) * wa_slice_size;
+    // calculate the location of the next slice from last_round_wa
+    return min_wa + ((last_round_wa - min_wa) / wa_slice_size + 1) * wa_slice_size;
 }
 
 size_t calc_next_round_work_amount_for_comparison(pilot_workload_t *wl) {
+    // use the init value for the first round
     if (0 == wl->rounds_)
         return 0 == wl->init_work_amount_ ? wl->max_work_amount_ / 10 : wl->init_work_amount_;
 

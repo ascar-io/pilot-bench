@@ -823,6 +823,14 @@ void pilot_set_short_round_detection_threshold(pilot_workload_t *wl, nanosecond_
 void pilot_set_required_confidence_interval(pilot_workload_t *wl, double percent_of_mean, double absolute_value);
 
 /**
+ * \brief Calculate the work amount needed for the round duration to meet
+ * short_round_detection_threshold_
+ * @param[in] wl pointer to the workload struct
+ * @return the work amount needed
+ */
+size_t calc_next_round_work_amount_meet_lower_bound(pilot_workload_t *wl);
+
+/**
  * \brief Calculate the work amount for next round from readings data
  * @param[in] wl pointer to the workload struct
  * @return the work amount needed
