@@ -464,7 +464,7 @@ namespace csv {
                         }
 
                         int line_end = data_begin;
-                        while(buffer[line_end] != '\n' && line_end != data_end){
+                        while(line_end != data_end && buffer[line_end] != '\n'){
                                 ++line_end;
                         }
 
