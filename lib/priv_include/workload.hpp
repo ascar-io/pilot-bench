@@ -273,7 +273,14 @@ public:  // FIXME: most of the following members should be private and controlle
     }
 
     /**
-     * \brief Get the basic and analytical result of a workload
+     * \brief Refresh the analytical result (analytical_result_)
+     * \details This function is used mostly by the library internally. The
+     * user should consider using get_analytical_result().
+     */
+    void refresh_analytical_result(void) const;
+
+    /**
+     * \brief Get the analytical result of a workload
      * \details First this function update the cached analytical result if necessary.
      * If info is NULL, this function allocates memory for a
      * pilot_analytical_result_t, fills information, and returns it. If

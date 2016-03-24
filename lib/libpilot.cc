@@ -485,7 +485,7 @@ int pilot_export(const pilot_workload_t *wl, const char *dirname) {
         of.close();
 
         // refresh analytical result
-        wl->get_analytical_result();
+        wl->refresh_analytical_result();
         filename.str(string());
         filename << dirname << "/" << "wps_analysis.csv";
         of.exceptions(ofstream::failbit | ofstream::badbit);

@@ -118,7 +118,7 @@ ssize_t pilot_workload_t::required_num_of_readings(int piid) const {
 ssize_t pilot_workload_t::required_num_of_unit_readings_for_comparison(int piid) const {
     assert (baseline_of_unit_readings_[piid].set);
     // refresh the analytical result
-    get_analytical_result();
+    refresh_analytical_result();
     ssize_t q = analytical_result_.unit_readings_optimal_subsession_size[piid];
     if (q < 0)
         return -1;
@@ -199,99 +199,105 @@ size_t pilot_workload_t::calc_next_round_work_amount(void) {
 }
 
 pilot_analytical_result_t* pilot_workload_t::get_analytical_result(pilot_analytical_result_t *info) const {
-    if (raw_data_changed_time_ > analytical_result_update_time_) {
-        analytical_result_update_time_ = chrono::steady_clock::now();
-        analytical_result_.num_of_pi = num_of_pi_;
-        analytical_result_.num_of_rounds = rounds_;
-
-        for (size_t piid = 0; piid < num_of_pi_; ++piid) {
-            // Readings analysis
-            analytical_result_.readings_num[piid] = readings_[piid].size();
-            if (0 != analytical_result_.readings_num[piid]) {
-                analytical_result_.readings_mean_method[piid] = pi_info_[piid].reading_mean_method;
-                analytical_result_.readings_mean[piid] = pilot_subsession_mean(readings_[piid].begin(),
-                        readings_[piid].size(),
-                        analytical_result_.readings_mean_method[piid]);
-                double sm = analytical_result_.readings_mean[piid];
-                analytical_result_.readings_mean_formatted[piid] = format_reading(piid, analytical_result_.readings_mean[piid]);
-                analytical_result_.readings_num[piid] = readings_[piid].size();
-                analytical_result_.readings_var[piid] = pilot_subsession_var(readings_[piid].begin(),
-                        readings_[piid].size(),
-                        1,
-                        analytical_result_.readings_mean[piid],
-                        analytical_result_.readings_mean_method[piid]);
-                double var_rt = analytical_result_.readings_var[piid] / sm;
-                analytical_result_.readings_var_formatted[piid] = analytical_result_.readings_mean_formatted[piid] * var_rt;
-                analytical_result_.readings_autocorrelation_coefficient[piid] =
-                        pilot_subsession_autocorrelation_coefficient(readings_[piid].begin(),
-                                readings_[piid].size(), 1, analytical_result_.readings_mean[piid],
-                                analytical_result_.readings_mean_method[piid]);
-                analytical_result_.readings_optimal_subsession_size[piid] =
-                        pilot_optimal_subsession_size(readings_[piid].begin(), readings_[piid].size(),
-                                analytical_result_.readings_mean_method[piid]);
-                if (analytical_result_.readings_optimal_subsession_size[piid] > 0) {
-                    analytical_result_.readings_optimal_subsession_var[piid] =
-                            pilot_subsession_var(readings_[piid].begin(), readings_[piid].size(),
-                                    analytical_result_.readings_optimal_subsession_size[piid], analytical_result_.readings_mean[piid],
-                                    analytical_result_.readings_mean_method[piid]);
-                    double subsession_var_rt = analytical_result_.readings_optimal_subsession_var[piid] / sm;
-                    analytical_result_.readings_optimal_subsession_var_formatted[piid] = analytical_result_.readings_mean_formatted[piid] * subsession_var_rt;
-                    analytical_result_.readings_optimal_subsession_autocorrelation_coefficient[piid] =
-                            pilot_subsession_autocorrelation_coefficient(readings_[piid].begin(),
-                                    readings_[piid].size(), analytical_result_.readings_optimal_subsession_size[piid],
-                                    analytical_result_.readings_mean[piid], analytical_result_.readings_mean_method[piid]);
-                    analytical_result_.readings_optimal_subsession_ci_width[piid] =
-                            pilot_subsession_confidence_interval(readings_[piid].begin(),
-                                    readings_[piid].size(), analytical_result_.readings_optimal_subsession_size[piid],
-                                    confidence_level_, analytical_result_.readings_mean_method[piid]);
-                    double ci = analytical_result_.readings_optimal_subsession_ci_width[piid];
-                    double cif_low = format_reading(piid, sm - ci/2);
-                    double cif_high = format_reading(piid, sm + ci/2);
-                    analytical_result_.readings_optimal_subsession_ci_width_formatted[piid] = abs(cif_high - cif_low);
-                }
-                analytical_result_.readings_required_sample_size[piid] = required_num_of_readings(piid);
-            }
-
-            // Unit readings analysis
-            double sm = unit_readings_mean(piid);
-            analytical_result_.unit_readings_num[piid] = total_num_of_unit_readings_[piid];
-            if (0 == total_num_of_unit_readings_[piid]) {
-                // no data for the following calculation
-                continue;
-            }
-            analytical_result_.unit_readings_mean_method[piid] = pi_info_[piid].unit_reading_mean_method;
-            analytical_result_.unit_readings_mean[piid] = sm;
-            analytical_result_.unit_readings_mean_formatted[piid] = format_unit_reading(piid, sm);
-            analytical_result_.unit_readings_var[piid] = unit_readings_var(piid, 1);
-            double var_rt = analytical_result_.unit_readings_var[piid] / sm;
-            analytical_result_.unit_readings_var_formatted[piid] = var_rt * analytical_result_.unit_readings_mean_formatted[piid];
-            analytical_result_.unit_readings_autocorrelation_coefficient[piid] = unit_readings_autocorrelation_coefficient(piid, 1, ARITHMETIC_MEAN);
-            ssize_t q = pilot_optimal_subsession_size(pilot_pi_unit_readings_iter_t(this, piid),
-                    total_num_of_unit_readings_[piid], ARITHMETIC_MEAN);
-            analytical_result_.unit_readings_optimal_subsession_size[piid] = q;
-            if (analytical_result_.unit_readings_optimal_subsession_size[piid] > 0) {
-                analytical_result_.unit_readings_optimal_subsession_var[piid] = unit_readings_var(piid, q);
-                double subsession_var_rt = analytical_result_.unit_readings_optimal_subsession_var[piid] / sm;
-                analytical_result_.unit_readings_optimal_subsession_var_formatted[piid] = subsession_var_rt * analytical_result_.unit_readings_mean_formatted[piid];
-                analytical_result_.unit_readings_optimal_subsession_autocorrelation_coefficient[piid] = unit_readings_autocorrelation_coefficient(piid, q, ARITHMETIC_MEAN);
-                analytical_result_.unit_readings_optimal_subsession_ci_width[piid] =
-                        pilot_subsession_confidence_interval(pilot_pi_unit_readings_iter_t(this, piid), total_num_of_unit_readings_[piid], q, .95, ARITHMETIC_MEAN);
-                double ci = analytical_result_.unit_readings_optimal_subsession_ci_width[piid];
-                double cif_low = format_unit_reading(piid, sm - ci / 2);
-                double cif_high = format_unit_reading(piid, sm + ci / 2);
-                analytical_result_.unit_readings_optimal_subsession_ci_width_formatted[piid] = abs(cif_high - cif_low);
-            }
-            analytical_result_.unit_readings_required_sample_size[piid] = required_num_of_unit_readings(piid);
-        }
-        // WPS analysis data
-        refresh_wps_analysis_results();
-    }
+    refresh_analytical_result();
     if (!info) {
         info = new pilot_analytical_result_t(analytical_result_);
     } else {
         *info = analytical_result_;
     }
     return info;
+}
+
+void pilot_workload_t::refresh_analytical_result(void) const {
+    if (raw_data_changed_time_ <= analytical_result_update_time_) {
+        debug_log << "No need to refresh analytical result";
+        return;
+    }
+    analytical_result_update_time_ = chrono::steady_clock::now();
+    analytical_result_.num_of_pi = num_of_pi_;
+    analytical_result_.num_of_rounds = rounds_;
+
+    for (size_t piid = 0; piid < num_of_pi_; ++piid) {
+        // Readings analysis
+        analytical_result_.readings_num[piid] = readings_[piid].size();
+        if (0 != analytical_result_.readings_num[piid]) {
+            analytical_result_.readings_mean_method[piid] = pi_info_[piid].reading_mean_method;
+            analytical_result_.readings_mean[piid] = pilot_subsession_mean(readings_[piid].begin(),
+                    readings_[piid].size(),
+                    analytical_result_.readings_mean_method[piid]);
+            double sm = analytical_result_.readings_mean[piid];
+            analytical_result_.readings_mean_formatted[piid] = format_reading(piid, analytical_result_.readings_mean[piid]);
+            analytical_result_.readings_num[piid] = readings_[piid].size();
+            analytical_result_.readings_var[piid] = pilot_subsession_var(readings_[piid].begin(),
+                    readings_[piid].size(),
+                    1,
+                    analytical_result_.readings_mean[piid],
+                    analytical_result_.readings_mean_method[piid]);
+            double var_rt = analytical_result_.readings_var[piid] / sm;
+            analytical_result_.readings_var_formatted[piid] = analytical_result_.readings_mean_formatted[piid] * var_rt;
+            analytical_result_.readings_autocorrelation_coefficient[piid] =
+                    pilot_subsession_autocorrelation_coefficient(readings_[piid].begin(),
+                            readings_[piid].size(), 1, analytical_result_.readings_mean[piid],
+                            analytical_result_.readings_mean_method[piid]);
+            analytical_result_.readings_optimal_subsession_size[piid] =
+                    pilot_optimal_subsession_size(readings_[piid].begin(), readings_[piid].size(),
+                            analytical_result_.readings_mean_method[piid]);
+            if (analytical_result_.readings_optimal_subsession_size[piid] > 0) {
+                analytical_result_.readings_optimal_subsession_var[piid] =
+                        pilot_subsession_var(readings_[piid].begin(), readings_[piid].size(),
+                                analytical_result_.readings_optimal_subsession_size[piid], analytical_result_.readings_mean[piid],
+                                analytical_result_.readings_mean_method[piid]);
+                double subsession_var_rt = analytical_result_.readings_optimal_subsession_var[piid] / sm;
+                analytical_result_.readings_optimal_subsession_var_formatted[piid] = analytical_result_.readings_mean_formatted[piid] * subsession_var_rt;
+                analytical_result_.readings_optimal_subsession_autocorrelation_coefficient[piid] =
+                        pilot_subsession_autocorrelation_coefficient(readings_[piid].begin(),
+                                readings_[piid].size(), analytical_result_.readings_optimal_subsession_size[piid],
+                                analytical_result_.readings_mean[piid], analytical_result_.readings_mean_method[piid]);
+                analytical_result_.readings_optimal_subsession_ci_width[piid] =
+                        pilot_subsession_confidence_interval(readings_[piid].begin(),
+                                readings_[piid].size(), analytical_result_.readings_optimal_subsession_size[piid],
+                                confidence_level_, analytical_result_.readings_mean_method[piid]);
+                double ci = analytical_result_.readings_optimal_subsession_ci_width[piid];
+                double cif_low = format_reading(piid, sm - ci/2);
+                double cif_high = format_reading(piid, sm + ci/2);
+                analytical_result_.readings_optimal_subsession_ci_width_formatted[piid] = abs(cif_high - cif_low);
+            }
+            analytical_result_.readings_required_sample_size[piid] = required_num_of_readings(piid);
+        }
+
+        // Unit readings analysis
+        double sm = unit_readings_mean(piid);
+        analytical_result_.unit_readings_num[piid] = total_num_of_unit_readings_[piid];
+        if (0 == total_num_of_unit_readings_[piid]) {
+            // no data for the following calculation
+            continue;
+        }
+        analytical_result_.unit_readings_mean_method[piid] = pi_info_[piid].unit_reading_mean_method;
+        analytical_result_.unit_readings_mean[piid] = sm;
+        analytical_result_.unit_readings_mean_formatted[piid] = format_unit_reading(piid, sm);
+        analytical_result_.unit_readings_var[piid] = unit_readings_var(piid, 1);
+        double var_rt = analytical_result_.unit_readings_var[piid] / sm;
+        analytical_result_.unit_readings_var_formatted[piid] = var_rt * analytical_result_.unit_readings_mean_formatted[piid];
+        analytical_result_.unit_readings_autocorrelation_coefficient[piid] = unit_readings_autocorrelation_coefficient(piid, 1, ARITHMETIC_MEAN);
+        ssize_t q = pilot_optimal_subsession_size(pilot_pi_unit_readings_iter_t(this, piid),
+                total_num_of_unit_readings_[piid], ARITHMETIC_MEAN);
+        analytical_result_.unit_readings_optimal_subsession_size[piid] = q;
+        if (analytical_result_.unit_readings_optimal_subsession_size[piid] > 0) {
+            analytical_result_.unit_readings_optimal_subsession_var[piid] = unit_readings_var(piid, q);
+            double subsession_var_rt = analytical_result_.unit_readings_optimal_subsession_var[piid] / sm;
+            analytical_result_.unit_readings_optimal_subsession_var_formatted[piid] = subsession_var_rt * analytical_result_.unit_readings_mean_formatted[piid];
+            analytical_result_.unit_readings_optimal_subsession_autocorrelation_coefficient[piid] = unit_readings_autocorrelation_coefficient(piid, q, ARITHMETIC_MEAN);
+            analytical_result_.unit_readings_optimal_subsession_ci_width[piid] =
+                    pilot_subsession_confidence_interval(pilot_pi_unit_readings_iter_t(this, piid), total_num_of_unit_readings_[piid], q, .95, ARITHMETIC_MEAN);
+            double ci = analytical_result_.unit_readings_optimal_subsession_ci_width[piid];
+            double cif_low = format_unit_reading(piid, sm - ci / 2);
+            double cif_high = format_unit_reading(piid, sm + ci / 2);
+            analytical_result_.unit_readings_optimal_subsession_ci_width_formatted[piid] = abs(cif_high - cif_low);
+        }
+        analytical_result_.unit_readings_required_sample_size[piid] = required_num_of_unit_readings(piid);
+    }
+    // WPS analysis data
+    refresh_wps_analysis_results();
 }
 
 pilot_round_info_t* pilot_workload_t::round_info(size_t round, pilot_round_info_t *rinfo) const {
@@ -336,7 +342,7 @@ char* pilot_workload_t::text_round_summary(size_t round) const {
 char* pilot_workload_t::text_workload_summary(void) const {
     stringstream s;
     // refresh analytical result
-    get_analytical_result();
+    refresh_analytical_result();
 
     // Keep the text in Markdown format
     s << setprecision(4);
