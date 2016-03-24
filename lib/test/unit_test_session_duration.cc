@@ -75,8 +75,7 @@ int mock_workload_func(size_t work_amount,
     return 0;
 }
 
-ssize_t mock_calc_required_ur_func(const pilot_workload_t* wl, int piid
-        ) {
+ssize_t mock_calc_required_ur_func(const pilot_workload_t* wl, int piid) {
     if (g_test_round >= g_required_sample_size_per_round->size()) {
         cerr << __func__ << "(): more rounds than expected" << endl;
         abort();
@@ -94,6 +93,7 @@ void test_opt_session_duration(size_t work_amount_limit,
     pilot_set_num_of_pi(wl, 1);
     pilot_set_calc_required_unit_readings_func(wl, &mock_calc_required_ur_func);
     pilot_set_wps_analysis(wl, false);
+    pilot_set_short_round_detection_threshold(wl, 0);
     pilot_set_warm_up_removal_method(wl, NO_WARM_UP_REMOVAL);
 
     g_expected_work_amount_per_round = &expected_work_amount_per_round;
