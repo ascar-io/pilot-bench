@@ -228,6 +228,8 @@ int main(int argc, char **argv) {
     // we only display fatals because errors are expected in some test cases
     pilot_set_log_level(lv_fatal);
 
+    // this does away a gtest warning message, and we don't care about execution time
+    ::testing::FLAGS_gtest_death_test_style = "threadsafe";
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
 }
