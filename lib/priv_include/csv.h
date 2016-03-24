@@ -475,14 +475,12 @@ namespace csv {
                                 throw err;
                         }
 
-                        if(buffer[line_end] == '\n'){
-                                buffer[line_end] = '\0';
-                        }else{
+                        if(line_end == data_end) {
                                 // some files are missing the newline at the end of the
                                 // last line
                                 ++data_end;
-                                buffer[line_end] = '\0';
                         }
+                        buffer[line_end] = '\0';
 
                         // handle windows \r\n-line breaks
                         if(line_end != data_begin && buffer[line_end-1] == '\r')

@@ -84,6 +84,8 @@ TEST(PilotUnitCompareResults, LoadBaselineFromFile) {
     ASSERT_DOUBLE_EQ(666.66, bl_mean);
     ASSERT_DOUBLE_EQ(42.42, bl_var);
     ASSERT_EQ(ERR_NOT_INIT, pilot_get_baseline(wl, 4, UNIT_READING_TYPE, &bl_mean, &bl_sample_size, &bl_var));
+
+    pilot_destroy_workload(wl);
 }
 
 int main(int argc, char **argv) {

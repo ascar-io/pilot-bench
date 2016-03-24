@@ -566,7 +566,13 @@ int pilot_export(const pilot_workload_t *wl, const char *dirname) {
         filename << dirname << "/" << "summary.csv";
         of.exceptions(ofstream::failbit | ofstream::badbit);
         of.open(filename.str().c_str());
-        of << "piid,readings_num,readings_mean,readings_mean_formatted,readings_var,readings_var_formatted,unit_readings_num,unit_readings_mean,unit_readings_mean_formatted,unit_readings_var,unit_readings_var_formatted,unit_readings_ci_width,unit_readings_ci_width_formatted,unit_readings_optimal_subsession_size" << endl;
+        of << "piid,readings_num,readings_mean,readings_mean_formatted,"
+              "readings_var,readings_var_formatted,unit_readings_num,"
+              "unit_readings_mean,unit_readings_mean_formatted,"
+              "unit_readings_var,unit_readings_var_formatted,"
+              "unit_readings_subsession_var,unit_readings_subsession_var_formatted,"
+              "unit_readings_ci_width,unit_readings_ci_width_formatted,"
+              "unit_readings_optimal_subsession_size" << endl;
         for (size_t piid = 0; piid < wl->num_of_pi_; ++piid) {
             of << piid << "," << wl->analytical_result_.readings_num[piid] << ",";
             if (0 != wl->analytical_result_.readings_num[piid]) {
@@ -582,13 +588,19 @@ int pilot_export(const pilot_workload_t *wl, const char *dirname) {
             if (0 != wl->analytical_result_.unit_readings_num[piid]) {
                 of << wl->analytical_result_.unit_readings_mean[piid] << ","
                    << wl->analytical_result_.unit_readings_mean_formatted[piid] << ","
-                   << wl->analytical_result_.unit_readings_optimal_subsession_var[piid] << ","
-                   << wl->analytical_result_.unit_readings_optimal_subsession_var_formatted[piid] << ","
-                   << wl->analytical_result_.unit_readings_optimal_subsession_ci_width[piid] << ","
-                   << wl->analytical_result_.unit_readings_optimal_subsession_ci_width_formatted[piid] << ","
-                   << wl->analytical_result_.unit_readings_optimal_subsession_size[piid];
+                   << wl->analytical_result_.unit_readings_var[piid] << ","
+                   << wl->analytical_result_.unit_readings_var_formatted[piid] << ",";
+                if (wl->analytical_result_.unit_readings_optimal_subsession_size[piid] > 0) {
+                   of << wl->analytical_result_.unit_readings_optimal_subsession_var[piid] << ","
+                      << wl->analytical_result_.unit_readings_optimal_subsession_var_formatted[piid] << ","
+                      << wl->analytical_result_.unit_readings_optimal_subsession_ci_width[piid] << ","
+                      << wl->analytical_result_.unit_readings_optimal_subsession_ci_width_formatted[piid] << ","
+                      << wl->analytical_result_.unit_readings_optimal_subsession_size[piid];
+                } else {
+                    of << ",,,,";
+                }
             } else {
-                of << ",,,,,,";
+                of << ",,,,,,,,";
             }
             of << endl;
         }
