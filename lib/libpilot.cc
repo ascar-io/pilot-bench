@@ -59,6 +59,8 @@ using namespace std;
 using boost::timer::cpu_timer;
 using boost::timer::nanosecond_type;
 
+extern vector<int> EDM_multi(const double *Z, int n, int min_size=24, double beta=0, int degree=0);
+
 namespace pilot {
 
 stringstream g_in_mem_log_buffer;
@@ -110,6 +112,10 @@ void pilot_lib_self_check(int vmajor, int vminor, size_t nanosecond_type_size) {
     );
     core->add_sink(sink);
     g_console_log_sink = logging::add_console_log();
+}
+
+void pilot_free(void *p) {
+    free(p);
 }
 
 void pilot_remove_console_log_sink(void) {
@@ -926,6 +932,24 @@ pilot_optimal_sample_size_p(const double *data, size_t n,
                                      q, opt_sample_size,
                                      confidence_level,
                                      max_autocorrelation_coefficient);
+}
+
+int pilot_changepoint_detection(const double *data, size_t n,
+                                int **changepoints, size_t *cp_n) {
+    ASSERT_VALID_POINTER(changepoints);
+    ASSERT_VALID_POINTER(cp_n);
+    if (n < 24) {
+        error_log << __func__ << "() requires at least 24 data points";
+        return ERR_NOT_ENOUGH_DATA;
+    }
+    vector<int> t = EDM_multi(data, n);
+
+    // prepare result array from vector
+    size_t result_bytes = sizeof(double) * t.size();
+    *changepoints = (int*)malloc(result_bytes);
+    memcpy(*changepoints, t.data(), result_bytes);
+    *cp_n = t.size();
+    return 0;
 }
 
 int pilot_wps_warmup_removal_lr_method_p(size_t rounds, const size_t *round_work_amounts,

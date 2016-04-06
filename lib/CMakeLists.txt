@@ -1,4 +1,22 @@
 find_package (Threads)
+
+###############################################################################
+## Twitter BreakoutDetection LIBRARY
+
+ExternalProject_Add (twitter_breakoutdetection
+  GIT_REPOSITORY https://github.com/twitter/BreakoutDetection.git
+  GIT_TAG 7ae3fc4
+
+  PREFIX ${CMAKE_CURRENT_BINARY_DIR}/twitter_breakoutdetection
+  PATCH_COMMAND patch -p1 < ${CMAKE_CURRENT_LIST_DIR}/twitter_breakoutdetection_pilot.patch
+  CONFIGURE_COMMAND ""
+  BUILD_COMMAND ""
+  INSTALL_COMMAND ""
+)
+ExternalProject_Get_Property(twitter_breakoutdetection SOURCE_DIR)
+set (TWITTER_BREAKOUTDETECTION_INCLUDE_DIR ${SOURCE_DIR})
+
+
 # add the binary tree directory to the search path 
 # for include files
 include_directories (SYSTEM ${CMAKE_CURRENT_BINARY_DIR}/../gtest/src/gtest/include)
@@ -8,8 +26,10 @@ include_directories (priv_include)
 include_directories (SYSTEM ${CDK_INCLUDE_DIR})
 
 # the main library
-add_library (libpilot libpilot.cc workload.cc)
-add_dependencies (libpilot cdk)
+add_library (libpilot libpilot.cc workload.cc
+             ${TWITTER_BREAKOUTDETECTION_INCLUDE_DIR}/src/edm-multi.cpp
+             ${TWITTER_BREAKOUTDETECTION_INCLUDE_DIR}/src/helper.cpp)
+add_dependencies (libpilot cdk twitter_breakoutdetection)
 # needed by boost 1.59+
 add_definitions ("-std=gnu++11")
 # we should use target_compile_features() when everyone upgrades to cmake 3.1+

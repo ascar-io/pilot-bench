@@ -103,6 +103,11 @@ typedef void* pilot_malloc_func_t(size_t size);
 void* pilot_malloc_func(size_t size);
 
 /**
+ * \brief Free memory allocated by a pilot_malloc_func_t
+ */
+void pilot_free(void *p);
+
+/**
  * \brief A function from the library's user for running one benchmark and collecting readings.
  * @param[in] total_work_amount
  * @param[out] num_of_work_unit
@@ -737,6 +742,18 @@ pilot_optimal_sample_size_p(const double *data, size_t n,
                             size_t *q, size_t *opt_sample_size,
                             double confidence_level = 0.95,
                             double max_autocorrelation_coefficient = 0.1);
+
+/**
+ * \brief Detect changepoint of mean in data
+ * Use pilot_free() to free the memory you get in changepoints
+ * @param[in] data input data
+ * @param n size of input data
+ * @param[out] changepoints the detected points
+ * @param[out] cp_n the number of changepoints
+ * @return 0 on success; otherwise error code
+ */
+int pilot_changepoint_detection(const double *data, size_t n,
+        int **changepoints, size_t *cp_n);
 
 struct pilot_pi_unit_readings_iter_t;
 

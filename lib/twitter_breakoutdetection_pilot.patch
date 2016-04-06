@@ -1,0 +1,80 @@
+commit 8d0a29db58a97dd34f6292573003db9860033a14
+Author: Yan Li <yanli@soe.ucsc.edu>
+Date:   Wed Apr 6 11:46:24 2016 -0700
+
+    Patch to enable being compiled as a standalone library
+
+diff --git a/src/edm-multi.cpp b/src/edm-multi.cpp
+index 8c96601..6adb0f1 100644
+--- a/src/edm-multi.cpp
++++ b/src/edm-multi.cpp
+@@ -1,18 +1,20 @@
+-#include<Rcpp.h>
+ #include<set>
+ #include<algorithm>
+ #include<cmath>
+ #include"helper.h"
++#include<vector>
+ 
+-using namespace Rcpp;
+ using namespace std;
++typedef vector<int> List;
++typedef vector<double> NumericVector;
++typedef vector<int> IntegerVector;
+ 
+ //Z: time series
+ //min_size: minimum segment size
+ //beta: penalization term for the addition of a change point
+ 
+ // [[Rcpp::export]]
+-List EDM_multi(const NumericVector& Z, int min_size=24, double beta=0, int degree=0){
++List EDM_multi(const double *Z, int n, int min_size=24, double beta=0, int degree=0){
+ 
+ 	//identify which type of penalization to use
+ 	double (*G)(double);
+@@ -25,7 +27,6 @@ List EDM_multi(const NumericVector& Z, int min_size=24, double beta=0, int degre
+ 			break;
+ 	}
+ 
+-	int n = Z.size();
+ 	if(beta < 0)//assume that beta is a positive number
+ 		beta = -beta;
+ 	vector<int> prev(n+1,0);//store optimal location of previous change point
+@@ -93,5 +94,5 @@ List EDM_multi(const NumericVector& Z, int min_size=24, double beta=0, int degre
+ 	//return statment used for debugging
+ 	//return List::create(_["loc"]=ret, _["F"]=F, _["number"]=number,_["prev"]=prev);
+ 
+-	return List::create(_["loc"]=ret);
++	return ret;
+ }
+diff --git a/src/helper.cpp b/src/helper.cpp
+index ed1f1f6..cc4396a 100644
+--- a/src/helper.cpp
++++ b/src/helper.cpp
+@@ -1,9 +1,7 @@
+-#include<Rcpp.h>
+ #include<set>
+ #include<algorithm>
+ #include<cmath>
+ 
+-using namespace Rcpp;
+ using namespace std;
+ 
+ extern double Linear(double x){ return 1;}
+diff --git a/src/helper.h b/src/helper.h
+index c4bd4e2..4053f77 100644
+--- a/src/helper.h
++++ b/src/helper.h
+@@ -1,12 +1,10 @@
+ #ifndef my_help_func
+ #define my_help_func
+ 
+-#include<Rcpp.h>
+ #include<set>
+ #include<algorithm>
+ #include<cmath>
+ 
+-using namespace Rcpp;
+ using namespace std;
+ 
+ double get_median(const multiset<double>&, const multiset<double, std::greater<double> >&);

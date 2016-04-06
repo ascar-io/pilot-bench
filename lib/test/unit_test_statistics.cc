@@ -223,6 +223,23 @@ TEST(StatisticsUnitTest, TestSpeedOfLight) {
     ASSERT_NEAR(161.68977, ci_right, 0.00001);
 }
 
+TEST(StatisticsUnitTest, TestChangeInMean1) {
+    vector<double> data;
+    for (int i = 0; i < 30; ++i)
+        data.push_back(1.1);
+    for (int i = 0; i < 30; ++i)
+        data.push_back(5.1);
+    for (int i = 0; i < 30; ++i)
+        data.push_back(1.1);
+    int *changepoints;
+    size_t cp_n;
+    ASSERT_EQ(0, pilot_changepoint_detection(data.data(), data.size(), &changepoints, &cp_n));
+    ASSERT_EQ(2, cp_n);
+    ASSERT_EQ(30, changepoints[0]);
+    ASSERT_EQ(60, changepoints[1]);
+    pilot_free(changepoints);
+}
+
 int main(int argc, char **argv) {
     PILOT_LIB_SELF_CHECK;
     // we only display fatals because errors are expected in some test cases
