@@ -15,6 +15,12 @@ ExternalProject_Add (twitter_breakoutdetection
 )
 ExternalProject_Get_Property(twitter_breakoutdetection SOURCE_DIR)
 set (TWITTER_BREAKOUTDETECTION_INCLUDE_DIR ${SOURCE_DIR})
+# let the twitter_bd source files depend on the library so CMake will fetch the
+# externalproject before building
+add_custom_command(OUTPUT ${TWITTER_BREAKOUTDETECTION_INCLUDE_DIR}/src/edm-multi.cpp
+                   DEPENDS twitter_breakoutdetection COMMAND "")
+add_custom_command(OUTPUT ${TWITTER_BREAKOUTDETECTION_INCLUDE_DIR}/src/helper.cpp
+                   DEPENDS twitter_breakoutdetection COMMAND "")
 
 
 # add the binary tree directory to the search path 
@@ -30,6 +36,7 @@ add_library (libpilot libpilot.cc workload.cc
              ${TWITTER_BREAKOUTDETECTION_INCLUDE_DIR}/src/edm-multi.cpp
              ${TWITTER_BREAKOUTDETECTION_INCLUDE_DIR}/src/helper.cpp)
 add_dependencies (libpilot cdk twitter_breakoutdetection)
+
 # needed by boost 1.59+
 add_definitions ("-std=gnu++11")
 # we should use target_compile_features() when everyone upgrades to cmake 3.1+
