@@ -945,7 +945,7 @@ int pilot_changepoint_detection(const double *data, size_t n,
     vector<int> t = EDM_multi(data, n);
 
     // prepare result array from vector
-    size_t result_bytes = sizeof(double) * t.size();
+    size_t result_bytes = sizeof(int) * t.size();
     *changepoints = (int*)malloc(result_bytes);
     memcpy(*changepoints, t.data(), result_bytes);
     *cp_n = t.size();
