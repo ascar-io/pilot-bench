@@ -1,7 +1,7 @@
 /*
  * pilot.cc: main file for the command line pilot tool
  *
- * Copyright (c) 2015, University of California, Santa Cruz, CA, USA.
+ * Copyright (c) 2015, 2016, University of California, Santa Cruz, CA, USA.
  * Created by Yan Li <yanli@ucsc.edu, elliot.li.tech@gmail.com>,
  * Department of Computer Science, Baskin School of Engineering.
  *
@@ -31,6 +31,16 @@
  * OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+extern "C" {
+  #include <lua.h>
+  #include <lauxlib.h>
+  #include <lualib.h>
+  #include <prompt.h>
+}
+
 int main(int argc, char** argv) {
+    lua_State *L = luaL_newstate();
+    luaL_openlibs(L);               /* opens Lua basic library */
+    luap_enter(L);
     return 0;
 }
