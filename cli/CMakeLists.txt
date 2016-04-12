@@ -47,7 +47,7 @@ target_link_libraries (pilot ${CDK_LIBRARIES} ${LIBPILOT_LIBRARIES}
                        ${Boost_LIBRARIES} ${READLINE_LIBRARY} libluaprompt
                        ${LUA_LIBRARY})
 
-add_test (NAME func_test_lua_prompt
+add_test (NAME unit_test_lua_prompt
           COMMAND echo 'print("Hello world!")' | pilot | grep abc)
 
 install (TARGETS pilot DESTINATION bin)
