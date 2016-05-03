@@ -242,11 +242,17 @@ private:
      */
     void flush_buf(void) {
         while (draw_buf_.str().size() > 0) {
-            if (next_draw_pos_x_ + int(draw_buf_.str().size()) > inner_w_) {
-                print_str(draw_buf_.str().substr(0, inner_w_ - next_draw_pos_x_));
+            int avail_space = inner_w_ - next_draw_pos_x_;
+            if (avail_space < int(draw_buf_.str().size())) {
+                print_str(draw_buf_.str().substr(0, avail_space));
                 next_draw_pos_x_ = 0;
                 ++next_draw_pos_y_;
-                draw_buf_.str(draw_buf_.str().substr(inner_w_ - next_draw_pos_x_, draw_buf_.str().size() - (inner_w_ - next_draw_pos_x_)));
+                if (int(draw_buf_.str().size()) == avail_space) {
+                    draw_buf_.str(std::string()); draw_buf_.clear();
+                    return;
+                } else {
+                    draw_buf_.str(draw_buf_.str().substr(avail_space, draw_buf_.str().size() - avail_space));
+                }
             } else {
                 print_str(draw_buf_.str());
                 draw_buf_.str(std::string()); draw_buf_.clear();
@@ -276,13 +282,11 @@ private:
         use_highlight_color();
         draw_buf_ << std::setw(data_width) << std::setprecision(3) << data;
         // does the data fill in one line
-        if (draw_buf_.str().size() > inner_w_ - label.size()) {
-            ++next_draw_pos_y_;
-            next_draw_pos_x_ = 0;
-            // clear buf and redraw to make sure we draw all space before the
-            // data to clear old characters
+        if (int(draw_buf_.str().size()) > inner_w_ - next_draw_pos_x_) {
+            // print data and tail on next line
             draw_buf_.str(std::string()); draw_buf_.clear();
-            draw_buf_ << std::setw(data_width + label.size()) << data;
+            flush_buf_new_line();
+            draw_buf_ << std::setw(inner_w_ - tail.size()) << data;
         }
         flush_buf();
         //draw tail
