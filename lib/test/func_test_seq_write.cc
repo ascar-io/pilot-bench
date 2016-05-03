@@ -150,7 +150,7 @@ int workload_func(size_t total_work_amount,
         prev_ts = work_unit_elapsed_times[i];
     }
 
-    // We don't provide readings. Instead we will just use WPS analysis.
+    // We don't provide readings yet, and will just rely on WPS analysis.
     //(*readings)[time_pi] = (double)total_elapsed_time / ONE_SECOND;
     //(*readings)[tp_pi] = ((double)total_work_amount / MEGABYTE) / ((double)total_elapsed_time / ONE_SECOND);
     return 0;
@@ -186,6 +186,9 @@ bool post_workload_run_hook(pilot_workload_t* wl) {
 
 double ur_format_func(const pilot_workload_t* wl, double ur) {
     return double(g_io_size) / ur / MEGABYTE;
+}
+double wps_format_func(const pilot_workload_t* wl, double wps) {
+    return wps / MEGABYTE;
 }
 
 int main(int argc, char **argv) {
@@ -310,6 +313,7 @@ int main(int argc, char **argv) {
     pilot_workload_t *wl = pilot_new_workload("Sequential write");
     pilot_set_num_of_pi(wl, num_of_pi);
     pilot_set_pi_info(wl, 0, "Write throughput", "MB/s", NULL, ur_format_func);
+    pilot_wps_setting(wl, wps_format_func, true);
     pilot_set_work_amount_limit(wl, io_limit);
     pilot_set_init_work_amount(wl, init_length);
     pilot_set_workload_func(wl, &workload_func);

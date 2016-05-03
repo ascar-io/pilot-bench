@@ -43,7 +43,7 @@ EOF
 fi
 
 OUTPUT_DIR_NAME=seq-write
-TS=`date +%F_%T`
+TS=`date +%F_%H-%M-%S`
 declare -a OPTS
 while [ $# -ge 1 ]; do
     if [ "x$1" = "x-r" ]; then

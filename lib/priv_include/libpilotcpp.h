@@ -283,8 +283,8 @@ template <typename WorkAmountInputIterator, typename RoundDurationInputIterator>
 int pilot_wps_warmup_removal_lr_method(size_t rounds, WorkAmountInputIterator round_work_amounts_raw,
         RoundDurationInputIterator round_durations_raw,
         float autocorrelation_coefficient_limit, nanosecond_type duration_threshold,
-        double *alpha, double *v,
-        double *v_ci, double *ssr_out = NULL, double *ssr_percent_out = NULL, size_t *subsession_sample_size = NULL) {
+        double *wps_alpha, double *wps_v,
+        double *wps_v_ci, double *ssr_out = NULL, double *ssr_percent_out = NULL, size_t *subsession_sample_size = NULL) {
     // first we create copies of round_work_amounts and round_durations with
     // rounds that are shorter than round_durations filtered out
     std::vector<size_t> round_work_amounts;
@@ -339,24 +339,31 @@ int pilot_wps_warmup_removal_lr_method(size_t rounds, WorkAmountInputIterator ro
         }
     }
 
-    double inv_v;
-    simple_regression_model(subsession_work_amounts, subsession_round_durations, alpha, &inv_v);
-    *v = 1 / inv_v;
+    double wps_inv_v;
+    {
+        double wpns_inv_v;     // invert v of work amount per nanosecond
+        simple_regression_model(subsession_work_amounts, subsession_round_durations, wps_alpha, &wpns_inv_v);
+        wps_inv_v = wpns_inv_v / ONE_SECOND;
+        *wps_alpha /= ONE_SECOND;
+        *wps_v = ONE_SECOND / wpns_inv_v;
+    }
 
     double sub_session_ssr = 0;
     for (size_t i = 0; i < subsession_work_amounts.size(); ++i) {
         double wa = double(subsession_work_amounts[i]);
-        double dur = double(subsession_round_durations[i]);
-        sub_session_ssr += pow(*alpha + inv_v * wa - dur, 2);
+        double dur = double(subsession_round_durations[i]) / ONE_SECOND;
+        sub_session_ssr += pow(*wps_alpha + wps_inv_v * wa - dur, 2);
     }
+    info_log << __func__ << "(): sub_session_ssr: " << sub_session_ssr;
     double ssr = 0;
     double dur_sum = 0;
     for (size_t i = 0; i < rounds; ++i) {
         double wa = double(round_work_amounts_raw[i]);
-        double dur = double(round_durations_raw[i]);
-        ssr += pow(*alpha + inv_v * wa - dur, 2);
+        double dur = double(round_durations_raw[i]) / ONE_SECOND;
+        ssr += pow(*wps_alpha + wps_inv_v * wa - dur, 2);
         dur_sum += dur;
     }
+    info_log << __func__ << "(): ssr: " << ssr;
     if (ssr_out) *ssr_out = ssr;
     if (ssr_percent_out) *ssr_percent_out = sqrt(ssr) / dur_sum;
 
@@ -366,7 +373,7 @@ int pilot_wps_warmup_removal_lr_method(size_t rounds, WorkAmountInputIterator ro
     double std_err_v = sqrt(sigma_sqr / sum_var);
     double inv_v_ci = 2 * std_err_v;
     // inv_v - inv_v_ci might be negative so we have to use abs() here
-    *v_ci = std::abs( 1.0 / (inv_v - inv_v_ci) - 1.0 / (inv_v + inv_v_ci) );
+    *wps_v_ci = std::abs( 1.0 / (wps_inv_v - inv_v_ci) - 1.0 / (wps_inv_v + inv_v_ci) );
     return 0;
 }
 

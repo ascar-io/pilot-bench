@@ -41,6 +41,8 @@
 using namespace pilot;
 using namespace std;
 
+nanosecond_type const ONE_SECOND = 1000000000LL;
+
 /**
  * \details These sample response time are taken from [Ferrari78], page 79.
  */
@@ -88,7 +90,7 @@ TEST(StatisticsUnitTest, HarmonicMean) {
 
 TEST(StatisticsUnitTest, OrdinaryLeastSquareLinearRegression1) {
     const double exp_alpha = 42;
-    const double exp_v = 0.5;
+    const double exp_v = 0.5;       // 0.5 work amount per second
     const vector<size_t> work_amount{50, 100, 150, 200, 250};
     const vector<double> error{20, -9, -18, -25, 30};
     vector<nanosecond_type> t;
@@ -96,7 +98,7 @@ TEST(StatisticsUnitTest, OrdinaryLeastSquareLinearRegression1) {
     double exp_ssr = 0;
     for_each(error.begin(), error.end(), [&exp_ssr](double e) {exp_ssr += e*e;});
     for (size_t c : work_amount) {
-        t.push_back((1.0 / exp_v) * c + exp_alpha + *(p_error++));
+        t.push_back(ONE_SECOND * ((1.0 / exp_v) * c + exp_alpha + *(p_error++)));
     }
     double alpha, v, v_ci, ssr;
     pilot_wps_warmup_removal_lr_method_p(work_amount.size(),
@@ -136,8 +138,8 @@ TEST(StatisticsUnitTest, OrdinaryLeastSquareLinearRegression2) {
         0,  // duration threshold
         &alpha, &v, &v_ci, &ssr);
     ASSERT_NEAR(0, ssr, .001);
-    ASSERT_NEAR(-1541.7, alpha, .1);
-    ASSERT_NEAR(v_s, v, .1);
+    ASSERT_NEAR(-1541.7 / ONE_SECOND, alpha, .1 / ONE_SECOND);
+    ASSERT_NEAR(v_s * ONE_SECOND, v, .1);
     ASSERT_NEAR(0, v_ci, .001);
 }
 
@@ -151,10 +153,10 @@ TEST(StatisticsUnitTest, OrdinaryLeastSquareLinearRegression3) {
         1,  // autocorrelation_coefficient_limit
         0,  // duration threshold
         &alpha, &v, &v_ci, &ssr);
-    ASSERT_NEAR(2.059332e+17, ssr, 0.001e+17);
-    ASSERT_NEAR(2.0296e+9, alpha, .0001e+9);
-    ASSERT_NEAR(1.0/6.7485, v, .001);
-    ASSERT_DOUBLE_EQ(15.068212467990975, v_ci);
+    ASSERT_NEAR(0.2059332, ssr, 0.001);
+    ASSERT_NEAR(2.0296, alpha, .0001);
+    ASSERT_NEAR(ONE_SECOND / 6.7485, v, 10000);
+    ASSERT_NEAR(15068212467, v_ci, 1);
 }
 
 TEST(StatisticsUnitTest, OrdinaryLeastSquareLinearRegression4) {
@@ -167,10 +169,10 @@ TEST(StatisticsUnitTest, OrdinaryLeastSquareLinearRegression4) {
         1,  // autocorrelation_coefficient_limit
         0,  // duration threshold
         &alpha, &v, &v_ci, &ssr);
-    ASSERT_DOUBLE_EQ(5.9193307073836864e+17, ssr);
-    ASSERT_NEAR(2694596476, alpha, 1);
-    ASSERT_NEAR(1.0/5.7947, v, .001);
-    ASSERT_DOUBLE_EQ(0.11455029540768602, v_ci);
+    ASSERT_NEAR(0.59193307, ssr, 0.000001);
+    ASSERT_NEAR(2694596476 / ONE_SECOND, alpha, 1);
+    ASSERT_NEAR(172572240, v, 1);
+    ASSERT_NEAR(114550295, v_ci, 1);
 }
 
 TEST(StatisticsUnitTest, TestOfSignificance) {
