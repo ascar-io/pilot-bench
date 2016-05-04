@@ -353,14 +353,14 @@ private:
                           << var_rt * 100 << "%";
                 flush_buf_new_line();
 
-                draw_data_line("autocorrelation coefficient: ",
+                draw_data_line("autocor. coef.: ",
                                wi_.unit_readings_autocorrelation_coefficient[piid],
                                "");
                 size_t q = wi_.unit_readings_optimal_subsession_size[piid];
                 draw_data_line("optimal subsession size (q): ", q, "");
                 double subvar = wi_.unit_readings_optimal_subsession_var[piid];
                 double subvar_rt = subvar / sm;
-                draw_data_line("subsession variance: ", subvar_rt * format_ur(NULL, sm), "");
+                draw_data_line("subsession var: ", subvar_rt * format_ur(NULL, sm), "");
 
                 use_default_color();
                 label = "subvar. to mean ratio: ";
