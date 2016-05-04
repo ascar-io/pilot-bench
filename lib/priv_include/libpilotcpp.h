@@ -374,6 +374,7 @@ int pilot_wps_warmup_removal_lr_method(size_t rounds, WorkAmountInputIterator ro
     double inv_v_ci = 2 * std_err_v;
     // inv_v - inv_v_ci might be negative so we have to use abs() here
     *wps_v_ci = std::abs( 1.0 / (wps_inv_v - inv_v_ci) - 1.0 / (wps_inv_v + inv_v_ci) );
+    info_log << __func__ << "(): result wps_alpha " << *wps_alpha << ", wps_v " << *wps_v << ", wps_v_ci " << *wps_v_ci;
     return 0;
 }
 
