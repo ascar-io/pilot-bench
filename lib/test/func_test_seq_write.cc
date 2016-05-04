@@ -199,6 +199,8 @@ int main(int argc, char **argv) {
     desc.add_options()
             ("help", "produce help message")
             ("baseline,b", po::value<string>(), "the input file that contains baseline data for comparison")
+            ("ci,c", po::value<double>(), "the desired width of CI as percentage of its central value (default: 0.4)")
+            ("duration-limit,d", po::value<size_t>(), "the maximum duration of the benchmark in seconds (default: unlimited)")
             ("fsync,f", "call fsync() after each I/O request")
             ("io-size,s", po::value<size_t>(), "the size of I/O operations (default to 1 MB)")
             ("length-limit,l", po::value<size_t>(), "the max. length of the workload in bytes (default to 2048*1024*1024); "
@@ -210,6 +212,7 @@ int main(int argc, char **argv) {
             ("result,r", po::value<string>(), "set result directory name, (default to seq-write-dir)")
             ("no-tui", "disable the text user interface")
             ("warm-up-io,w", po::value<size_t>(), "the number of I/O operations that will be removed from the beginning as the warm-up phase (default to 1/10 of total IO ops)")
+            ("wps", "work amount per second (WPS) CI must meet requirement (default: no)")
             ("verbose,v", "print more debug information")
             ;
 
@@ -296,9 +299,23 @@ int main(int argc, char **argv) {
     if (vm.count("no-tui"))
         use_tui = false;
 
+    bool need_wps = false;
+    if (vm.count("wps"))
+        need_wps = true;
+
     string baseline_file;
     if (vm.count("baseline")) {
         baseline_file = vm["baseline"].as<string>();
+    }
+
+    size_t duration_limit = 0;
+    if (vm.count("duration-limit")) {
+        duration_limit = vm["duration-limit"].as<size_t>();
+    }
+
+    double ci_perc = 0.4;
+    if (vm.count("ci")) {
+        ci_perc = vm["ci"].as<double>();
     }
 
 //    size_t warmupio = io_limit / g_io_size / 5;
@@ -313,18 +330,19 @@ int main(int argc, char **argv) {
     pilot_workload_t *wl = pilot_new_workload("Sequential write");
     pilot_set_num_of_pi(wl, num_of_pi);
     pilot_set_pi_info(wl, 0, "Write throughput", "MB/s", NULL, ur_format_func);
-    pilot_wps_setting(wl, wps_format_func, true);
+    pilot_wps_setting(wl, wps_format_func, need_wps);
     pilot_set_work_amount_limit(wl, io_limit);
     pilot_set_init_work_amount(wl, init_length);
     pilot_set_workload_func(wl, &workload_func);
-    pilot_set_required_confidence_interval(wl, 0.4, -1);
+    pilot_set_required_confidence_interval(wl, ci_perc, -1);
     if (0 != baseline_file.size())
         pilot_load_baseline_file(wl, baseline_file.c_str());
     // Set up hooks for displaying progress information
     pilot_set_hook_func(wl, PRE_WORKLOAD_RUN, &pre_workload_run_hook);
     pilot_set_hook_func(wl, POST_WORKLOAD_RUN, &post_workload_run_hook);
-    // Run for at most 3 minutes
-    pilot_set_session_duration_limit(wl, 4*60);
+    if (0 != duration_limit) {
+        pilot_set_session_duration_limit(wl, duration_limit);
+    }
     pilot_set_autocorrelation_coefficient(wl, 1);
 
     int res;
