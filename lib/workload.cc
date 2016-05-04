@@ -437,7 +437,7 @@ void pilot_workload_t::refresh_wps_analysis_results(void) const {
     analytical_result_.wps_naive_v_err = 0;
     for (size_t i = 0; i < rounds_; ++i) {
         double wa  = double(round_work_amounts_[i]);
-        double dur = double(round_durations_[i]);
+        double dur = double(round_durations_[i]) / ONE_SECOND;
         analytical_result_.wps_naive_v_err += pow(wa / analytical_result_.wps_harmonic_mean - dur, 2);
     }
     analytical_result_.wps_naive_v_err_percent = sqrt(analytical_result_.wps_naive_v_err) / sum_of_round_durations;
