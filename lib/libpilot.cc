@@ -347,6 +347,10 @@ int pilot_run_workload(pilot_workload_t *wl) {
             }
         }
     }
+
+    // calculate and update the total duration
+    std::chrono::duration<double> diff = std::chrono::steady_clock::now() - session_start_time;
+    wl->analytical_result_.session_duration += diff.count();
     return result;
 }
 
@@ -747,6 +751,7 @@ void pilot_analytical_result_t::_copyfrom(const pilot_analytical_result_t &a) {
     }
     COPY_FIELD(wps_v_dw_method);
     COPY_FIELD(wps_v_ci_dw_method);
+    COPY_FIELD(session_duration);
 #undef COPY_FIELD
 }
 

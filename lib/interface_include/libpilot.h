@@ -558,6 +558,7 @@ pilot_round_info_t* pilot_round_info(const pilot_workload_t *wl, size_t round, p
 struct pilot_analytical_result_t {
     size_t  num_of_pi;
     size_t  num_of_rounds;
+    double  session_duration;          //! the total session duration so far
     // Readings analysis
     size_t* readings_num;              //! the following readings fields are undefined if readings_num is 0
     double* readings_mean;             //! the mean of all readings so far according to PI reading's mean method
