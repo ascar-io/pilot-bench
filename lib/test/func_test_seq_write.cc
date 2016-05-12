@@ -60,6 +60,7 @@ size_t g_io_size = 1024*1024*1;
 string g_output_file_name;
 char *g_io_buf;
 bool g_fsync = false;
+bool g_quiet_mode = false;
 
 // We are using two PIs. 0 is time per I/O, 1 is throughput per I/O.
 enum piid_t {
@@ -158,6 +159,8 @@ int workload_func(size_t total_work_amount,
 
 static int g_current_round = 0;
 bool pre_workload_run_hook(pilot_workload_t* wl) {
+    if (g_quiet_mode) return true;
+
     g_current_round = pilot_get_num_of_rounds(wl);
     pilot_ui_printf(wl, "Round %d started with %zu MB/s work amount ...\n",
                     g_current_round, pilot_next_round_work_amount(wl) / MEGABYTE);
@@ -165,6 +168,8 @@ bool pre_workload_run_hook(pilot_workload_t* wl) {
 }
 
 bool post_workload_run_hook(pilot_workload_t* wl) {
+    if (g_quiet_mode) return true;
+
     stringstream ss;
     char *buf;
     ss << "Round finished" << endl;
@@ -209,6 +214,7 @@ int main(int argc, char **argv) {
                     "the workload will start from this length and be gradually repeated or increased until the desired "
                     "confidence level is reached")
             ("output,o", po::value<string>(), "set output file name, can be a device. WARNING: the file will be overwritten if it exists.")
+            ("quiet,q", "quiet mode. Print results in this format: URResult,URCI,URVar,WPSa,WPSv,WPSvCI,WPSvVar,TestDuration. Quiet mode always enables --no-tui.")
             ("result,r", po::value<string>(), "set result directory name, (default to seq-write-dir)")
             ("no-tui", "disable the text user interface")
             ("warm-up-io,w", po::value<size_t>(), "the number of I/O operations that will be removed from the beginning as the warm-up phase (default to 1/10 of total IO ops)")
@@ -231,9 +237,23 @@ int main(int argc, char **argv) {
     }
 
     // verbose
-    pilot_set_log_level(lv_warning);
+    pilot_set_log_level(lv_info);
     if (vm.count("verbose")) {
+        if (vm.count("quiet")) {
+            cerr << "--verbose and --quiet cannot be used at the same time";
+            return 2;
+        }
         pilot_set_log_level(lv_trace);
+    }
+
+    bool use_tui = true;
+    if (vm.count("no-tui"))
+        use_tui = false;
+
+    if (vm.count("quiet")) {
+        pilot_set_log_level(lv_warning);
+        g_quiet_mode = true;
+        use_tui = false;
     }
 
     // fsync
@@ -244,16 +264,18 @@ int main(int argc, char **argv) {
     size_t io_limit = 2048*1024*1024L;
     if (vm.count("output")) {
         g_output_file_name = vm["output"].as<string>();
-        cout << "Output file is set to " << g_output_file_name << endl;
+        if (!g_quiet_mode) {
+            cout << "Output file is set to " << g_output_file_name << endl;
+        }
     } else {
-        cout << "Error: output file was not set." << endl;
-        cout << desc << endl;
+        cerr << "Error: output file was not set." << endl;
+        cerr << desc << endl;
         return 2;
     }
 
     if (vm.count("io-size")) {
         if (vm["io-size"].as<size_t>() <= 0) {
-            cout << "I/O size must be larger than 0" << endl;
+            cerr << "I/O size must be larger than 0" << endl;
             return 1;
         }
         g_io_size = vm["io-size"].as<size_t>();
@@ -268,25 +290,29 @@ int main(int argc, char **argv) {
     g_io_buf = new char[g_io_size];
     for (size_t i = 0; i < g_io_size; ++i)
         g_io_buf[i] = (char)i + 42;
-    cout << "I/O size is set to ";
-    if (g_io_size >= MEGABYTE) {
-        cout << g_io_size / MEGABYTE << " MB" << endl;
-    } else {
-        cout << g_io_size << " bytes" << endl;
+    if (!g_quiet_mode) {
+        cout << "I/O size is set to ";
+        if (g_io_size >= MEGABYTE) {
+            cout << g_io_size / MEGABYTE << " MB" << endl;
+        } else {
+            cout << g_io_size << " bytes" << endl;
+        }
     }
 
     if (vm.count("length-limit")) {
         if (vm["length-limit"].as<size_t>() <= 0) {
-            cout << "I/O limit must be larger than 0" << endl;
+            cerr << "I/O limit must be larger than 0" << endl;
             return 1;
         }
         io_limit = vm["length-limit"].as<size_t>();
     }
-    cout << "I/O limit is set to ";
-    if (io_limit >= MEGABYTE) {
-        cout << io_limit / MEGABYTE << " MB"<< endl;
-    } else {
-        cout << io_limit << " bytes" << endl;
+    if (!g_quiet_mode) {
+        cout << "I/O limit is set to ";
+        if (io_limit >= MEGABYTE) {
+            cout << io_limit / MEGABYTE << " MB"<< endl;
+        } else {
+            cout << io_limit << " bytes" << endl;
+        }
     }
 
     size_t init_length;
@@ -294,10 +320,6 @@ int main(int argc, char **argv) {
         init_length = vm["init-length"].as<size_t>();
     else
         init_length = io_limit / 5;
-
-    bool use_tui = true;
-    if (vm.count("no-tui"))
-        use_tui = false;
 
     bool need_wps = false;
     if (vm.count("wps"))
@@ -354,7 +376,10 @@ int main(int argc, char **argv) {
             cout << pilot_strerror(res) << endl;
         }
     }
-    pilot_ui_printf(wl, "Benchmark finished\n");
+
+    if (!g_quiet_mode) {
+        pilot_ui_printf(wl, "Benchmark finished\n");
+    }
 
     //const double* time_readings = pilot_get_pi_unit_readings(wl, time_pi, 0, &num_of_work_units) + warmupio;
     //num_of_work_units -= warmupio;
@@ -364,7 +389,25 @@ int main(int argc, char **argv) {
         cout << pilot_strerror(res) << endl;
         return res;
     }
-    pilot_ui_printf_hl(wl, "Benchmark results are saved to %s\n", result_dir_name.c_str());
+    if (!g_quiet_mode) {
+        pilot_ui_printf_hl(wl, "Benchmark results are saved to %s\n", result_dir_name.c_str());
+    } else {
+        pilot_analytical_result_t *r = pilot_analytical_result(wl, NULL);
+        // format: URResult,URCI,URVar,WPSa,WPSv,WPSvCI,TestDuration
+        cout << r->unit_readings_mean_formatted[0] << ","
+             << r->unit_readings_optimal_subsession_ci_width_formatted[0] << ","
+             << r->unit_readings_optimal_subsession_var_formatted[0] << ",";
+        if (r->wps_has_data) {
+            cout << r->wps_alpha_formatted << ","
+                 << r->wps_v_formatted << ","
+                 << r->wps_v_ci_formatted << ",";
+        } else {
+            cout << ",,,";
+        }
+        cout << r->session_duration << endl;
+        pilot_free_analytical_result(r);
+    }
+
     if (pilot_destroy_workload(wl) != 0) {
         cerr << ("pilot_destroy_workload failed");
         abort();
