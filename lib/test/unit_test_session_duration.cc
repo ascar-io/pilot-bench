@@ -42,7 +42,6 @@
 using namespace pilot;
 using namespace std;
 
-static size_t g_test_round = 0;
 static size_t g_work_amount_limit;
 static const int g_num_of_pi = 1;
 static vector<int> *g_expected_work_amount_per_round = NULL;
@@ -76,11 +75,12 @@ int mock_workload_func(size_t work_amount,
 }
 
 ssize_t mock_calc_required_ur_func(const pilot_workload_t* wl, int piid) {
-    if (g_test_round >= g_required_sample_size_per_round->size()) {
+    size_t test_rounds = wl->rounds_;
+    if (test_rounds >= g_required_sample_size_per_round->size()) {
         cerr << __func__ << "(): more rounds than expected" << endl;
         abort();
     }
-    return (*g_required_sample_size_per_round)[g_test_round++];
+    return (*g_required_sample_size_per_round)[test_rounds];
 }
 
 void test_opt_session_duration(size_t work_amount_limit,
@@ -91,21 +91,25 @@ void test_opt_session_duration(size_t work_amount_limit,
     pilot_set_workload_func(wl, &mock_workload_func);
     pilot_set_work_amount_limit(wl, work_amount_limit);
     pilot_set_num_of_pi(wl, 1);
+    pilot_set_pi_info(wl, 0, "TestPI", "tick", NULL, NULL,
+                      false,  /* reading must satisfy */
+                      true);  /* unit readings must satisfy */
     pilot_set_calc_required_unit_readings_func(wl, &mock_calc_required_ur_func);
-    pilot_set_wps_analysis(wl, false);
+    pilot_set_wps_analysis(wl, false, false);
     pilot_set_short_round_detection_threshold(wl, 0);
     pilot_set_warm_up_removal_method(wl, NO_WARM_UP_REMOVAL);
 
     g_expected_work_amount_per_round = &expected_work_amount_per_round;
     g_required_sample_size_per_round = &required_sample_size_per_round;
     g_work_amount_limit = work_amount_limit;
-    g_test_round = 0;
+
     int res = pilot_run_workload(wl);
     if (0 != res) {
         cerr << "pilot_run_workload() returned " << res << endl;
         abort();
     }
-    if (g_test_round != g_required_sample_size_per_round->size()) {
+
+    if (wl->rounds_ != g_expected_work_amount_per_round->size()) {
         cerr << __func__ << "(): not enough rounds" << endl;
         abort();
     }
@@ -125,9 +129,9 @@ TEST(PilotRunWorkloadTest, CalculatingOptimalSessionDuration) {
     // expected_work_amount_per_round[1], .2 is the ratio of safety buffer).
     pilot_set_log_level(lv_warning);
     test_opt_session_duration(
-            50,          // work_amount_limit
-            { 5, 12},    // expected_work_amount_per_round
-            {15, 15});   // required_sample_size_per_round
+            50,              // work_amount_limit
+            { 5, 12},        // expected_work_amount_per_round
+            {15, 15, 15});   // required_sample_size_per_round
     //! TODO: a test case whose average num of work units per work amount != 1
     //! TODO: a test case for multiple PIs that each of which has a different work_unit_per_amount ratio
 }
@@ -137,6 +141,7 @@ TEST(PilotRunWorkloadTest, TestCalcNextRoundWorkAmountFromWPS) {
     size_t wa_limit = 1000;
     size_t wa_slice_size = wa_limit / kWPSInitSlices;
     pilot_set_work_amount_limit(wl, wa_limit);
+    pilot_set_wps_analysis(wl, true, true);
     size_t wa;
     ASSERT_TRUE(calc_next_round_work_amount_from_wps(wl, &wa));
     ASSERT_EQ(wa_slice_size, wa);

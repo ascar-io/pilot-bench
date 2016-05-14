@@ -185,7 +185,7 @@ ssize_t pilot_workload_t::required_num_of_unit_readings(int piid) const {
 
 }
 
-bool pilot_workload_t::calc_next_round_work_amount(size_t *needed_work_amount) const {
+bool pilot_workload_t::calc_next_round_work_amount(size_t * const needed_work_amount) const {
     if (next_round_work_amount_hook_) {
         return next_round_work_amount_hook_(this, needed_work_amount);
     }
@@ -206,7 +206,6 @@ bool pilot_workload_t::calc_next_round_work_amount(size_t *needed_work_amount) c
             // workload doesn't support setting work amount
             return true;
         } else {
-        needed_work_amount = 0;
             *needed_work_amount = (0 == init_work_amount_) ? max_work_amount_ / 10 : init_work_amount_;
             return true;
         }
@@ -238,7 +237,7 @@ void pilot_workload_t::refresh_analytical_result(void) const {
     for (size_t piid = 0; piid < num_of_pi_; ++piid) {
         // Readings analysis
         analytical_result_.readings_num[piid] = readings_[piid].size();
-        if (3 < analytical_result_.readings_num[piid]) {
+        if (2 <= analytical_result_.readings_num[piid]) {
             analytical_result_.readings_mean_method[piid] = pi_info_[piid].reading_mean_method;
             analytical_result_.readings_mean[piid] = pilot_subsession_mean(readings_[piid].begin(),
                     readings_[piid].size(),
@@ -429,19 +428,13 @@ char* pilot_workload_t::text_workload_summary(void) const {
     return result;
 }
 
-bool pilot_workload_t::set_wps_analysis(bool enabled) {
-    for (auto &r : runtime_analysis_plugins_) {
-        if (&calc_next_round_work_amount_from_wps == r.calc_next_round_work_amount) {
-            bool old_enabled = r.enabled;
-            r.enabled = enabled;
-            return old_enabled;
-        }
-    }
-    if (enabled) {
-        info_log << "WPS analysis plugin not loaded";
+void pilot_workload_t::set_wps_analysis(bool enabled, bool wps_must_satisfy) {
+    if (wps_must_satisfy && !enabled) {
+        fatal_log << __func__ << "(): WPS analysis is not enabled yet satisfaction is required";
         abort();
     }
-    return false;
+    wps_must_satisfy_ = wps_must_satisfy;
+    load_runtime_analysis_plugin(calc_next_round_work_amount_from_wps, enabled);
 }
 
 void pilot_workload_t::refresh_wps_analysis_results(void) const {
@@ -527,14 +520,15 @@ size_t pilot_workload_t::set_min_sample_size(size_t min_sample_size) {
     return old_min_sample_size;
 }
 
-void pilot_workload_t::enable_runtime_analysis_plugin(next_round_work_amount_hook_t *p) {
+void pilot_workload_t::load_runtime_analysis_plugin(next_round_work_amount_hook_t *p, bool enabled) const {
     for (auto &c : runtime_analysis_plugins_) {
         if (p == c.calc_next_round_work_amount) {
-            c.enabled = true;
+            c.enabled = enabled;
             return;
         }
     }
-    runtime_analysis_plugins_.emplace_back(true, p);
+    // not found, need to add it
+    runtime_analysis_plugins_.emplace_back(enabled, p);
 }
 
 void pilot_workload_t::finish_runtime_analysis_plugin(next_round_work_amount_hook_t *p) const {

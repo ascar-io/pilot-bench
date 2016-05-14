@@ -601,12 +601,12 @@ struct pilot_analytical_result_t {
     double* unit_readings_optimal_subsession_ci_width_formatted;
     ssize_t* unit_readings_required_sample_size;
     // Work amount-per-second analysis
+    bool   wps_has_data;               //! whether the following fields have data
     size_t wps_subsession_sample_size; //! sample size after merging adjacent samples to reduce autocorrelation coefficient
     double wps_harmonic_mean;          //! wps is a rate so only harmonic mean is valid
     double wps_harmonic_mean_formatted;
     double wps_naive_v_err;
     double wps_naive_v_err_percent;
-    bool   wps_has_data;               //! whether the following fields have data
     double wps_alpha;                  //! the alpha as in t = alpha + v*w
     double wps_alpha_formatted;
     double wps_v;                      //! the v as in t = alpha + v*w
@@ -922,10 +922,10 @@ bool calc_next_round_work_amount_for_comparison(const pilot_workload_t *wl, size
 /**
  * \brief Set if WPS analysis should be enabled
  * @param[in] wl pointer to the workload struct
- * @param enabled
- * @return previous setting
+ * @param enabled if WPS analysis is enabled
+ * @param wps_must_satisfy if WPS CI must satisfy
  */
-bool pilot_set_wps_analysis(pilot_workload_t *wl, bool enabled);
+void pilot_set_wps_analysis(pilot_workload_t *wl, bool enabled, bool wps_must_satisfy);
 
 /**
  * \brief Set the duration limit for running a session. The session will stop after

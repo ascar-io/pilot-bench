@@ -78,21 +78,19 @@ public:
     pilot_display_format_functor format_unit_reading;
     bool reading_must_satisfy;
     bool unit_reading_must_satisfy;
-    bool wps_must_satisfy;
     pilot_mean_method_t reading_mean_method;
     pilot_mean_method_t unit_reading_mean_method;
 
     pilot_pi_info_t(std::string _name = "", std::string _unit = "",
            pilot_pi_display_format_func_t *_r_format_func = NULL,
            pilot_pi_display_format_func_t *_ur_format_func = NULL,
-           bool _r_sat = false, bool _ur_sat = false,
-           bool _wps_sat = false,
+           bool _r_sat = true, bool _ur_sat = true,
            pilot_mean_method_t _reading_mean_method = ARITHMETIC_MEAN,
            pilot_mean_method_t _unit_reading_mean_method = ARITHMETIC_MEAN) :
         name(_name), unit(_unit), format_reading(_r_format_func),
         format_unit_reading(_ur_format_func),
         reading_must_satisfy(_r_sat), unit_reading_must_satisfy(_ur_sat),
-        wps_must_satisfy(_wps_sat), reading_mean_method(_reading_mean_method),
+        reading_mean_method(_reading_mean_method),
         unit_reading_mean_method(_unit_reading_mean_method) {}
 };
 
@@ -131,7 +129,7 @@ public:  // FIXME: most of the following members should be private and controlle
     pilot_workload_func_t *workload_func_;
     std::vector<pilot_pi_info_t> pi_info_;
     pilot_display_format_functor format_wps_;
-    bool wps_must_satisfy_;
+    bool wps_must_satisfy_;                          //! if the result of WPS analysis must satisfy
     size_t min_sample_size_;                         //! the lower threshold of sample size. Do not change it directly, use set_min_sample_size().
 
     double confidence_interval_;
@@ -190,7 +188,7 @@ public:  // FIXME: most of the following members should be private and controlle
                          max_work_amount_(0), min_work_amount_(0),
                          adjusted_min_work_amount_(-1),
                          workload_func_(nullptr),
-                         wps_must_satisfy_(true), min_sample_size_(200),
+                         wps_must_satisfy_(false), min_sample_size_(200),
                          confidence_interval_(0.05), confidence_level_(.95),
                          autocorrelation_coefficient_limit_(0.1),
                          required_ci_percent_of_mean_(0.1), required_ci_absolute_value_(-1),
@@ -209,10 +207,10 @@ public:  // FIXME: most of the following members should be private and controlle
                          calc_required_readings_func_(NULL),
                          calc_required_unit_readings_func_(NULL), tui_(NULL) {
         if (wl_name) workload_name_ = wl_name;
-        enable_runtime_analysis_plugin(&calc_next_round_work_amount_meet_lower_bound);
-        enable_runtime_analysis_plugin(&calc_next_round_work_amount_from_readings);
-        enable_runtime_analysis_plugin(&calc_next_round_work_amount_from_unit_readings);
-        enable_runtime_analysis_plugin(&calc_next_round_work_amount_from_wps);
+        load_runtime_analysis_plugin(&calc_next_round_work_amount_meet_lower_bound);
+        load_runtime_analysis_plugin(&calc_next_round_work_amount_from_readings);
+        load_runtime_analysis_plugin(&calc_next_round_work_amount_from_unit_readings);
+        load_runtime_analysis_plugin(&calc_next_round_work_amount_from_wps);
     }
 
     /**
@@ -264,7 +262,7 @@ public:  // FIXME: most of the following members should be private and controlle
      * amount. Always use the return value to decide if more rounds are needed.
      * @return true if more rounds are needed; false if no more rounds are needed
      */
-    bool calc_next_round_work_amount(size_t *needed_work_amount) const;
+    bool calc_next_round_work_amount(size_t * const needed_work_amount) const;
 
     inline double calc_avg_work_unit_per_amount(int piid) const {
         size_t total_work_units = 0;
@@ -340,13 +338,25 @@ public:  // FIXME: most of the following members should be private and controlle
         return format_wps_(this, wps);
     }
 
-    bool set_wps_analysis(bool enabled);
+    void set_wps_analysis(bool enabled, bool wps_must_satisfy);
     void refresh_wps_analysis_results(void) const;
 
     size_t set_session_duration_limit(size_t sec);
     size_t set_min_sample_size(size_t min_sample_size);
 
-    void enable_runtime_analysis_plugin(next_round_work_amount_hook_t *p);
+    /**
+     * \brief Load and optionally enable a runtime analysis plugin
+     * @param p pointer to the plugin func
+     */
+    void load_runtime_analysis_plugin(next_round_work_amount_hook_t *p, bool enabled = true) const;
+
+    /**
+     * \brief Load and enable a runtime analysis plugin
+     * @param p pointer to the plugin func
+     */
+    inline void enable_runtime_analysis_plugin(next_round_work_amount_hook_t *p) {
+        load_runtime_analysis_plugin(p, true);
+    }
 
     /**
      * Set a runtime analysis plugin as finished

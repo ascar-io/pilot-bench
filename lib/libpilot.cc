@@ -1211,6 +1211,9 @@ bool calc_next_round_work_amount_from_readings(const pilot_workload_t *wl, size_
     }
 
     for (size_t piid = 0; piid != wl->num_of_pi_; ++piid) {
+        if (!wl->pi_info_[piid].reading_must_satisfy) {
+            continue;
+        }
         if (0 == wl->total_num_of_readings_[piid]) {
             // no need to do anything if this PIID has no unit reading
             continue;
@@ -1241,6 +1244,9 @@ bool calc_next_round_work_amount_from_unit_readings(const pilot_workload_t *wl, 
     bool need_more_rounds = false;
     size_t max_work_amount_needed = 0;
     for (size_t piid = 0; piid != wl->num_of_pi_; ++piid) {
+        if (!wl->pi_info_[piid].unit_reading_must_satisfy) {
+            continue;
+        }
         if (0 == wl->total_num_of_unit_readings_[piid]) {
             // no need to do anything if this PIID has no unit reading
             continue;
@@ -1287,17 +1293,16 @@ bool calc_next_round_work_amount_from_unit_readings(const pilot_workload_t *wl, 
 
 bool calc_next_round_work_amount_from_wps(const pilot_workload_t *wl, size_t *needed_work_amount) {
     *needed_work_amount = 0;
-    if (!wl->wps_must_satisfy_) {
+    if (0 == wl->max_work_amount_) {
+        debug_log << "max_work_amount is not set, disabling WPS analysis";
+        wl->load_runtime_analysis_plugin(calc_next_round_work_amount_from_wps, false);
         return false;
-    } else if (0 == wl->max_work_amount_) {
-        fatal_log << "WPS analysis is needed but max_work_amount is not set. Exiting...";
-        exit(ERR_WRONG_PARAM);
     }
     size_t min_wa = max(wl->adjusted_min_work_amount_, ssize_t(wl->min_work_amount_));
     size_t wa_slice_size = (wl->max_work_amount_ - min_wa) / wl->wps_slices_;
     if (0 == wl->rounds_) {
         *needed_work_amount = wa_slice_size;
-        return true;
+        return wl->wps_must_satisfy_;
     }
 
     if (wl->rounds_ > 3) {
@@ -1314,17 +1319,17 @@ bool calc_next_round_work_amount_from_wps(const pilot_workload_t *wl, size_t *ne
     size_t last_round_wa = wl->round_work_amounts_.back();
     if (last_round_wa < min_wa) {
         *needed_work_amount = min_wa + wa_slice_size;
-        return true;
+        return wl->wps_must_satisfy_;
     }
     if (last_round_wa > wl->max_work_amount_ - wa_slice_size) {
         wl->wps_slices_ *= 2;
         wa_slice_size /= 2;
         *needed_work_amount = min_wa + wa_slice_size;
-        return true;
+        return wl->wps_must_satisfy_;
     }
     // calculate the location of the next slice from last_round_wa
     *needed_work_amount = min_wa + ((last_round_wa - min_wa) / wa_slice_size + 1) * wa_slice_size;
-    return true;
+    return wl->wps_must_satisfy_;
 }
 
 bool calc_next_round_work_amount_for_comparison(const pilot_workload_t *wl, size_t *needed_work_amount) {
@@ -1379,8 +1384,8 @@ bool calc_next_round_work_amount_for_comparison(const pilot_workload_t *wl, size
     return need_more_rounds;
 }
 
-bool pilot_set_wps_analysis(pilot_workload_t *wl, bool enabled) {
-    return wl->set_wps_analysis(enabled);
+void pilot_set_wps_analysis(pilot_workload_t *wl, bool enabled, bool wps_must_satisfy) {
+    wl->set_wps_analysis(enabled, wps_must_satisfy);
 }
 
 size_t pilot_set_session_duration_limit(pilot_workload_t *wl, size_t sec) {
