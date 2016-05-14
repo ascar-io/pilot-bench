@@ -455,6 +455,12 @@ enum pilot_log_level_t
 void pilot_set_log_level(pilot_log_level_t log_level);
 
 /**
+ * \brief Get the logging level of the library
+ * @return log_level
+ */
+pilot_log_level_t pilot_get_log_level(void);
+
+/**
  * \brief Set the confidence interval for workload
  * @param[in] wl pointer to the workload struct
  * @param ci the new confidence interval

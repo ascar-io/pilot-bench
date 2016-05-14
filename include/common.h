@@ -51,6 +51,16 @@
 #define _stringify(x) #x
 #define stringify(x) _stringify(x)
 
+#if defined(__clang__)
+#  define CC_VERSION "clang-" __clang_version__
+#elif defined(__GNUC__)
+# if defined(__GNUC_PATCHLEVEL__)
+#  define CC_VERSION "gcc-" stringify(__GNUC__) "." stringify(__GNUC_MINOR__) "." stringify(__GNUC_PATCHLEVEL__)
+# else
+#  define CC_VERSION "gcc-" stringify(__GNUC__) "." stringify(__GNUC_MINOR__)
+# endif
+#endif
+
 #define SHOULD_NOT_REACH_HERE { fatal_log << __func__ << "():" << stringify(__LINE__) \
     << " Error: shouldn't reach here"; }
 

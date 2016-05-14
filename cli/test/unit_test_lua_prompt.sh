@@ -1,5 +1,5 @@
 #!/bin/bash
-# Unit test for pilot cli tool lua prompt
+# Unit test for Pilot CLI tool Lua prompt
 #
 # Copyright (c) 2015, 2016 University of California, Santa Cruz, CA, USA.
 # Created by Yan Li <yanli@ascar.io>,

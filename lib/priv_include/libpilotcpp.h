@@ -297,7 +297,7 @@ int pilot_wps_warmup_removal_lr_method(size_t rounds, WorkAmountInputIterator ro
     }
 
     if (round_work_amounts.size() < 3) {
-        info_log << __func__ << "() doesn't have enough samples after filtering using duration threshold";
+        debug_log << __func__ << "() doesn't have enough samples after filtering using duration threshold";
         return ERR_NOT_ENOUGH_DATA;
     }
 
@@ -308,14 +308,14 @@ int pilot_wps_warmup_removal_lr_method(size_t rounds, WorkAmountInputIterator ro
     }
     int q = pilot_optimal_subsession_size(naive_v_per_round.begin(), naive_v_per_round.size(), HARMONIC_MEAN, autocorrelation_coefficient_limit);
     if (q < 0) {
-        info_log << __func__ << "() samples' autocorrelation coefficient too high; need more samples";
+        debug_log << __func__ << "() samples' autocorrelation coefficient too high; need more samples";
         return ERR_NOT_ENOUGH_DATA;
     }
-    info_log << "WPS analysis: optimal subsession size (q) = " << q;
+    debug_log << "WPS analysis: optimal subsession size (q) = " << q;
     size_t h = round_work_amounts.size() / q;
     if (subsession_sample_size) *subsession_sample_size = h;
     if (h < 3) {
-        info_log << __func__ << "() doesn't have enough samples (<3) after subsession grouping";
+        debug_log << __func__ << "() doesn't have enough samples (<3) after subsession grouping";
         return ERR_NOT_ENOUGH_DATA;
     }
     std::vector<size_t> subsession_work_amounts;
@@ -354,7 +354,7 @@ int pilot_wps_warmup_removal_lr_method(size_t rounds, WorkAmountInputIterator ro
         double dur = double(subsession_round_durations[i]) / ONE_SECOND;
         sub_session_ssr += pow(*wps_alpha + wps_inv_v * wa - dur, 2);
     }
-    info_log << __func__ << "(): sub_session_ssr: " << sub_session_ssr;
+    debug_log << __func__ << "(): sub_session_ssr: " << sub_session_ssr;
     double ssr = 0;
     double dur_sum = 0;
     for (size_t i = 0; i < rounds; ++i) {
@@ -363,7 +363,7 @@ int pilot_wps_warmup_removal_lr_method(size_t rounds, WorkAmountInputIterator ro
         ssr += pow(*wps_alpha + wps_inv_v * wa - dur, 2);
         dur_sum += dur;
     }
-    info_log << __func__ << "(): ssr: " << ssr;
+    debug_log << __func__ << "(): ssr: " << ssr;
     if (ssr_out) *ssr_out = ssr;
     if (ssr_percent_out) *ssr_percent_out = sqrt(ssr) / dur_sum;
 
@@ -374,7 +374,7 @@ int pilot_wps_warmup_removal_lr_method(size_t rounds, WorkAmountInputIterator ro
     double inv_v_ci = 2 * std_err_v;
     // inv_v - inv_v_ci might be negative so we have to use abs() here
     *wps_v_ci = std::abs( 1.0 / (wps_inv_v - inv_v_ci) - 1.0 / (wps_inv_v + inv_v_ci) );
-    info_log << __func__ << "(): result wps_alpha " << *wps_alpha << ", wps_v " << *wps_v << ", wps_v_ci " << *wps_v_ci;
+    debug_log << __func__ << "(): result wps_alpha " << *wps_alpha << ", wps_v " << *wps_v << ", wps_v_ci " << *wps_v_ci;
     return 0;
 }
 

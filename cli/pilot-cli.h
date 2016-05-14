@@ -38,7 +38,8 @@
 #include <config.h>
 #include <libpilot.h>
 
-#define GREETING_MSG "Pilot command line tool " stringify(PILOT_VERSION_MAJOR) "." stringify(PILOT_VERSION_MINOR)
+#define GREETING_MSG "Pilot " stringify(PILOT_VERSION_MAJOR) "." \
+    stringify(PILOT_VERSION_MINOR) " (compiled by " CC_VERSION " on " __DATE__ ")"
 
 int handle_run_program(int argc, const char** argv);
 

@@ -56,11 +56,16 @@ add_custom_command(TARGET pilot POST_BUILD
                        ${CMAKE_CURRENT_LIST_DIR}/test/unit_test_pilot_opt_parsing.sh $<TARGET_FILE_DIR:pilot>)
 add_custom_command(TARGET pilot POST_BUILD
                    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                       ${CMAKE_CURRENT_LIST_DIR}/test/unit_test_benchmark.sh $<TARGET_FILE_DIR:pilot>)
+add_custom_command(TARGET pilot POST_BUILD
+                   COMMAND ${CMAKE_COMMAND} -E copy_if_different
                        ${CMAKE_CURRENT_LIST_DIR}/test/mock_benchmark.sh $<TARGET_FILE_DIR:pilot>)
 
 add_test (NAME unit_test_lua_prompt
           COMMAND unit_test_lua_prompt.sh)
 add_test (NAME unit_test_pilot_opt_parsing
           COMMAND unit_test_pilot_opt_parsing.sh)
+add_test (NAME unit_test_benchmark
+          COMMAND unit_test_benchmark.sh)
 
 install (TARGETS pilot DESTINATION bin)

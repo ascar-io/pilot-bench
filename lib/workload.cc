@@ -110,7 +110,7 @@ ssize_t pilot_workload_t::required_num_of_readings(int piid) const {
         return -1;
     } else {
         if (opt_sample_size < min_sample_size_) {
-            info_log << __func__ << "(): optimal sample size ("
+            debug_log << __func__ << "(): optimal sample size ("
                      << opt_sample_size << ") is smaller than the sample size lower threshold ("
                      << min_sample_size_
                      << "). Using the lower threshold instead.";
@@ -174,7 +174,7 @@ ssize_t pilot_workload_t::required_num_of_unit_readings(int piid) const {
         return -1;
     } else {
         if (opt_sample_size < min_sample_size_) {
-            info_log << __func__ << "(): optimal sample size ("
+            debug_log << __func__ << "(): optimal sample size ("
                      << opt_sample_size << ") is smaller than the sample size lower threshold ("
                      << min_sample_size_
                      << "). Using the lower threshold instead.";
@@ -238,7 +238,7 @@ void pilot_workload_t::refresh_analytical_result(void) const {
     for (size_t piid = 0; piid < num_of_pi_; ++piid) {
         // Readings analysis
         analytical_result_.readings_num[piid] = readings_[piid].size();
-        if (0 != analytical_result_.readings_num[piid]) {
+        if (3 < analytical_result_.readings_num[piid]) {
             analytical_result_.readings_mean_method[piid] = pi_info_[piid].reading_mean_method;
             analytical_result_.readings_mean[piid] = pilot_subsession_mean(readings_[piid].begin(),
                     readings_[piid].size(),
@@ -445,6 +445,10 @@ bool pilot_workload_t::set_wps_analysis(bool enabled) {
 }
 
 void pilot_workload_t::refresh_wps_analysis_results(void) const {
+    if (rounds_ < 3) {
+        debug_log << __func__ << "(): need more than 3 rounds data for wps analysis";
+        return;
+    }
     // calculate naive_v and its error
     size_t sum_of_work_amount =
             accumulate(round_work_amounts_.begin(), round_work_amounts_.end(), static_cast<size_t>(0));
@@ -477,7 +481,7 @@ void pilot_workload_t::refresh_wps_analysis_results(void) const {
         } else {
             duration_threshold = 0;
         }
-        info_log << __func__ << "(): round " << r << " WPS regression (duration_threshold = " << duration_threshold << ")";
+        debug_log << __func__ << "(): round " << r << " WPS regression (duration_threshold = " << duration_threshold << ")";
         int res = pilot_wps_warmup_removal_lr_method(round_work_amounts_.size(),
                                                      round_work_amounts_.begin(),
                                                      round_durations_.begin(),
@@ -490,7 +494,7 @@ void pilot_workload_t::refresh_wps_analysis_results(void) const {
                                                      &analytical_result_.wps_err_percent,
                                                      &analytical_result_.wps_subsession_sample_size);
         if (ERR_NOT_ENOUGH_DATA == res) {
-            info_log << "Not enough data for calculating WPS warm-up removal (duration_threshold = " << duration_threshold << ")";
+            debug_log << "Not enough data for calculating WPS warm-up removal (duration_threshold = " << duration_threshold << ")";
             analytical_result_.wps_has_data = false;
             analytical_result_.wps_alpha = -1;
             analytical_result_.wps_v = -1;

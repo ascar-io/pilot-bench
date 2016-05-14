@@ -65,6 +65,7 @@ namespace pilot {
 
 stringstream g_in_mem_log_buffer;
 boost::shared_ptr< boost::log::sinks::sink > g_console_log_sink;
+pilot_log_level_t g_log_level = lv_info;
 
 class PilotInMemLogBackend :
         public boost::log::sinks::basic_formatted_sink_backend<
@@ -273,7 +274,7 @@ int pilot_run_workload(pilot_workload_t *wl) {
         readings = NULL;
 
         if (!wl->calc_next_round_work_amount(&work_amount)) {
-            info_log << "enough data collected, exiting";
+            info_log << "Analytical requirement achieved, exiting";
             break;
         }
         if (wl->wholly_rejected_rounds_ > 100) {
@@ -282,12 +283,12 @@ int pilot_run_workload(pilot_workload_t *wl) {
             break;
         }
 
-        info_log << "starting workload round " << wl->rounds_ << " with work_amount=" << work_amount;
         if (wl->hook_pre_workload_run_ && !wl->hook_pre_workload_run_(wl)) {
             info_log << "pre_workload_run hook returns false, exiting";
             result = ERR_STOPPED_BY_HOOK;
             break;
         }
+        info_log << "Starting workload round " << wl->rounds_ << " with work_amount " << work_amount;
 
         round_timer.reset(new cpu_timer);
         int rc =
@@ -295,7 +296,7 @@ int pilot_run_workload(pilot_workload_t *wl) {
                           &num_of_unit_readings, &unit_readings,
                           &readings);
         round_duration = round_timer->elapsed().wall;
-        info_log << "finished workload round " << wl->rounds_;
+        debug_log << "finished workload round " << wl->rounds_;
 
         // result check first
         if (0 != rc)   { result = ERR_WL_FAIL; break; }
@@ -324,10 +325,29 @@ int pilot_run_workload(pilot_workload_t *wl) {
             free(unit_readings);
         }
 
-        // refresh TUI
+        // refresh UI
         if (wl->tui_) {
             unique_ptr<pilot_analytical_result_t> wi(wl->get_analytical_result());
             *(wl->tui_) << *wi;
+        } else {
+            unique_ptr<pilot_analytical_result_t> wi(wl->get_analytical_result());
+            stringstream ss;
+            ss << setw(3) << left << wl->rounds_ - 1 << " | ";
+            for (size_t piid = 0; piid < wl->num_of_pi_; ++piid) {
+                if (0 != piid) ss << "; ";
+                ss << wl->pi_info_[piid].name << ": ";
+                if (4 < wl->analytical_result_.readings_num[piid]) {
+                    ss << "R m" << setprecision(4) << wl->analytical_result_.readings_mean_formatted[piid]
+                       << " c" << wl->analytical_result_.readings_optimal_subsession_ci_width_formatted[piid]
+                       << " v" << wl->analytical_result_.readings_optimal_subsession_var_formatted[piid];
+                }
+                if (4 < wl->analytical_result_.unit_readings_num[piid]) {
+                    ss << "UR m" << setprecision(4) << wl->analytical_result_.unit_readings_mean_formatted[piid]
+                       << " c" << wl->analytical_result_.unit_readings_optimal_subsession_ci_width_formatted[piid]
+                       << " v" << wl->analytical_result_.unit_readings_optimal_subsession_var_formatted[piid];
+                }
+            }
+            info_log << ss.str();
         }
 
         // handle hooks
@@ -630,10 +650,15 @@ int pilot_destroy_workload(pilot_workload_t *wl) {
 }
 
 void pilot_set_log_level(pilot_log_level_t log_level) {
+    g_log_level = log_level;
     boost::log::core::get()->set_filter
     (
         boost::log::trivial::severity >= (boost::log::trivial::severity_level)log_level
     );
+}
+
+pilot_log_level_t pilot_get_log_level(void) {
+    return g_log_level;
 }
 
 double pilot_set_confidence_interval(pilot_workload_t *wl, double ci) {
@@ -1050,14 +1075,14 @@ void pilot_import_benchmark_results(pilot_workload_t *wl, size_t round,
         if (round == wl->rounds_) {
             // inserting a new round
             if (unit_readings && unit_readings[piid]) {
-                info_log << "new round num_of_unit_readings = " << num_of_unit_readings;
+                debug_log << "new round num_of_unit_readings = " << num_of_unit_readings;
                 wl->unit_readings_[piid].emplace_back(vector<double>(unit_readings[piid], unit_readings[piid] + num_of_unit_readings));
             } else {
-                info_log << "no unit readings in this new round";
+                debug_log << "no unit readings in this new round";
                 wl->unit_readings_[piid].emplace_back(vector<double>());
             }
         } else {
-            info_log << "replacing data for an existing round";
+            debug_log << "replacing data for an existing round";
             wl->unit_readings_[piid][round].resize(num_of_unit_readings);
             if (unit_readings && unit_readings[piid])
                 memcpy(wl->unit_readings_[piid][round].data(), unit_readings[piid], sizeof(double) * num_of_unit_readings);
@@ -1156,7 +1181,7 @@ bool calc_next_round_work_amount_meet_lower_bound(const pilot_workload_t *wl, si
     }
 
     if (wl->round_durations_.back() < wl->short_round_detection_threshold_) {
-        info_log << "previous round duration (" << wl->round_durations_.back() << ") "
+        debug_log << "previous round duration (" << wl->round_durations_.back() << ") "
                  << "is shorter than the lower bound (" << wl->short_round_detection_threshold_ << "), "
                  "double the previous work amount";
         *needed_work_amount = wl->round_work_amounts_.back() * 2;
@@ -1191,10 +1216,10 @@ bool calc_next_round_work_amount_from_readings(const pilot_workload_t *wl, size_
             continue;
         }
         ssize_t req = wl->required_num_of_readings(piid);
-        info_log << "[PI " << piid << "] required readings sample size: " << req;
+        debug_log << "[PI " << piid << "] required readings sample size: " << req;
         if (req > 0) {
             if (static_cast<size_t>(req) < wl->total_num_of_readings_[piid]) {
-                info_log << "[PI " << piid << "] already has enough readings";
+                debug_log << "[PI " << piid << "] already has enough readings";
                 continue;
             }
         } else {
@@ -1228,10 +1253,10 @@ bool calc_next_round_work_amount_from_unit_readings(const pilot_workload_t *wl, 
         } else {
             size_t num_of_ur_needed;
             ssize_t req = wl->required_num_of_unit_readings(piid);
-            info_log << "[PI " << piid << "] required unit readings sample size: " << req;
+            debug_log << "[PI " << piid << "] required unit readings sample size: " << req;
             if (req > 0) {
                 if (static_cast<size_t>(req) < wl->total_num_of_unit_readings_[piid]) {
-                    info_log << "[PI " << piid << "] already has enough samples";
+                    debug_log << "[PI " << piid << "] already has enough samples";
                     continue;
                 }
                 num_of_ur_needed = req - wl->total_num_of_unit_readings_[piid];
@@ -1281,7 +1306,7 @@ bool calc_next_round_work_amount_from_wps(const pilot_workload_t *wl, size_t *ne
         if (wl->analytical_result_.wps_has_data && wl->analytical_result_.wps_subsession_sample_size > 20 &&
             wl->analytical_result_.wps_v > 0 && wl->analytical_result_.wps_v_ci > 0 &&
             wl->analytical_result_.wps_v_ci < wl->required_ci_percent_of_mean_ * wl->analytical_result_.wps_v) {
-            info_log << "WPS confidence interval small enough";
+            debug_log << "WPS confidence interval small enough";
             return false;
         }
     }
@@ -1324,16 +1349,16 @@ bool calc_next_round_work_amount_for_comparison(const pilot_workload_t *wl, size
                 size_t num_of_ur_needed;
                 ssize_t req = wl->required_num_of_unit_readings_for_comparison(piid);
                 if (req > 0) {
-                    info_log << "[PI " << piid << "] the comparison against baseline requires " << req << " unit readings";
+                    debug_log << "[PI " << piid << "] the comparison against baseline requires " << req << " unit readings";
                     if (static_cast<size_t>(req) < wl->total_num_of_unit_readings_[piid]) {
-                        info_log << "[PI " << piid << "] already has enough samples for comparison against baseline";
+                        debug_log << "[PI " << piid << "] already has enough samples for comparison against baseline";
                         continue;
                     }
                     num_of_ur_needed = req - wl->total_num_of_unit_readings_[piid];
                 } else {
                     // in case when there's not enough data to calculate the number of UR,
                     // we try to double the total number of unit readings
-                    info_log << "[PI " << piid << "] doesn't have enough information for calculating required sample size, using the current total sample size instead";
+                    debug_log << "[PI " << piid << "] doesn't have enough information for calculating required sample size, using the current total sample size instead";
                     num_of_ur_needed = wl->total_num_of_unit_readings_[piid];
                 }
                 if (0 == wl->max_work_amount_) {

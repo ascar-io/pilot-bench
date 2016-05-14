@@ -100,6 +100,12 @@ int workload_func(size_t total_work_amount,
 
     string prog_stdout;
     int rc = exec(g_program_cmd.c_str(), prog_stdout);
+    // remove trailing \n
+    int i = prog_stdout.size() - 1;
+    while (i >= 0 && '\n' == prog_stdout[i])
+        --i;
+    prog_stdout.resize(i + 1);
+
     info_log << "Got output from client program: " << prog_stdout;
     if (0 != rc) {
         error_log << "Client program returned: " << rc;
@@ -126,6 +132,7 @@ int handle_run_program(int argc, const char** argv) {
     po::options_description desc("Usage: " + string(argv[0]) + " [options] -- program_path [program_options]");
     desc.add_options()
             ("help", "help message for run_command")
+            ("min-sample-size,m", po::value<size_t>(), "lower threshold for sample size (default to 100)")
             ("no-tui", "disable the text user interface")
             ("pi,p", po::value<string>(), "PI(s) to read from stdout of the program, which is expected to be csv\n"
                     "Format:     name,column,type,ci_percent;...\n"
@@ -202,6 +209,12 @@ int handle_run_program(int argc, const char** argv) {
     }
     // this workload doesn't need work amount
     pilot_set_work_amount_limit(wl.get(), 0);
+
+    size_t min_sample_size = 100;
+    if (vm.count("min-sample-size"))
+        min_sample_size = vm["min-sample-size"].as<size_t>();
+    info_log << "Setting min-sample-size to " << min_sample_size;
+    pilot_set_min_sample_size(wl.get(), min_sample_size);
 
     // parse and set PI info
     g_num_of_pi = 0;
