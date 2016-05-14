@@ -35,6 +35,7 @@ include_directories (SYSTEM ${CDK_INCLUDE_DIR})
 add_library (libpilot libpilot.cc workload.cc
              ${TWITTER_BREAKOUTDETECTION_INCLUDE_DIR}/src/edm-multi.cpp
              ${TWITTER_BREAKOUTDETECTION_INCLUDE_DIR}/src/helper.cpp)
+target_link_libraries (libpilot ${CDK_STATIC_LIBRARIES})
 add_dependencies (libpilot cdk twitter_breakoutdetection)
 
 # needed by boost 1.59+

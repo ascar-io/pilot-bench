@@ -29,7 +29,7 @@ add_custom_command(OUTPUT ${LUAPROMPT_SOURCE_DIR}/prompt.c
 # with customization macros
 add_library(libluaprompt ${LUAPROMPT_SOURCE_DIR}/prompt.c)
 set_target_properties (libluaprompt PROPERTIES COMPILE_FLAGS
-                       "-DHAVE_LIBREADLINE -DHAVE_READLINE_HISTORY -DHAVE_IOCTL")
+                       "-DHAVE_LIBREADLINE -DHAVE_READLINE_HISTORY -DHAVE_IOCTL -D_GNU_SOURCE")
 
 set (LIBPILOT_LIBRARIES libpilot)
 
@@ -43,8 +43,8 @@ add_executable (pilot pilot.cc run_program.cc)
 add_dependencies (pilot cdk luaprompt)
 set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=gnu++11")
 
-target_link_libraries (pilot ${CDK_LIBRARIES} ${LIBPILOT_LIBRARIES}
-                       ${Boost_LIBRARIES} ${READLINE_LIBRARY} libluaprompt
+target_link_libraries (pilot ${LIBPILOT_LIBRARIES} libluaprompt ${CDK_STATIC_LIBRARIES}
+                       ${CDK_LIBRARIES} ${Boost_LIBRARIES} ${READLINE_LIBRARY}
                        ${LUA_LIBRARY} ${CMAKE_THREAD_LIBS_INIT})
 
 # tests

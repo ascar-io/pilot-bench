@@ -169,7 +169,7 @@ double pilot_subsession_autocorrelation_coefficient(InputIterator first,
 
     // res can be NaN when the variance is 0, in this case we just return 1,
     // which means the result has high autocorrelation.
-    if (isnan(res))
+    if (std::isnan(res))
         return 1;
     else
         return res;

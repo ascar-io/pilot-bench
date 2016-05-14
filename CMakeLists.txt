@@ -79,7 +79,8 @@ ExternalProject_Add (cdk
 ExternalProject_Get_Property(cdk SOURCE_DIR BINARY_DIR)
 # BINARY_DIR/include has CDK's cdk_config.h
 set (CDK_INCLUDE_DIR "${SOURCE_DIR}/include" "${BINARY_DIR}/include")
-set (CDK_LIBRARIES "${BINARY_DIR}/libcdk.a" ${CURSES_LIBRARIES})
+set (CDK_STATIC_LIBRARIES "${BINARY_DIR}/libcdk.a")
+set (CDK_LIBRARIES ${CURSES_LIBRARIES})
 
 
 ###############################################################################
