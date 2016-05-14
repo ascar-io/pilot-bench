@@ -43,7 +43,8 @@ else
     ROUND=0
 fi
 if [ $ROUND -ge ${#DATA[@]} ]; then
-    ROUND=0
+    rm "$ROUND_FILE"
+    exit 1
 fi
 echo ${DATA[$ROUND]}
 

@@ -1094,6 +1094,7 @@ void pilot_import_benchmark_results(pilot_workload_t *wl, size_t round,
         if (readings) {
             if (round == wl->rounds_) {
                 wl->readings_[piid].push_back(readings[piid]);
+                ++wl->total_num_of_readings_[piid];
             } else {
                 wl->readings_[piid][round] = readings[piid];
             }
@@ -1172,7 +1173,36 @@ bool calc_next_round_work_amount_meet_lower_bound(const pilot_workload_t *wl, si
 }
 
 bool calc_next_round_work_amount_from_readings(const pilot_workload_t *wl, size_t *needed_work_amount) {
-    // not implemented yet
+    // No need to do anything for first round.
+    if (0 == wl->rounds_) {
+        *needed_work_amount = 0;
+        return true;
+    }
+
+    if (0 == wl->max_work_amount_) {
+        *needed_work_amount = 0;
+    } else {
+        *needed_work_amount = wl->init_work_amount_;
+    }
+
+    for (size_t piid = 0; piid != wl->num_of_pi_; ++piid) {
+        if (0 == wl->total_num_of_readings_[piid]) {
+            // no need to do anything if this PIID has no unit reading
+            continue;
+        }
+        ssize_t req = wl->required_num_of_readings(piid);
+        info_log << "[PI " << piid << "] required readings sample size: " << req;
+        if (req > 0) {
+            if (static_cast<size_t>(req) < wl->total_num_of_readings_[piid]) {
+                info_log << "[PI " << piid << "] already has enough readings";
+                continue;
+            }
+        } else {
+            debug_log << "[PI " << piid << "] doesn't have enough readings for calculating required sample size, using init_work_amount";
+        }
+        // return true when any PI needs more samples
+        return true;
+    }
     return false;
 }
 

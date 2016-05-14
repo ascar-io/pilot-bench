@@ -61,18 +61,20 @@ bool           g_verbose = false;
 /**
  * \brief Execute cmd and return the stdout of the cmd
  * @param cmd
- * @return
+ * @param stdout the stdout of the client program
+ * @return the return code of the client program
  */
-std::string exec(const char* cmd) {
+int exec(const char* cmd, string &prog_stdout) {
     char buffer[128];
-    string result = "";
-    shared_ptr<FILE> pipe(popen(cmd, "r"), pclose);
+    prog_stdout = "";
+    clearerr(stdin);
+    FILE* pipe = popen(cmd, "r");
     if (!pipe) throw std::runtime_error("popen() failed!");
-    while (!feof(pipe.get())) {
-        if (fgets(buffer, 128, pipe.get()) != NULL)
-            result += buffer;
+    while (!feof(pipe)) {
+        if (fgets(buffer, 128, pipe) != NULL)
+            prog_stdout += buffer;
     }
-    return result;
+    return pclose(pipe);
 }
 
 /**
@@ -96,10 +98,27 @@ int workload_func(size_t total_work_amount,
     *num_of_work_unit = 0;
     *unit_readings = NULL;
 
-    const string prog_output = exec(g_program_cmd.c_str());
-    info_log << "Got output from client program: " << prog_output;
+    string prog_stdout;
+    int rc = exec(g_program_cmd.c_str(), prog_stdout);
+    info_log << "Got output from client program: " << prog_stdout;
+    if (0 != rc) {
+        error_log << "Client program returned: " << rc;
+        return rc;
+    }
 
     // parse the result
+    vector<string> pidata_strs;
+    boost::split(pidata_strs, prog_stdout, boost::is_any_of(" \n\t,"));
+    for (int piid = 0; piid < g_num_of_pi; ++piid) {
+        int pi_col = g_pi_col[piid];
+        if (pi_col >= static_cast<int>(pidata_strs.size())) {
+            fatal_log << "Error parsing client program's output: " << prog_stdout
+                      << "; expected column: " << pi_col;
+            return ERR_WL_FAIL;
+        }
+        *readings[piid] = lexical_cast<double>(pidata_strs[pi_col]);
+    }
+
     return 0;
 }
 
@@ -112,7 +131,7 @@ int handle_run_program(int argc, const char** argv) {
                     "Format:     name,column,type,ci_percent;...\n"
                     "name:       name of the PI, can be empty\n"
                     "unit:       unit of the PI, can be empty (the name and unit are used only for display purpose)\n"
-                    "column:     the column of the PI in the csv output of the client program\n"
+                    "column:     the column of the PI in the csv output of the client program (0-based)\n"
                     "type:       0 - ordinary value (like time, bytes, etc.), 1 - ratio (like throughput, speed)\n"
                     "            setting the correct type ensures Pilot uses the correct mean calculation method\n"
                     "ci_percent: the desired width of CI as the percent of mean. You can leave it empty, and Pilot\n"

@@ -88,6 +88,11 @@ ssize_t pilot_workload_t::required_num_of_readings(int piid) const {
         return calc_required_readings_func_(this, piid);
     }
 
+    if (total_num_of_readings_[piid] < 3) {
+        debug_log << "Don't have enough data to calculate required readings sample size yet";
+        return -1;
+    }
+
     double ci_width;
     if (required_ci_percent_of_mean_ > 0) {
         double sm = pilot_subsession_mean(readings_[piid].begin(), readings_[piid].size(),
@@ -101,7 +106,7 @@ ssize_t pilot_workload_t::required_num_of_readings(int piid) const {
     if (!pilot_optimal_sample_size(readings_[piid].begin(), readings_[piid].size(),
                                    ci_width, pi_info_[piid].reading_mean_method,
                                    &q, &opt_sample_size)) {
-        // we don't have enough data
+        debug_log << "Don't have enough data to calculate required readings sample size yet";
         return -1;
     } else {
         if (opt_sample_size < min_sample_size_) {
