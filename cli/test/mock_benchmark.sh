@@ -1,7 +1,8 @@
 #!/bin/bash
-# A handy wrapper for func_test_seq_write
+# Mock benchmark for testing Pilot CLI. This script displays one mock benchmark
+# result on each run. Progress is stored at /tmp/pilot_mock_benchmark_round.txt.
 #
-# Copyright (c) 2015, 2016 University of California, Santa Cruz, CA, USA.
+# Copyright (c) 2016 University of California, Santa Cruz, CA, USA.
 # Created by Yan Li <yanli@ascar.io>,
 # Department of Computer Science, Baskin School of Engineering.
 #
@@ -31,38 +32,20 @@
 # OF THE POSSIBILITY OF SUCH DAMAGE.
 set -e -u
 
-if [ $# -eq 0 ]; then
-    cat<<EOF
-Run test_func_test_seq_write, save the result in a timestamped directory, and
-plot the unit readings as PDF figures.
+# These sample response time are taken from [Ferrari78], page 79.
+DATA=(1.21 1.67 1.71 1.53 2.03 2.15 1.88 2.02 1.75 1.84 1.61 1.35 1.43 1.64 1.52 1.44 1.17 1.42 1.64 1.86 1.68 1.91 1.73 2.18 2.27 1.93 2.19 2.04 1.92 1.97 1.65 1.71 1.89 1.70 1.62 1.48 1.55 1.39 1.45 1.67 1.62 1.77 1.88 1.82 1.93 2.09 2.24 2.16)
 
-This script accepts same options as func_test_seq_write does. For example:
-$0 -r test-out-dir -o /mnt/test-device/test-file
-EOF
-    exit 2
+ROUND_FILE=/tmp/pilot_mock_benchmark_round.txt
+
+if [ -f $ROUND_FILE ]; then
+    ROUND=`cat $ROUND_FILE`
+else
+    ROUND=0
 fi
-
-OUTPUT_DIR_NAME=seq-write
-TS=`date +%F_%H-%M-%S`
-declare -a OPTS
-while [ $# -ge 1 ]; do
-    if [ "x$1" = "x-r" ]; then
-        OUTPUT_DIR_NAME=${2}_${TS}
-        OPTS+=(-r "$OUTPUT_DIR_NAME")
-        shift
-    else
-        OPTS+=($1)
-    fi
-    shift
-done
-if [ "${OUTPUT_DIR_NAME:-}" = "" ]; then
-    OUTPUT_DIR_NAME=seq-write_${TS}
-    OPTS+=(-r "$OUTPUT_DIR_NAME")
+if [ $ROUND -ge ${#DATA[@]} ]; then
+    ROUND=0
 fi
-echo "Saving results to ${OUTPUT_DIR_NAME}"
+echo ${DATA[$ROUND]}
 
-./func_test_seq_write "${OPTS[@]}"
-PLOT_DIR=${OUTPUT_DIR_NAME}/unit_reading_plot
-mkdir -p "$PLOT_DIR"
-echo "Plotting unit reading figures"
-python `dirname $0`/plot_seq_write_throughput.py  "${OUTPUT_DIR_NAME}/unit_readings.csv" "${PLOT_DIR}/round_"
+ROUND=`expr $ROUND + 1`
+echo $ROUND >$ROUND_FILE

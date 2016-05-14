@@ -1,8 +1,8 @@
 /*
- * pilot.cc: main file for the command line pilot tool
+ * pilot-cli.h
  *
- * Copyright (c) 2015, 2016, University of California, Santa Cruz, CA, USA.
- * Created by Yan Li <yanli@ucsc.edu, elliot.li.tech@gmail.com>,
+ * Copyright (c) 2016, University of California, Santa Cruz, CA, USA.
+ * Created by Yan Li <yanli@ascar.io>,
  * Department of Computer Science, Baskin School of Engineering.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -31,48 +31,15 @@
  * OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <iostream>
-#include "pilot-cli.h"
-#include <string>
-extern "C" {
-  #include <lua.h>
-  #include <lauxlib.h>
-  #include <lualib.h>
-  #include <prompt.h>
-}
+#ifndef CLI_PILOT_CLI_H_
+#define CLI_PILOT_CLI_H_
 
-using namespace std;
+#include <common.h>
+#include <config.h>
+#include <libpilot.h>
 
-void print_help_msg(const char* argv0) {
-    cerr << GREETING_MSG << endl;
-    cerr << "Usage: " << argv0 << " [command]" << endl;
-    cerr << "Pilot enters Lua mode if no command is given." << endl;
-    cerr << "Available commands:" << endl;
-    cerr << "  run_program             run a benchmark program" << endl;
-    cerr << "Add --help after any command to see command specific help." << endl << endl;
-}
+#define GREETING_MSG "Pilot command line tool " stringify(PILOT_VERSION_MAJOR) "." stringify(PILOT_VERSION_MINOR)
 
-int main(int argc, const char** argv) {
-    PILOT_LIB_SELF_CHECK;
+int handle_run_program(int argc, const char** argv);
 
-    // Parsing the command line arguments. First we check if a command is available.
-    if (1 >= argc) {
-        // entering Lua mode if no command
-        cerr << GREETING_MSG << endl;
-        lua_State *L = luaL_newstate();
-        luaL_openlibs(L);               /* opens Lua basic library */
-        luap_enter(L);
-        return 0;
-    }
-    const string cmd(argv[1]);
-    if ("--help" == cmd || "help" == cmd) {
-        print_help_msg(argv[0]);
-        return 2;
-    } else if ("run_program" == cmd) {
-        return handle_run_program(argc, argv);
-    } else {
-        cerr << "Error: Unknown command: " << cmd << endl;
-        print_help_msg(argv[0]);
-        return 2;
-    }
-}
+#endif /* CLI_PILOT_CLI_H_ */

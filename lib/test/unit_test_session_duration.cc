@@ -137,21 +137,26 @@ TEST(PilotRunWorkloadTest, TestCalcNextRoundWorkAmountFromWPS) {
     size_t wa_limit = 1000;
     size_t wa_slice_size = wa_limit / kWPSInitSlices;
     pilot_set_work_amount_limit(wl, wa_limit);
-    ASSERT_EQ(wa_slice_size, calc_next_round_work_amount_from_wps(wl));
+    size_t wa;
+    ASSERT_TRUE(calc_next_round_work_amount_from_wps(wl, &wa));
+    ASSERT_EQ(wa_slice_size, wa);
     // let's add some mock data
     wl->round_work_amounts_.push_back(365);
     wl->round_durations_.push_back(1);
     wl->rounds_++;
-    ASSERT_EQ((365 / wa_slice_size + 1) * wa_slice_size, calc_next_round_work_amount_from_wps(wl));
+    ASSERT_TRUE(calc_next_round_work_amount_from_wps(wl, &wa));
+    ASSERT_EQ((365 / wa_slice_size + 1) * wa_slice_size, wa);
     wl->round_work_amounts_.push_back(999);
     wl->round_durations_.push_back(1);
     wl->rounds_++;
     wa_slice_size /= 2;
-    ASSERT_EQ(wa_slice_size, calc_next_round_work_amount_from_wps(wl));
+    ASSERT_TRUE(calc_next_round_work_amount_from_wps(wl, &wa));
+    ASSERT_EQ(wa_slice_size, wa);
     wl->round_work_amounts_.push_back(wa_slice_size);
     wl->round_durations_.push_back(1);
     wl->rounds_++;
-    ASSERT_EQ(wa_slice_size * 2, calc_next_round_work_amount_from_wps(wl));
+    ASSERT_TRUE(calc_next_round_work_amount_from_wps(wl, &wa));
+    ASSERT_EQ(wa_slice_size * 2, wa);
     pilot_destroy_workload(wl);
 }
 

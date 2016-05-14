@@ -10,8 +10,8 @@
  * Also please read the "Performance measurement of a sequential write
  * workload" wiki page for more information.
  *
- * Copyright (c) 2015, University of California, Santa Cruz, CA, USA.
- * Created by Yan Li <yanli@ucsc.edu, elliot.li.tech@gmail.com>,
+ * Copyright (c) 2015, 2016 University of California, Santa Cruz, CA, USA.
+ * Created by Yan Li <yanli@ascar.io>,
  * Department of Computer Science, Baskin School of Engineering.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -162,8 +162,10 @@ bool pre_workload_run_hook(pilot_workload_t* wl) {
     if (g_quiet_mode) return true;
 
     g_current_round = pilot_get_num_of_rounds(wl);
+    size_t wa;
+    pilot_next_round_work_amount(wl, &wa);
     pilot_ui_printf(wl, "Round %d started with %zu MB/s work amount ...\n",
-                    g_current_round, pilot_next_round_work_amount(wl) / MEGABYTE);
+                    g_current_round, wa / MEGABYTE);
     return true;
 }
 
@@ -349,50 +351,50 @@ int main(int argc, char **argv) {
 //    }
 
     // Starting the actual work
-    pilot_workload_t *wl = pilot_new_workload("Sequential write");
-    pilot_set_num_of_pi(wl, num_of_pi);
-    pilot_set_pi_info(wl, 0, "Write throughput", "MB/s", NULL, ur_format_func);
-    pilot_wps_setting(wl, wps_format_func, need_wps);
-    pilot_set_work_amount_limit(wl, io_limit);
-    pilot_set_init_work_amount(wl, init_length);
-    pilot_set_workload_func(wl, &workload_func);
-    pilot_set_required_confidence_interval(wl, ci_perc, -1);
+    shared_ptr<pilot_workload_t> wl(pilot_new_workload("Sequential write"), pilot_destroy_workload);
+    pilot_set_num_of_pi(wl.get(), num_of_pi);
+    pilot_set_pi_info(wl.get(), 0, "Write throughput", "MB/s", NULL, ur_format_func);
+    pilot_wps_setting(wl.get(), wps_format_func, need_wps);
+    pilot_set_work_amount_limit(wl.get(), io_limit);
+    pilot_set_init_work_amount(wl.get(), init_length);
+    pilot_set_workload_func(wl.get(), &workload_func);
+    pilot_set_required_confidence_interval(wl.get(), ci_perc, -1);
     if (0 != baseline_file.size())
-        pilot_load_baseline_file(wl, baseline_file.c_str());
+        pilot_load_baseline_file(wl.get(), baseline_file.c_str());
     // Set up hooks for displaying progress information
-    pilot_set_hook_func(wl, PRE_WORKLOAD_RUN, &pre_workload_run_hook);
-    pilot_set_hook_func(wl, POST_WORKLOAD_RUN, &post_workload_run_hook);
+    pilot_set_hook_func(wl.get(), PRE_WORKLOAD_RUN, &pre_workload_run_hook);
+    pilot_set_hook_func(wl.get(), POST_WORKLOAD_RUN, &post_workload_run_hook);
     if (0 != duration_limit) {
-        pilot_set_session_duration_limit(wl, duration_limit);
+        pilot_set_session_duration_limit(wl.get(), duration_limit);
     }
-    pilot_set_autocorrelation_coefficient(wl, 1);
+    pilot_set_autocorrelation_coefficient(wl.get(), 1);
 
     int res;
     if (use_tui)
-        pilot_run_workload_tui(wl);
+        pilot_run_workload_tui(wl.get());
     else {
-        res = pilot_run_workload(wl);
+        res = pilot_run_workload(wl.get());
         if (0 != res) {
             cout << pilot_strerror(res) << endl;
         }
     }
 
     if (!g_quiet_mode) {
-        pilot_ui_printf(wl, "Benchmark finished\n");
+        pilot_ui_printf(wl.get(), "Benchmark finished\n");
     }
 
-    //const double* time_readings = pilot_get_pi_unit_readings(wl, time_pi, 0, &num_of_work_units) + warmupio;
+    //const double* time_readings = pilot_get_pi_unit_readings(wl.get(), time_pi, 0, &num_of_work_units) + warmupio;
     //num_of_work_units -= warmupio;
 
-    res = pilot_export(wl, result_dir_name.c_str());
+    res = pilot_export(wl.get(), result_dir_name.c_str());
     if (res != 0) {
         cout << pilot_strerror(res) << endl;
         return res;
     }
     if (!g_quiet_mode) {
-        pilot_ui_printf_hl(wl, "Benchmark results are saved to %s\n", result_dir_name.c_str());
+        pilot_ui_printf_hl(wl.get(), "Benchmark results are saved to %s\n", result_dir_name.c_str());
     } else {
-        pilot_analytical_result_t *r = pilot_analytical_result(wl, NULL);
+        pilot_analytical_result_t *r = pilot_analytical_result(wl.get(), NULL);
         // format: URResult,URCI,URVar,WPSa,WPSv,WPSvCI,TestDuration
         cout << r->unit_readings_mean_formatted[0] << ","
              << r->unit_readings_optimal_subsession_ci_width_formatted[0] << ","
@@ -408,10 +410,6 @@ int main(int argc, char **argv) {
         pilot_free_analytical_result(r);
     }
 
-    if (pilot_destroy_workload(wl) != 0) {
-        cerr << ("pilot_destroy_workload failed");
-        abort();
-    }
     delete[] g_io_buf;
     return 0;
 }

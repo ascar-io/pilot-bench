@@ -96,15 +96,14 @@ public:
         unit_reading_mean_method(_unit_reading_mean_method) {}
 };
 
-typedef size_t calc_next_round_work_amount_func_t(pilot_workload_t* wl);
 struct runtime_analysis_plugin_t {
     bool enabled;
     bool finished;  //! If this plugin is finished. A finished plugin will not be run in the future.
-    calc_next_round_work_amount_func_t *calc_next_round_work_amount;
+    next_round_work_amount_hook_t *calc_next_round_work_amount;
 
-    runtime_analysis_plugin_t(calc_next_round_work_amount_func_t *c) :
+    runtime_analysis_plugin_t(next_round_work_amount_hook_t *c) :
         enabled(true), finished(false), calc_next_round_work_amount(c) {}
-    runtime_analysis_plugin_t(bool e, calc_next_round_work_amount_func_t *c) :
+    runtime_analysis_plugin_t(bool e, next_round_work_amount_hook_t *c) :
         enabled(e), finished(false), calc_next_round_work_amount(c) {}
 };
 
@@ -128,7 +127,7 @@ public:  // FIXME: most of the following members should be private and controlle
     size_t init_work_amount_;
     size_t max_work_amount_;                         //! The maximum work amount set by user
     size_t min_work_amount_;                         //! The minimum work amount set by user
-    ssize_t adjusted_min_work_amount_;                //! The minimum work amount that can make the round no shorter than short_round_detection_threshold_. -1 means not found yet.
+    mutable ssize_t adjusted_min_work_amount_;                //! The minimum work amount that can make the round no shorter than short_round_detection_threshold_. -1 means not found yet.
     pilot_workload_func_t *workload_func_;
     std::vector<pilot_pi_info_t> pi_info_;
     pilot_display_format_functor format_wps_;
@@ -172,7 +171,7 @@ public:  // FIXME: most of the following members should be private and controlle
     mutable std::chrono::steady_clock::time_point analytical_result_update_time_; //! The time when analytical_result_ is updated
 
     // WPS analysis bookkeeping
-    size_t wps_slices_;                              //! The total number of slices, which is used to generate work amounts for WPS analysis
+    mutable size_t wps_slices_;                              //! The total number of slices, which is used to generate work amounts for WPS analysis
 
     // Hook functions
     next_round_work_amount_hook_t *next_round_work_amount_hook_; //! The hook function that calculates the work amount for next round
@@ -181,7 +180,7 @@ public:  // FIXME: most of the following members should be private and controlle
     calc_required_readings_func_t *calc_required_readings_func_;
     calc_required_readings_func_t *calc_required_unit_readings_func_;
 
-    std::vector<runtime_analysis_plugin_t> runtime_analysis_plugins_;
+    mutable std::vector<runtime_analysis_plugin_t> runtime_analysis_plugins_;
 
     // Runtime data structures
     PilotTUI *tui_;
@@ -258,7 +257,14 @@ public:  // FIXME: most of the following members should be private and controlle
      */
     ssize_t required_num_of_unit_readings_for_comparison(int piid) const;
 
-    size_t calc_next_round_work_amount(void);
+    /**
+     * Calculate how much work amount is needed for next round
+     * @param[out] needed_work_amount. A returned 0 value doesn't necessarily mean
+     * no more work is needed, because the workload may not support setting work
+     * amount. Always use the return value to decide if more rounds are needed.
+     * @return true if more rounds are needed; false if no more rounds are needed
+     */
+    bool calc_next_round_work_amount(size_t *needed_work_amount) const;
 
     inline double calc_avg_work_unit_per_amount(int piid) const {
         size_t total_work_units = 0;
@@ -340,13 +346,13 @@ public:  // FIXME: most of the following members should be private and controlle
     size_t set_session_duration_limit(size_t sec);
     size_t set_min_sample_size(size_t min_sample_size);
 
-    void enable_runtime_analysis_plugin(calc_next_round_work_amount_func_t *p);
+    void enable_runtime_analysis_plugin(next_round_work_amount_hook_t *p);
 
     /**
      * Set a runtime analysis plugin as finished
      * @param p pointer to the analysis function
      */
-    void finish_runtime_analysis_plugin(calc_next_round_work_amount_func_t *p);
+    void finish_runtime_analysis_plugin(next_round_work_amount_hook_t *p) const;
 
     void set_baseline(size_t piid, pilot_reading_type_t rt,
                       double baseline_mean, size_t baseline_sample_size,

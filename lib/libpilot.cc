@@ -254,8 +254,9 @@ void pilot_set_short_workload_check(pilot_workload_t* wl, bool check_short_workl
 int pilot_run_workload(pilot_workload_t *wl) {
     // sanity check
     ASSERT_VALID_POINTER(wl);
-    if (wl->workload_func_ == nullptr || wl->num_of_pi_ == 0 ||
-        wl->max_work_amount_ == 0) return 11;
+    if (wl->workload_func_ == nullptr || wl->num_of_pi_ == 0) {
+        return ERR_NOT_INIT;
+    }
 
     int result = 0;
     size_t num_of_unit_readings;
@@ -271,9 +272,8 @@ int pilot_run_workload(pilot_workload_t *wl) {
         unit_readings = NULL;
         readings = NULL;
 
-        work_amount = wl->calc_next_round_work_amount();
-        if (0 == work_amount) {
-            info_log << "enough readings collected, exiting";
+        if (!wl->calc_next_round_work_amount(&work_amount)) {
+            info_log << "enough data collected, exiting";
             break;
         }
         if (wl->wholly_rejected_rounds_ > 100) {
@@ -1126,9 +1126,9 @@ void pilot_pi_unit_readings_iter_destroy(pilot_pi_unit_readings_iter_t* iter) {
     delete iter;
 }
 
-size_t pilot_next_round_work_amount(pilot_workload_t *wl) {
+bool pilot_next_round_work_amount(const pilot_workload_t *wl, size_t *needed_work_amount) {
     ASSERT_VALID_POINTER(wl);
-    return wl->calc_next_round_work_amount();
+    return wl->calc_next_round_work_amount(needed_work_amount);
 }
 
 void pilot_set_short_round_detection_threshold(pilot_workload_t *wl, nanosecond_type threshold) {
@@ -1142,39 +1142,48 @@ void pilot_set_required_confidence_interval(pilot_workload_t *wl, double percent
     wl->required_ci_absolute_value_ = absolute_value;
 }
 
-size_t calc_next_round_work_amount_meet_lower_bound(pilot_workload_t *wl) {
-    // use the init value for the first round
-    if (0 == wl->rounds_)
-        return 0 == wl->init_work_amount_ ? wl->max_work_amount_ / 10 : wl->init_work_amount_;
+bool calc_next_round_work_amount_meet_lower_bound(const pilot_workload_t *wl, size_t *needed_work_amount) {
+    // We can't do anything if this workload doesn't support setting work amount.
+    if (0 == wl->max_work_amount_) {
+        *needed_work_amount = 0;
+        return false;
+    }
+    // No need to do anything for first round.
+    if (0 == wl->rounds_) {
+        *needed_work_amount = 0;
+        return true;
+    }
 
     if (wl->round_durations_.back() < wl->short_round_detection_threshold_) {
         info_log << "previous round duration (" << wl->round_durations_.back() << ") "
                  << "is shorter than the lower bound (" << wl->short_round_detection_threshold_ << "), "
                  "double the previous work amount";
-        return wl->round_work_amounts_.back() * 2;
+        *needed_work_amount = wl->round_work_amounts_.back() * 2;
+        return true;
     } else if (wl->adjusted_min_work_amount_ < 0) {
         info_log << "setting adjusted_min_work_amount to " << wl->round_work_amounts_.back();
         wl->adjusted_min_work_amount_ = wl->round_work_amounts_.back();
         wl->finish_runtime_analysis_plugin(&calc_next_round_work_amount_meet_lower_bound);
+        *needed_work_amount = 0;
+        return false;
     }
-    return 0;
+    SHOULD_NOT_REACH_HERE;
+    return true;
 }
 
-size_t calc_next_round_work_amount_from_readings(pilot_workload_t *wl) {
-    // use the init value for the first round
-    if (0 == wl->rounds_)
-        return 0 == wl->init_work_amount_ ? wl->max_work_amount_ / 10 : wl->init_work_amount_;
-
+bool calc_next_round_work_amount_from_readings(const pilot_workload_t *wl, size_t *needed_work_amount) {
     // not implemented yet
-    return 0;
+    return false;
 }
 
-size_t calc_next_round_work_amount_from_unit_readings(pilot_workload_t *wl) {
-    // use the init value for the first round
-    if (0 == wl->rounds_)
-        return 0 == wl->init_work_amount_ ? wl->max_work_amount_ / 10 : wl->init_work_amount_;
+bool calc_next_round_work_amount_from_unit_readings(const pilot_workload_t *wl, size_t *needed_work_amount) {
+    // No need to do anything for first round.
+    if (0 == wl->rounds_) {
+        *needed_work_amount = 0;
+        return true;
+    }
 
-
+    bool need_more_rounds = false;
     size_t max_work_amount_needed = 0;
     for (size_t piid = 0; piid != wl->num_of_pi_; ++piid) {
         if (0 == wl->total_num_of_unit_readings_[piid]) {
@@ -1182,7 +1191,7 @@ size_t calc_next_round_work_amount_from_unit_readings(pilot_workload_t *wl) {
             continue;
         }
         size_t work_amount_for_this_pi = 0;
-        if (abs(wl->calc_avg_work_unit_per_amount(piid)) < 0.00000001) {
+        if (0 != wl->max_work_amount_ && abs(wl->calc_avg_work_unit_per_amount(piid)) < 0.00000001) {
             error_log << "[PI " << piid << "] average work per unit reading is 0 (you probably need to report a bug)";
             // when there's not enough information, we double the previous work amount
             work_amount_for_this_pi = 2 * wl->round_work_amounts_.back();
@@ -1199,23 +1208,42 @@ size_t calc_next_round_work_amount_from_unit_readings(pilot_workload_t *wl) {
             } else {
                 // in case when there's not enough data to calculate the number of UR,
                 // we try to double the total number of unit readings
-                info_log << "[PI " << piid << "] doesn't have enough information for calculating required sample size, using the current total sample size instead";
+                debug_log << "[PI " << piid << "] doesn't have enough information for calculating required sample size, using the current total sample size instead";
                 num_of_ur_needed = wl->total_num_of_unit_readings_[piid];
             }
-            work_amount_for_this_pi = size_t(1.2 * num_of_ur_needed * wl->calc_avg_work_unit_per_amount(piid));
+            if (0 == wl->max_work_amount_) {
+                *needed_work_amount = 0;
+                // no need to check others if this workload doesn't support setting work amount
+                return true;
+            } else {
+                work_amount_for_this_pi = size_t(1.2 * num_of_ur_needed * wl->calc_avg_work_unit_per_amount(piid));
+            }
         }
+        need_more_rounds = true;
         max_work_amount_needed = max(max_work_amount_needed, work_amount_for_this_pi);
-        if (max_work_amount_needed >= wl->max_work_amount_)
-            return wl->max_work_amount_;
+        if (max_work_amount_needed >= wl->max_work_amount_) {
+            *needed_work_amount = wl->max_work_amount_;
+            return true;
+        }
     }
-    return max_work_amount_needed;
+    *needed_work_amount = max_work_amount_needed;
+    return need_more_rounds;
 }
 
-size_t calc_next_round_work_amount_from_wps(pilot_workload_t *wl) {
-    if (!wl->wps_must_satisfy_) return 0;
+bool calc_next_round_work_amount_from_wps(const pilot_workload_t *wl, size_t *needed_work_amount) {
+    *needed_work_amount = 0;
+    if (!wl->wps_must_satisfy_) {
+        return false;
+    } else if (0 == wl->max_work_amount_) {
+        fatal_log << "WPS analysis is needed but max_work_amount is not set. Exiting...";
+        exit(ERR_WRONG_PARAM);
+    }
     size_t min_wa = max(wl->adjusted_min_work_amount_, ssize_t(wl->min_work_amount_));
     size_t wa_slice_size = (wl->max_work_amount_ - min_wa) / wl->wps_slices_;
-    if (0 == wl->rounds_) return wa_slice_size;
+    if (0 == wl->rounds_) {
+        *needed_work_amount = wa_slice_size;
+        return true;
+    }
 
     if (wl->rounds_ > 3) {
         wl->refresh_wps_analysis_results();
@@ -1224,29 +1252,29 @@ size_t calc_next_round_work_amount_from_wps(pilot_workload_t *wl) {
             wl->analytical_result_.wps_v > 0 && wl->analytical_result_.wps_v_ci > 0 &&
             wl->analytical_result_.wps_v_ci < wl->required_ci_percent_of_mean_ * wl->analytical_result_.wps_v) {
             info_log << "WPS confidence interval small enough";
-            return 0;
+            return false;
         }
     }
 
     size_t last_round_wa = wl->round_work_amounts_.back();
     if (last_round_wa < min_wa) {
-        return min_wa + wa_slice_size;
+        *needed_work_amount = min_wa + wa_slice_size;
+        return true;
     }
     if (last_round_wa > wl->max_work_amount_ - wa_slice_size) {
         wl->wps_slices_ *= 2;
         wa_slice_size /= 2;
-        return min_wa + wa_slice_size;
+        *needed_work_amount = min_wa + wa_slice_size;
+        return true;
     }
     // calculate the location of the next slice from last_round_wa
-    return min_wa + ((last_round_wa - min_wa) / wa_slice_size + 1) * wa_slice_size;
+    *needed_work_amount = min_wa + ((last_round_wa - min_wa) / wa_slice_size + 1) * wa_slice_size;
+    return true;
 }
 
-size_t calc_next_round_work_amount_for_comparison(pilot_workload_t *wl) {
-    // use the init value for the first round
-    if (0 == wl->rounds_)
-        return 0 == wl->init_work_amount_ ? wl->max_work_amount_ / 10 : wl->init_work_amount_;
-
+bool calc_next_round_work_amount_for_comparison(const pilot_workload_t *wl, size_t *needed_work_amount) {
     size_t max_work_amount_needed = 0;
+    bool need_more_rounds = false;
     for (size_t piid = 0; piid != wl->num_of_pi_; ++piid) {
         // TODO: handle comparison of readings
 
@@ -1258,7 +1286,7 @@ size_t calc_next_round_work_amount_for_comparison(pilot_workload_t *wl) {
                 continue;
             }
             size_t work_amount_for_this_pi = 0;
-            if (abs(wl->calc_avg_work_unit_per_amount(piid)) < 0.00000001) {
+            if (0 != wl->max_work_amount_ && abs(wl->calc_avg_work_unit_per_amount(piid)) < 0.00000001) {
                 error_log << "[PI " << piid << "] average work per unit reading is 0 (you probably need to report a bug)";
                 // when there's not enough information, we double the previous work amount
                 work_amount_for_this_pi = 2 * wl->round_work_amounts_.back();
@@ -1278,14 +1306,22 @@ size_t calc_next_round_work_amount_for_comparison(pilot_workload_t *wl) {
                     info_log << "[PI " << piid << "] doesn't have enough information for calculating required sample size, using the current total sample size instead";
                     num_of_ur_needed = wl->total_num_of_unit_readings_[piid];
                 }
-                work_amount_for_this_pi = size_t(1.2 * num_of_ur_needed * wl->calc_avg_work_unit_per_amount(piid));
+                if (0 == wl->max_work_amount_) {
+                    return true;
+                } else {
+                    work_amount_for_this_pi = size_t(1.2 * num_of_ur_needed * wl->calc_avg_work_unit_per_amount(piid));
+                }
             }
+            need_more_rounds = true;
             max_work_amount_needed = max(max_work_amount_needed, work_amount_for_this_pi);
-            if (max_work_amount_needed >= wl->max_work_amount_)
-                return wl->max_work_amount_;
+            if (max_work_amount_needed >= wl->max_work_amount_) {
+                *needed_work_amount = wl->max_work_amount_;
+                return true;
+            }
         } // if (!wl->baseline_of_unit_readings_[piid].set)
     }
-    return max_work_amount_needed;
+    *needed_work_amount = max_work_amount_needed;
+    return need_more_rounds;
 }
 
 bool pilot_set_wps_analysis(pilot_workload_t *wl, bool enabled) {

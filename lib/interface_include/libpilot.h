@@ -85,8 +85,8 @@ typedef int_least64_t nanosecond_type;
  * \brief Performance libpilot self check and initialization
  * \details Include this macro at the beginning of your program.
  */
-#define PILOT_LIB_SELF_CHECK pilot_lib_self_check(PILOT_VERSION_MAJOR, \
-        PILOT_VERSION_MINOR, sizeof(nanosecond_type))
+#define PILOT_LIB_SELF_CHECK pilot::pilot_lib_self_check(PILOT_VERSION_MAJOR, \
+        PILOT_VERSION_MINOR, sizeof(pilot::nanosecond_type))
 
 void pilot_lib_self_check(int vmajor, int vminor, size_t nanosecond_type_size);
 
@@ -156,9 +156,14 @@ void pilot_set_calc_required_unit_readings_func(pilot_workload_t* wl, calc_requi
  * \brief a function that returns what work amount should be used for next
  * round (used mainly in test cases)
  * @param[in] wl pointer to the workload struct
- * @return
+ * @param[out] needed_work_amount. A returned 0 value doesn't necessarily mean
+ * no more work is needed, because the workload may not support setting work
+ * amount. Always use the return value to decide if more rounds are needed.
+ * If return value is false (no more round is needed) this value can still be
+ * useful for further refining the result.
+ * @return true if more rounds are needed; false if no more rounds are needed
  */
-typedef ssize_t next_round_work_amount_hook_t(const pilot_workload_t* wl);
+typedef bool next_round_work_amount_hook_t(const pilot_workload_t* wl, size_t *needed_work_amount);
 
 /**
  * \brief Set the function hook that calculates how many readings are needed
@@ -265,7 +270,7 @@ void pilot_set_workload_func(pilot_workload_t*, pilot_workload_func_t*);
  * \details pilot will start with this init_work_amount and repeat the workload
  * and/or increase the work amount until the required confidence level
  * can be achieved, but it will never do more than work_amount_limit
- * in a single round.
+ * in a single round. Set it to 0 if the workload doesn't need a work amount.
  * @param[in] wl pointer to the workload struct
  * @param init_work_amount the initial work amount
  */
@@ -818,9 +823,14 @@ void pilot_import_benchmark_results(pilot_workload_t *wl, size_t round,
 /**
  * \brief Get the amount of work load that will be used for next round
  * @param[in] wl pointer to the workload struct
- * @return the work amount
+ * @param[out] needed_work_amount. A returned 0 value doesn't necessarily mean
+ * no more work is needed, because the workload may not support setting work
+ * amount. Always use the return value to decide if more rounds are needed.
+ * If return value is false (no more round is needed) this value can still be
+ * useful for further refining the result.
+ * @return true if more rounds are needed; false if no more rounds are needed
  */
-size_t pilot_next_round_work_amount(pilot_workload_t *wl);
+bool pilot_next_round_work_amount(const pilot_workload_t *wl, size_t *needed_work_amount);
 
 /**
  * \brief Set the threshold for short round detection
@@ -844,39 +854,64 @@ void pilot_set_required_confidence_interval(pilot_workload_t *wl, double percent
  * \brief Calculate the work amount needed for the round duration to meet
  * short_round_detection_threshold_
  * @param[in] wl pointer to the workload struct
- * @return the work amount needed
+ * @param[out] needed_work_amount. A returned 0 value doesn't necessarily mean
+ * no more work is needed, because the workload may not support setting work
+ * amount. Always use the return value to decide if more rounds are needed.
+ * If return value is false (no more round is needed) this value can still be
+ * useful for further refining the result.
+ * @return true if more rounds are needed; false if no more rounds are needed
  */
-size_t calc_next_round_work_amount_meet_lower_bound(pilot_workload_t *wl);
+bool calc_next_round_work_amount_meet_lower_bound(const pilot_workload_t *wl, size_t *needed_work_amount);
 
 /**
  * \brief Calculate the work amount for next round from readings data
  * @param[in] wl pointer to the workload struct
- * @return the work amount needed
+ * @param[out] needed_work_amount. A returned 0 value doesn't necessarily mean
+ * no more work is needed, because the workload may not support setting work
+ * amount. Always use the return value to decide if more rounds are needed.
+ * If return value is false (no more round is needed) this value can still be
+ * useful for further refining the result.
+ * @return true if more rounds are needed; false if no more rounds are needed
  */
-size_t calc_next_round_work_amount_from_readings(pilot_workload_t *wl);
+bool calc_next_round_work_amount_from_readings(const pilot_workload_t *wl, size_t *needed_work_amount);
 
 /**
  * \brief Calculate the work amount for next round from unit readings data
  * @param[in] wl pointer to the workload struct
- * @return the work amount needed
+ * @param[out] needed_work_amount. A returned 0 value doesn't necessarily mean
+ * no more work is needed, because the workload may not support setting work
+ * amount. Always use the return value to decide if more rounds are needed.
+ * If return value is false (no more round is needed) this value can still be
+ * useful for further refining the result.
+ * @return true if more rounds are needed; false if no more rounds are needed
  */
-size_t calc_next_round_work_amount_from_unit_readings(pilot_workload_t *wl);
+bool calc_next_round_work_amount_from_unit_readings(const pilot_workload_t *wl, size_t *needed_work_amount);
 
 /**
  * \brief Calculate the work amount for next round from unit readings data
  * @param[in] wl pointer to the workload struct
- * @return the work amount needed
+ * @param[out] needed_work_amount. A returned 0 value doesn't necessarily mean
+ * no more work is needed, because the workload may not support setting work
+ * amount. Always use the return value to decide if more rounds are needed.
+ * If return value is false (no more round is needed) this value can still be
+ * useful for further refining the result.
+ * @return true if more rounds are needed; false if no more rounds are needed
  */
-size_t calc_next_round_work_amount_from_wps(pilot_workload_t *wl);
+bool calc_next_round_work_amount_from_wps(const pilot_workload_t *wl, size_t *needed_work_amount);
 
 
 /**
  * \brief Calculate the work amount for next round for getting the desired
  * p-value for comparison
  * @param[in] wl pointer to the workload struct
- * @return the work amount needed
+ * @param[out] needed_work_amount. A returned 0 value doesn't necessarily mean
+ * no more work is needed, because the workload may not support setting work
+ * amount. Always use the return value to decide if more rounds are needed.
+ * If return value is false (no more round is needed) this value can still be
+ * useful for further refining the result.
+ * @return true if more rounds are needed; false if no more rounds are needed
  */
-size_t calc_next_round_work_amount_for_comparison(pilot_workload_t *wl);
+bool calc_next_round_work_amount_for_comparison(const pilot_workload_t *wl, size_t *needed_work_amount);
 
 /**
  * \brief Set if WPS analysis should be enabled

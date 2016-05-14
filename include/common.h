@@ -46,6 +46,14 @@
 #define error_log   BOOST_LOG_TRIVIAL(error)
 #define fatal_log   BOOST_LOG_TRIVIAL(fatal)
 
+// extra indirection so other macros can be used as parameter
+// http://stackoverflow.com/questions/6713420/c-convert-integer-to-string-at-compile-time#comment7949445_6713658
+#define _stringify(x) #x
+#define stringify(x) _stringify(x)
+
+#define SHOULD_NOT_REACH_HERE { fatal_log << __func__ << "():" << stringify(__LINE__) \
+    << " Error: shouldn't reach here"; }
+
 namespace pilot {
 
 // all consts go here, they should be named either k_something, or ALL_UPPERCASE

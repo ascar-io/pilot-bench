@@ -1,5 +1,5 @@
 #!/bin/bash
-# A handy wrapper for func_test_seq_write
+# Unit test for pilot cli tool opt parsing
 #
 # Copyright (c) 2015, 2016 University of California, Santa Cruz, CA, USA.
 # Created by Yan Li <yanli@ascar.io>,
@@ -31,38 +31,20 @@
 # OF THE POSSIBILITY OF SUCH DAMAGE.
 set -e -u
 
-if [ $# -eq 0 ]; then
-    cat<<EOF
-Run test_func_test_seq_write, save the result in a timestamped directory, and
-plot the unit readings as PDF figures.
-
-This script accepts same options as func_test_seq_write does. For example:
-$0 -r test-out-dir -o /mnt/test-device/test-file
-EOF
-    exit 2
-fi
-
-OUTPUT_DIR_NAME=seq-write
-TS=`date +%F_%H-%M-%S`
-declare -a OPTS
-while [ $# -ge 1 ]; do
-    if [ "x$1" = "x-r" ]; then
-        OUTPUT_DIR_NAME=${2}_${TS}
-        OPTS+=(-r "$OUTPUT_DIR_NAME")
-        shift
-    else
-        OPTS+=($1)
+run() {
+    eval "$@"
+    if which valgrind >/dev/null; then
+        # TODO: enable valgrind here
+        true
     fi
-    shift
-done
-if [ "${OUTPUT_DIR_NAME:-}" = "" ]; then
-    OUTPUT_DIR_NAME=seq-write_${TS}
-    OPTS+=(-r "$OUTPUT_DIR_NAME")
-fi
-echo "Saving results to ${OUTPUT_DIR_NAME}"
+}
 
-./func_test_seq_write "${OPTS[@]}"
-PLOT_DIR=${OUTPUT_DIR_NAME}/unit_reading_plot
-mkdir -p "$PLOT_DIR"
-echo "Plotting unit reading figures"
-python `dirname $0`/plot_seq_write_throughput.py  "${OUTPUT_DIR_NAME}/unit_readings.csv" "${PLOT_DIR}/round_"
+run ./pilot run_program 2>&1 | grep -q "Error: program_path is required"
+
+run ./pilot run_program -- 2>&1 | grep -q "Error: program_path is required"
+
+run ./pilot run_program -- true 2>&1 | grep -q "Error: PI information missing"
+
+run ./pilot run_program -v --pi "throughput,MB/s,2,1,0.05" -- true 2>&1 | grep -q "PI\[0\] name: throughput, unit: MB/s, reading must satisfy: yes, mean method: harmonic"
+
+run ./pilot run_program -v --pi "response time,ms,1,0,0.05" -- ./mock_benchmark.sh 2>&1

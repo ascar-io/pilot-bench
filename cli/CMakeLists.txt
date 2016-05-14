@@ -39,15 +39,28 @@ include_directories (${CMAKE_SOURCE_DIR}/include)
 include_directories (${CMAKE_SOURCE_DIR}/lib/interface_include)
 include_directories (${LUAPROMPT_INCLUDE_DIR})
 
-add_executable (pilot pilot.cc)
+add_executable (pilot pilot.cc run_program.cc)
 add_dependencies (pilot cdk luaprompt)
 set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=gnu++11")
 
 target_link_libraries (pilot ${CDK_LIBRARIES} ${LIBPILOT_LIBRARIES}
                        ${Boost_LIBRARIES} ${READLINE_LIBRARY} libluaprompt
-                       ${LUA_LIBRARY})
+                       ${LUA_LIBRARY} ${CMAKE_THREAD_LIBS_INIT})
+
+# tests
+add_custom_command(TARGET pilot POST_BUILD
+                   COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                       ${CMAKE_CURRENT_LIST_DIR}/test/unit_test_lua_prompt.sh $<TARGET_FILE_DIR:pilot>)
+add_custom_command(TARGET pilot POST_BUILD
+                   COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                       ${CMAKE_CURRENT_LIST_DIR}/test/unit_test_pilot_opt_parsing.sh $<TARGET_FILE_DIR:pilot>)
+add_custom_command(TARGET pilot POST_BUILD
+                   COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                       ${CMAKE_CURRENT_LIST_DIR}/test/mock_benchmark.sh $<TARGET_FILE_DIR:pilot>)
 
 add_test (NAME unit_test_lua_prompt
-          COMMAND echo 'print("Hello world!")' | pilot | grep abc)
+          COMMAND unit_test_lua_prompt.sh)
+add_test (NAME unit_test_pilot_opt_parsing
+          COMMAND unit_test_pilot_opt_parsing.sh)
 
 install (TARGETS pilot DESTINATION bin)

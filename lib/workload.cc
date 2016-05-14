@@ -180,22 +180,35 @@ ssize_t pilot_workload_t::required_num_of_unit_readings(int piid) const {
 
 }
 
-size_t pilot_workload_t::calc_next_round_work_amount(void) {
+bool pilot_workload_t::calc_next_round_work_amount(size_t *needed_work_amount) const {
     if (next_round_work_amount_hook_) {
-        return next_round_work_amount_hook_(this);
+        return next_round_work_amount_hook_(this, needed_work_amount);
     }
+    bool more_rounds_needed = false;
 
-    size_t max_work_amount = 0;
+    *needed_work_amount = 0;
     for (auto &r : runtime_analysis_plugins_) {
         if (!r.enabled || r.finished) continue;
-        max_work_amount = max(max_work_amount, r.calc_next_round_work_amount(this));
+        size_t nwa;
+        if (r.calc_next_round_work_amount(this, &nwa)) {
+            more_rounds_needed = true;
+            *needed_work_amount = max(*needed_work_amount, nwa);
+        }
     }
 
-    if (0 == rounds_ && 0 == max_work_amount) {
-        return 0 == init_work_amount_ ? max_work_amount_ / 10 : init_work_amount_;
+    if (0 == rounds_ && 0 == *needed_work_amount) {
+        if (0 == max_work_amount_) {
+            // workload doesn't support setting work amount
+            return true;
+        } else {
+        needed_work_amount = 0;
+            *needed_work_amount = (0 == init_work_amount_) ? max_work_amount_ / 10 : init_work_amount_;
+            return true;
+        }
     } else {
-        return max_work_amount;
+        return more_rounds_needed;
     }
+    SHOULD_NOT_REACH_HERE;
 }
 
 pilot_analytical_result_t* pilot_workload_t::get_analytical_result(pilot_analytical_result_t *info) const {
@@ -505,7 +518,7 @@ size_t pilot_workload_t::set_min_sample_size(size_t min_sample_size) {
     return old_min_sample_size;
 }
 
-void pilot_workload_t::enable_runtime_analysis_plugin(calc_next_round_work_amount_func_t *p) {
+void pilot_workload_t::enable_runtime_analysis_plugin(next_round_work_amount_hook_t *p) {
     for (auto &c : runtime_analysis_plugins_) {
         if (p == c.calc_next_round_work_amount) {
             c.enabled = true;
@@ -515,7 +528,7 @@ void pilot_workload_t::enable_runtime_analysis_plugin(calc_next_round_work_amoun
     runtime_analysis_plugins_.emplace_back(true, p);
 }
 
-void pilot_workload_t::finish_runtime_analysis_plugin(calc_next_round_work_amount_func_t *p) {
+void pilot_workload_t::finish_runtime_analysis_plugin(next_round_work_amount_hook_t *p) const {
     for (auto &c : runtime_analysis_plugins_) {
         if (p == c.calc_next_round_work_amount) {
             c.finished = true;
