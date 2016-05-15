@@ -191,14 +191,16 @@ bool pilot_workload_t::calc_next_round_work_amount(size_t * const needed_work_am
     }
     bool more_rounds_needed = false;
 
-    *needed_work_amount = 0;
+    *needed_work_amount = max(adjusted_min_work_amount_, ssize_t(min_work_amount_));
     for (auto &r : runtime_analysis_plugins_) {
         if (!r.enabled || r.finished) continue;
         size_t nwa;
-        if (r.calc_next_round_work_amount(this, &nwa)) {
-            more_rounds_needed = true;
-            *needed_work_amount = max(*needed_work_amount, nwa);
-        }
+        bool rc = r.calc_next_round_work_amount(this, &nwa);
+        // We update the needed work amount no matter whether the plugin still
+        // needs more round. Plugins like WPS can still requests work amount
+        // when enabled even with satisfaction disabled.
+        *needed_work_amount = max(*needed_work_amount, nwa);
+        more_rounds_needed = more_rounds_needed | rc;
     }
 
     if (0 == rounds_ && 0 == *needed_work_amount) {

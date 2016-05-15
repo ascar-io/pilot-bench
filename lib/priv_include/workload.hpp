@@ -125,7 +125,7 @@ public:  // FIXME: most of the following members should be private and controlle
     size_t init_work_amount_;
     size_t max_work_amount_;                         //! The maximum work amount set by user
     size_t min_work_amount_;                         //! The minimum work amount set by user
-    mutable ssize_t adjusted_min_work_amount_;                //! The minimum work amount that can make the round no shorter than short_round_detection_threshold_. -1 means not found yet.
+    mutable ssize_t adjusted_min_work_amount_;       //! The minimum work amount that can make the round no shorter than short_round_detection_threshold_. -1 means not found yet.
     pilot_workload_func_t *workload_func_;
     std::vector<pilot_pi_info_t> pi_info_;
     pilot_display_format_functor format_wps_;
@@ -143,6 +143,7 @@ public:  // FIXME: most of the following members should be private and controlle
 
     bool short_workload_check_;
     pilot_warm_up_removal_detection_method_t warm_up_removal_detection_method_;
+    double warm_up_removal_percentage_;
     double warm_up_removal_moving_average_window_size_in_seconds_;
 
     // Baseline for comparison analysis
@@ -197,6 +198,7 @@ public:  // FIXME: most of the following members should be private and controlle
                          desired_p_value_(0.05),
                          short_workload_check_(true),
                          warm_up_removal_detection_method_(FIXED_PERCENTAGE),
+                         warm_up_removal_percentage_(0.1),
                          warm_up_removal_moving_average_window_size_in_seconds_(3),
                          wholly_rejected_rounds_(0),
                          analytical_result_(),

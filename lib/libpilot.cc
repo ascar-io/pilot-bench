@@ -146,14 +146,6 @@ void pilot_set_pi_info(pilot_workload_t* wl, int piid,
     wl->pi_info_[piid].unit_reading_must_satisfy = unit_reading_must_satisfy;
 }
 
-void pilot_wps_setting(pilot_workload_t* wl,
-        pilot_pi_display_format_func_t *format_wps_func,
-        bool wps_must_satisfy) {
-    ASSERT_VALID_POINTER(wl);
-    wl->format_wps_.format_func_ = format_wps_func;
-    wl->wps_must_satisfy_ = wps_must_satisfy;
-}
-
 pilot_workload_t* pilot_new_workload(const char *workload_name) {
     pilot_workload_t *wl = new pilot_workload_t(workload_name);
     return wl;
@@ -245,6 +237,15 @@ void pilot_set_warm_up_removal_method(pilot_workload_t* wl,
         pilot_warm_up_removal_detection_method_t m) {
     ASSERT_VALID_POINTER(wl);
     wl->warm_up_removal_detection_method_ = m;
+}
+
+void pilot_set_warm_up_removal_percentage(pilot_workload_t* wl, double percent) {
+    ASSERT_VALID_POINTER(wl);
+    if (percent < 0 || percent >= 1) {
+        fatal_log << "warm-up removal percentage must be within [0, 1), aborting...";
+        abort();
+    }
+    wl->warm_up_removal_percentage_ = percent;
 }
 
 void pilot_set_short_workload_check(pilot_workload_t* wl, bool check_short_workload) {
@@ -1025,9 +1026,7 @@ ssize_t pilot_warm_up_removal_detect(const pilot_workload_t *wl,
         if (num_of_readings == 1)
             return 0;
         else {
-            const int percentage = 10;
-            // calculate the ceil of num_of_readings / percentage so we remove at least one
-            return (num_of_readings + percentage - 1) / percentage;
+            return static_cast<ssize_t>(round(wl->warm_up_removal_percentage_ * num_of_readings));
         }
     case MOVING_AVERAGE:
         fatal_log << "Unimplemented";
@@ -1190,7 +1189,10 @@ bool calc_next_round_work_amount_meet_lower_bound(const pilot_workload_t *wl, si
         info_log << "setting adjusted_min_work_amount to " << wl->round_work_amounts_.back();
         wl->adjusted_min_work_amount_ = wl->round_work_amounts_.back();
         wl->finish_runtime_analysis_plugin(&calc_next_round_work_amount_meet_lower_bound);
-        *needed_work_amount = 0;
+        // We return the lower bound (wl->adjusted_min_work_amount_) because
+        // the caller wouldn't pick up the new wl->adjusted_min_work_amount_
+        // until next round.
+        *needed_work_amount = wl->adjusted_min_work_amount_;
         return false;
     }
     SHOULD_NOT_REACH_HERE;
@@ -1384,7 +1386,10 @@ bool calc_next_round_work_amount_for_comparison(const pilot_workload_t *wl, size
     return need_more_rounds;
 }
 
-void pilot_set_wps_analysis(pilot_workload_t *wl, bool enabled, bool wps_must_satisfy) {
+void pilot_set_wps_analysis(pilot_workload_t *wl,
+        pilot_pi_display_format_func_t *format_wps_func,
+        bool enabled, bool wps_must_satisfy) {
+    wl->format_wps_.format_func_ = format_wps_func;
     wl->set_wps_analysis(enabled, wps_must_satisfy);
 }
 

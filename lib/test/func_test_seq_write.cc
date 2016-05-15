@@ -205,6 +205,7 @@ int main(int argc, char **argv) {
     // Don't use po::value<>()->required() here or --help wouldn't work
     desc.add_options()
             ("help", "produce help message")
+            ("autocorr-threshold,a", po::value<double>(), "the threshold for autocorrelation coefficient (default to 1)")
             ("baseline,b", po::value<string>(), "the input file that contains baseline data for comparison")
             ("ci,c", po::value<double>(), "the desired width of CI as percentage of its central value (default: 0.4)")
             ("duration-limit,d", po::value<size_t>(), "the maximum duration of the benchmark in seconds (default: unlimited)")
@@ -212,16 +213,17 @@ int main(int argc, char **argv) {
             ("io-size,s", po::value<size_t>(), "the size of I/O operations (default to 1 MB)")
             ("length-limit,l", po::value<size_t>(), "the max. length of the workload in bytes (default to 2048*1024*1024); "
                     "the workload will not write beyond this limit")
+            ("min-round-duration", po::value<size_t>(), "the min. acceptable length of a round (in seconds, default to 1 second)")
             ("init-length,i", po::value<size_t>(), "the initial length of workload in bytes (default to 1/10 of limitsize); "
                     "the workload will start from this length and be gradually repeated or increased until the desired "
                     "confidence level is reached")
+            ("no-tui", "disable the text user interface")
             ("output,o", po::value<string>(), "set output file name, can be a device. WARNING: the file will be overwritten if it exists.")
             ("quiet,q", "quiet mode. Print results in this format: URResult,URCI,URVar,WPSa,WPSv,WPSvCI,WPSvVar,TestDuration. Quiet mode always enables --no-tui.")
             ("result,r", po::value<string>(), "set result directory name, (default to seq-write-dir)")
-            ("no-tui", "disable the text user interface")
-            ("warm-up-io,w", po::value<size_t>(), "the number of I/O operations that will be removed from the beginning as the warm-up phase (default to 1/10 of total IO ops)")
-            ("wps", "work amount per second (WPS) CI must meet requirement (default: no)")
             ("verbose,v", "print more debug information")
+            ("warm-up-io,w", po::value<double>(), "the percent of I/O operations that will be removed from the beginning as the warm-up phase (default to 0.1)")
+            ("wps", "work amount per second (WPS) CI must meet requirement (default: no)")
             ;
 
     po::variables_map vm;
@@ -342,19 +344,11 @@ int main(int argc, char **argv) {
         ci_perc = vm["ci"].as<double>();
     }
 
-//    size_t warmupio = io_limit / g_io_size / 5;
-//    if (vm.count("warm-up-io")) {
-//        warmupio = vm["warmupio"].as<size_t>();
-//        cout << "warmupio set to " << warmupio << endl;
-//    } else {
-//        cout << "warmupio set to 1/10 of total IO ops" << endl;
-//    }
-
     // Starting the actual work
     shared_ptr<pilot_workload_t> wl(pilot_new_workload("Sequential write"), pilot_destroy_workload);
     pilot_set_num_of_pi(wl.get(), num_of_pi);
-    pilot_set_pi_info(wl.get(), 0, "Write throughput", "MB/s", NULL, ur_format_func);
-    pilot_wps_setting(wl.get(), wps_format_func, need_wps);
+    pilot_set_pi_info(wl.get(), 0, "Write throughput", "MB/s", NULL, ur_format_func, false, true);
+    pilot_set_wps_analysis(wl.get(), wps_format_func, need_wps, need_wps);
     pilot_set_work_amount_limit(wl.get(), io_limit);
     pilot_set_init_work_amount(wl.get(), init_length);
     pilot_set_workload_func(wl.get(), &workload_func);
@@ -367,7 +361,24 @@ int main(int argc, char **argv) {
     if (0 != duration_limit) {
         pilot_set_session_duration_limit(wl.get(), duration_limit);
     }
-    pilot_set_autocorrelation_coefficient(wl.get(), 1);
+    if (vm.count("min-round-duration")) {
+        pilot_set_short_round_detection_threshold(wl.get(), ONE_SECOND * vm["min-round-duration"].as<size_t>());
+    }
+    if (vm.count("autocorr-threshold")) {
+        double at = vm["autocorr-threshold"].as<double>();
+        if (at > 1 || at < -1) {
+            cerr << "autocorrelation coefficient threshold must be within [-1, 1]" << endl;
+            return 2;
+        }
+        pilot_set_autocorrelation_coefficient(wl.get(), at);
+    } else {
+        pilot_set_autocorrelation_coefficient(wl.get(), 1);
+    }
+    if (vm.count("warm-up-io")) {
+        double wup = vm["warm-up-io"].as<double>();
+        pilot_set_warm_up_removal_method(wl.get(), FIXED_PERCENTAGE);
+        pilot_set_warm_up_removal_percentage(wl.get(), wup);
+    }
 
     int res;
     if (use_tui)

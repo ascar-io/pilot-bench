@@ -95,7 +95,7 @@ void test_opt_session_duration(size_t work_amount_limit,
                       false,  /* reading must satisfy */
                       true);  /* unit readings must satisfy */
     pilot_set_calc_required_unit_readings_func(wl, &mock_calc_required_ur_func);
-    pilot_set_wps_analysis(wl, false, false);
+    pilot_set_wps_analysis(wl, NULL, false, false);
     pilot_set_short_round_detection_threshold(wl, 0);
     pilot_set_warm_up_removal_method(wl, NO_WARM_UP_REMOVAL);
 
@@ -141,7 +141,7 @@ TEST(PilotRunWorkloadTest, TestCalcNextRoundWorkAmountFromWPS) {
     size_t wa_limit = 1000;
     size_t wa_slice_size = wa_limit / kWPSInitSlices;
     pilot_set_work_amount_limit(wl, wa_limit);
-    pilot_set_wps_analysis(wl, true, true);
+    pilot_set_wps_analysis(wl, NULL, true, true);
     size_t wa;
     ASSERT_TRUE(calc_next_round_work_amount_from_wps(wl, &wa));
     ASSERT_EQ(wa_slice_size, wa);

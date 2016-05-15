@@ -230,19 +230,6 @@ void pilot_set_pi_info(pilot_workload_t* wl, int piid,
         pilot_mean_method_t reading_mean_type = ARITHMETIC_MEAN,
         pilot_mean_method_t unit_reading_mean_type = ARITHMETIC_MEAN);
 
-/**
- * Format a WPS number for output
- * @param[in] wl pointer to the workload struct
- * @param[in] format_wps_func the function for formatting
- * a work-per-second number for display. Setting this parameter
- * to NULL to disable it.
- * @param wps_must_satisfy set if the work-per-second must satisfy quality
- * requirements
- */
-void pilot_wps_setting(pilot_workload_t* wl,
-        pilot_pi_display_format_func_t *format_wps_func,
-        bool wps_must_satisfy);
-
 pilot_workload_t* pilot_new_workload(const char *workload_name);
 
 /**
@@ -315,6 +302,15 @@ enum pilot_warm_up_removal_detection_method_t {
  * @param m the warm-up removal method
  */
 void pilot_set_warm_up_removal_method(pilot_workload_t* wl, pilot_warm_up_removal_detection_method_t m);
+
+/**
+ * \brief Set the percentage to remove as warm-up
+ * If the warm-up removal method is not FIXED_PERCENTAGE, this value set here
+ * has no effect on anything.
+ * @param[in] wl pointer to the workload struct
+ * @param percent the percent to remove
+ */
+void pilot_set_warm_up_removal_percentage(pilot_workload_t* wl, double percent);
 
 /**
  * \brief Detect the ending location of the warm-up phase
@@ -922,10 +918,15 @@ bool calc_next_round_work_amount_for_comparison(const pilot_workload_t *wl, size
 /**
  * \brief Set if WPS analysis should be enabled
  * @param[in] wl pointer to the workload struct
+ * @param[in] format_wps_func the function for formatting
+ * a work-per-second number for display. Setting this parameter
+ * to NULL to disable it.
  * @param enabled if WPS analysis is enabled
  * @param wps_must_satisfy if WPS CI must satisfy
  */
-void pilot_set_wps_analysis(pilot_workload_t *wl, bool enabled, bool wps_must_satisfy);
+void pilot_set_wps_analysis(pilot_workload_t *wl,
+        pilot_pi_display_format_func_t *format_wps_func,
+        bool enabled, bool wps_must_satisfy);
 
 /**
  * \brief Set the duration limit for running a session. The session will stop after

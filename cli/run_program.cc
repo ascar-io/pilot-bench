@@ -271,7 +271,7 @@ int handle_run_program(int argc, const char** argv) {
         return 2;
     }
 
-    pilot_set_wps_analysis(wl.get(), false, false);
+    pilot_set_wps_analysis(wl.get(), NULL, false, false);
     pilot_set_workload_func(wl.get(), workload_func);
     pilot_set_autocorrelation_coefficient(wl.get(), 0.1);
     info_log << "Setting the limit of autocorrelation coefficient to 0.1";
