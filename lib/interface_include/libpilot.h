@@ -108,6 +108,13 @@ void* pilot_malloc_func(size_t size);
 void pilot_free(void *p);
 
 /**
+ * \brief The data object that holds all the information of a workload.
+ * \details Use pilot_new_workload to allocate an instance. The library user
+ * should never be able to directly declare such a struct.
+ */
+struct pilot_workload_t;
+
+/**
  * \brief A function from the library's user for running one benchmark and collecting readings.
  * @param[in] total_work_amount
  * @param[out] num_of_work_unit
@@ -115,18 +122,13 @@ void pilot_free(void *p);
  * @param[out] readings the final readings of this workload run. Format: readings[piid]. The user needs to allocate memory using lib_malloc_func.
  * @return
  */
-typedef int pilot_workload_func_t(size_t total_work_amount,
+typedef int pilot_workload_func_t(const pilot_workload_t *wl,
+                                  size_t round,
+                                  size_t total_work_amount,
                                   pilot_malloc_func_t *lib_malloc_func,
                                   size_t *num_of_work_unit,
                                   double ***unit_readings,
                                   double **readings);
-
-/**
- * \brief The data object that holds all the information of a workload.
- * \details Use pilot_new_workload to allocate an instance. The library user
- * should never be able to directly declare such a struct.
- */
-struct pilot_workload_t;
 
 struct pilot_pi_unit_readings_iter_t;
 

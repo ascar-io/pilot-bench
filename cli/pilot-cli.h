@@ -34,6 +34,7 @@
 #ifndef CLI_PILOT_CLI_H_
 #define CLI_PILOT_CLI_H_
 
+#include <boost/date_time/posix_time/posix_time.hpp>
 #include <common.h>
 #include <config.h>
 #include <libpilot.h>
@@ -42,5 +43,7 @@
     stringify(PILOT_VERSION_MINOR) " (compiled by " CC_VERSION " on " __DATE__ ")"
 
 int handle_run_program(int argc, const char** argv);
+
+std::string get_timestamp(void);
 
 #endif /* CLI_PILOT_CLI_H_ */

@@ -91,7 +91,7 @@ set (CDK_LIBRARIES ${CURSES_LIBRARIES})
 #set (Boost_USE_STATIC_RUNTIME     ON)
 
 set (Boost_USE_MULTITHREADED      ON)
-find_package (Boost COMPONENTS log program_options system timer chrono thread REQUIRED)
+find_package (Boost COMPONENTS filesystem log program_options system timer chrono thread REQUIRED)
 if (Boost_FOUND)
     add_definitions ("-DHAS_BOOST")
     if (NOT Boost_USE_STATIC_LIBS)

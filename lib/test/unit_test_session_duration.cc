@@ -47,7 +47,9 @@ static const int g_num_of_pi = 1;
 static vector<int> *g_expected_work_amount_per_round = NULL;
 static vector<int> *g_required_sample_size_per_round = NULL;
 
-int mock_workload_func(size_t work_amount,
+int mock_workload_func(const pilot_workload_t *wl,
+                       size_t round,
+                       size_t work_amount,
                        pilot_malloc_func_t *lib_malloc_func,
                        size_t *num_of_work_unit,
                        double ***unit_readings,

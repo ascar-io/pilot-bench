@@ -293,9 +293,9 @@ int pilot_run_workload(pilot_workload_t *wl) {
 
         round_timer.reset(new cpu_timer);
         int rc =
-        wl->workload_func_(work_amount, &pilot_malloc_func,
-                          &num_of_unit_readings, &unit_readings,
-                          &readings);
+        wl->workload_func_(wl, wl->rounds_, work_amount, &pilot_malloc_func,
+                           &num_of_unit_readings, &unit_readings,
+                           &readings);
         round_duration = round_timer->elapsed().wall;
         debug_log << "finished workload round " << wl->rounds_;
 

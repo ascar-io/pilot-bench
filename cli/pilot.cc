@@ -34,6 +34,7 @@
 #include <iostream>
 #include "pilot-cli.h"
 #include <string>
+#include <sstream>
 extern "C" {
   #include <lua.h>
   #include <lauxlib.h>
@@ -50,6 +51,20 @@ void print_help_msg(const char* argv0) {
     cerr << "Available commands:" << endl;
     cerr << "  run_program             run a benchmark program" << endl;
     cerr << "Add --help after any command to see command specific help." << endl << endl;
+}
+
+string get_timestamp(void)
+{
+    using namespace boost::posix_time;
+    ptime now = second_clock::universal_time();
+
+    static locale loc(std::cout.getloc(),
+                      new time_facet("%Y%m%d_%H%M%S"));
+
+    stringstream ss;
+    ss.imbue(loc);
+    ss << now;
+    return ss.str();
 }
 
 int main(int argc, const char** argv) {

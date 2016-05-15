@@ -32,6 +32,8 @@
  */
 
 #include <boost/algorithm/string.hpp>
+#include <boost/filesystem.hpp>
+#include <boost/format.hpp>
 #include <boost/lexical_cast.hpp>
 #include <boost/program_options.hpp>
 #include <boost/timer/timer.hpp>
@@ -45,17 +47,22 @@
 #include <string>
 #include <vector>
 
-using namespace std;
-using namespace pilot;
 namespace po = boost::program_options;
+using boost::format;
 using boost::lexical_cast;
+using boost::replace_all;
 using boost::timer::cpu_timer;
 using boost::timer::nanosecond_type;
+using namespace boost::filesystem;
+using namespace std;
+using namespace pilot;
 
 int            g_num_of_pi = 0;
 vector<int>    g_pi_col;          // column of each PI in client program's output
 string         g_program_cmd;
 string         g_program_name;
+string         g_result_dir;
+string         g_round_results_dir;
 bool           g_verbose = false;
 
 /**
@@ -80,6 +87,8 @@ int exec(const char* cmd, string &prog_stdout) {
 /**
  * \brief the sequential write workload func for libpilot
  * \details This function generates a series of sequential I/O and calculate the throughput.
+ * @param[in] wl the workload
+ * @param round the current round
  * @param[in] total_work_amount
  * @param[in] lib_malloc_func
  * @param[out] num_of_work_unit
@@ -87,7 +96,9 @@ int exec(const char* cmd, string &prog_stdout) {
  * @param[out] readings the final readings of this workload run. Format: readings[piid]. The user needs to allocate memory using lib_malloc_func.
  * @return
  */
-int workload_func(size_t total_work_amount,
+int workload_func(const pilot_workload_t *wl,
+                  size_t round,
+                  size_t total_work_amount,
                   pilot_malloc_func_t *lib_malloc_func,
                   size_t *num_of_work_unit,
                   double ***unit_readings,
@@ -98,8 +109,13 @@ int workload_func(size_t total_work_amount,
     *num_of_work_unit = 0;
     *unit_readings = NULL;
 
+    // substitute macros
+    string my_result_dir = g_round_results_dir + str(format("_%1%") % round);
+    string my_cmd(g_program_cmd);
+    replace_all(my_cmd, "%RESULT_DIR%", my_result_dir);
+
     string prog_stdout;
-    int rc = exec(g_program_cmd.c_str(), prog_stdout);
+    int rc = exec(my_cmd.c_str(), prog_stdout);
     // remove trailing \n
     int i = prog_stdout.size() - 1;
     while (i >= 0 && '\n' == prog_stdout[i])
@@ -185,6 +201,15 @@ int handle_run_program(int argc, const char** argv) {
     bool use_tui = true;
     if (vm.count("no-tui"))
         use_tui = false;
+
+    if (vm.count("result-dir")) {
+        g_result_dir = vm["result-dir"].as<string>() + get_timestamp();
+    } else {
+        g_result_dir = "pilot_result_" + get_timestamp();
+    }
+    info_log << "Saving results to directory " << g_result_dir;
+    g_round_results_dir = g_result_dir + "/round_results";
+    create_directories(g_round_results_dir);
 
     // parse program_cmd
     if (0 == program_path_start_loc || program_path_start_loc == argc - 1) {

@@ -79,7 +79,9 @@ static const size_t num_of_pi = 1;
  * @param[out] readings
  * @return
  */
-int workload_func(size_t total_work_amount,
+int workload_func(const pilot_workload_t *wl,
+                  size_t round,
+                  size_t total_work_amount,
                   pilot_malloc_func_t *lib_malloc_func,
                   size_t *num_of_work_unit,
                   double ***unit_readings,
@@ -220,7 +222,7 @@ int main(int argc, char **argv) {
             ("no-tui", "disable the text user interface")
             ("output,o", po::value<string>(), "set output file name, can be a device. WARNING: the file will be overwritten if it exists.")
             ("quiet,q", "quiet mode. Print results in this format: URResult,URCI,URVar,WPSa,WPSv,WPSvCI,WPSvVar,TestDuration. Quiet mode always enables --no-tui.")
-            ("result,r", po::value<string>(), "set result directory name, (default to seq-write-dir)")
+            ("result-dir,r", po::value<string>(), "set result directory name, (default to seq-write-dir)")
             ("verbose,v", "print more debug information")
             ("warm-up-io,w", po::value<double>(), "the percent of I/O operations that will be removed from the beginning as the warm-up phase (default to 0.1)")
             ("wps", "work amount per second (WPS) CI must meet requirement (default: no)")
@@ -285,8 +287,8 @@ int main(int argc, char **argv) {
         g_io_size = vm["io-size"].as<size_t>();
     }
     string result_dir_name("seq-write-results");
-    if (vm.count("result")) {
-        result_dir_name = vm["result"].as<string>();
+    if (vm.count("result-dir")) {
+        result_dir_name = vm["result-dir"].as<string>();
     }
 
     // fill g_io_buf with some pseudo-random data to prevent some smart SSDs from compressing
