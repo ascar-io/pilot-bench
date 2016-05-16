@@ -194,7 +194,7 @@ int pilot_optimal_subsession_size(InputIterator first, const size_t n,
     }
     double sm = pilot_subsession_mean(first, n, mean_method);
     double cov;
-    for (size_t q = 1; q != n / 2 + 1; ++q) {
+    for (size_t q = 1; q != n / 3 + 1; ++q) {
         cov = pilot_subsession_autocorrelation_coefficient(first, n, q, sm, mean_method);
         trace_log << __func__ << "(): subsession size: " << q << ", auto. cor. coef.: " << cov;
         if (std::abs(cov) <= max_autocorrelation_coefficient)
