@@ -111,11 +111,13 @@ int workload_func(const pilot_workload_t *wl,
     *unit_readings = NULL;
 
     // substitute macros
-    string my_result_dir = g_round_results_dir + str(format("_%1%") % round);
+    string my_result_dir = g_round_results_dir + str(format("/%1%") % round);
+    create_directories(my_result_dir);
     string my_cmd(g_program_cmd);
     replace_all(my_cmd, "%RESULT_DIR%", my_result_dir);
 
     string prog_stdout;
+    debug_log << "Executing client program: " << my_cmd;
     int rc = exec(my_cmd.c_str(), prog_stdout);
     // remove trailing \n
     int i = prog_stdout.size() - 1;
@@ -163,7 +165,7 @@ int handle_run_program(int argc, const char** argv) {
                     "            (default to 0.05)\n"
                     "more than one PI's info. can be separated by ;")
             ("quiet,q", "quiet mode")
-            ("result_dir,r", po::value<string>(), "set result directory name")
+            ("result-dir,r", po::value<string>(), "set result directory name")
             ("verbose,v", "print debug information")
             ;
     // copy options into args and find program_path_start_loc
@@ -214,7 +216,7 @@ int handle_run_program(int argc, const char** argv) {
         use_tui = false;
 
     if (vm.count("result-dir")) {
-        g_result_dir = vm["result-dir"].as<string>() + get_timestamp();
+        g_result_dir = vm["result-dir"].as<string>();
     } else {
         g_result_dir = "pilot_result_" + get_timestamp();
     }
@@ -339,6 +341,11 @@ int handle_run_program(int argc, const char** argv) {
             shared_ptr<char> psummary(pilot_text_workload_summary(wl.get()), pilot_free_text_dump);
             cout << psummary;
         }
+    }
+    res = pilot_export(wl.get(), g_result_dir.c_str());
+    if (res != 0) {
+        cout << pilot_strerror(res) << endl;
+        return res;
     }
 
     return 0;
