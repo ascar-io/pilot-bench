@@ -193,7 +193,25 @@ bool pilot_workload_t::calc_next_round_work_amount(size_t * const needed_work_am
     }
     bool more_rounds_needed = false;
 
-    *needed_work_amount = max(adjusted_min_work_amount_, ssize_t(min_work_amount_));
+    if (0 == rounds_) {
+        // special case for first round
+        if (0 == max_work_amount_) {
+            // workload doesn't support setting work amount
+            return true;
+        } else if (0 != init_work_amount_) {
+            *needed_work_amount = init_work_amount_;
+            return true;
+        } else {
+            // initial work amount
+            size_t min = max(adjusted_min_work_amount_, ssize_t(min_work_amount_));
+            size_t valid_range = max_work_amount_ - min;
+            *needed_work_amount = min + valid_range / 10;
+            // in this case we also run through all the plugins to see if they
+            // have other need
+        }
+    } else {
+        *needed_work_amount = max(adjusted_min_work_amount_, ssize_t(min_work_amount_));
+    }
     for (auto &r : runtime_analysis_plugins_) {
         if (!r.enabled || r.finished) continue;
         size_t nwa;
@@ -205,14 +223,8 @@ bool pilot_workload_t::calc_next_round_work_amount(size_t * const needed_work_am
         more_rounds_needed = more_rounds_needed | rc;
     }
 
-    if (0 == rounds_ && 0 == *needed_work_amount) {
-        if (0 == max_work_amount_) {
-            // workload doesn't support setting work amount
-            return true;
-        } else {
-            *needed_work_amount = (0 == init_work_amount_) ? max_work_amount_ / 10 : init_work_amount_;
-            return true;
-        }
+    if (0 == rounds_) {
+        return true;
     } else {
         return more_rounds_needed;
     }

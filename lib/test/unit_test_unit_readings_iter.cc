@@ -110,7 +110,7 @@ TEST(PilotUnitReadingsIterTest, ImportingAndIterating) {
                                        unit_readings_per_round,
                                        mock_ur_rounds[round]);
 
-    ASSERT_EQ(size_t(16), pilot_get_total_num_of_unit_readings(wl, 0));
+    ASSERT_EQ(size_t((unit_readings_per_round - 1) * 2), pilot_get_total_num_of_unit_readings(wl, 0));
     iter = pilot_pi_unit_readings_iter_new(wl, 0);
     assert_eq({5, 10, 20, 30, 40, 42, 43, 41, 4, 11, 19, 31, 39, 41, 42, 43}, iter, "first iter wrong");
     pilot_pi_unit_readings_iter_destroy(iter);
@@ -123,9 +123,9 @@ TEST(PilotUnitReadingsIterTest, ImportingAndIterating) {
                                    (const double[]){42.0},
                                    sizeof(_new_data_a)/sizeof(double),
                                    new_data_a);
-    ASSERT_EQ(size_t(17), pilot_get_total_num_of_unit_readings(wl, 0));
+    ASSERT_EQ(size_t((11 - 1) + (unit_readings_per_round - 1)), pilot_get_total_num_of_unit_readings(wl, 0));
     iter = pilot_pi_unit_readings_iter_new(wl, 0);
-    assert_eq({10, 20, 30, 40, 42, 43, 41, 42, 43, 4, 11, 19, 31, 39, 41, 42, 43}, iter, "second iter wrong");
+    assert_eq({5, 10, 20, 30, 40, 42, 43, 41, 42, 43, 4, 11, 19, 31, 39, 41, 42, 43}, iter, "second iter wrong");
     pilot_pi_unit_readings_iter_destroy(iter);
 
     // replace the first round with a list with fewer unit readings
