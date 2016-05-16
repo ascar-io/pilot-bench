@@ -407,7 +407,7 @@ int main(int argc, char **argv) {
     if (!g_quiet_mode) {
         pilot_ui_printf_hl(wl.get(), "Benchmark results are saved to %s\n", result_dir_name.c_str());
     } else {
-        pilot_analytical_result_t *r = pilot_analytical_result(wl.get(), NULL);
+        shared_ptr<pilot_analytical_result_t> r(pilot_analytical_result(wl.get(), NULL), pilot_free_analytical_result);
         // format: URResult,URCI,URVar,WPSa,WPSv,WPSvCI,TestDuration
         cout << r->unit_readings_mean_formatted[0] << ","
              << r->unit_readings_optimal_subsession_ci_width_formatted[0] << ","
@@ -420,7 +420,6 @@ int main(int argc, char **argv) {
             cout << ",,,";
         }
         cout << r->session_duration << endl;
-        pilot_free_analytical_result(r);
     }
 
     delete[] g_io_buf;

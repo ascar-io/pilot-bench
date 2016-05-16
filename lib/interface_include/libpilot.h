@@ -232,6 +232,8 @@ void pilot_set_pi_info(pilot_workload_t* wl, int piid,
         pilot_mean_method_t reading_mean_type = ARITHMETIC_MEAN,
         pilot_mean_method_t unit_reading_mean_type = ARITHMETIC_MEAN);
 
+// TODO: implement a get_pi_info()
+
 pilot_workload_t* pilot_new_workload(const char *workload_name);
 
 /**

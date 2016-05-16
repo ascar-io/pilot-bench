@@ -32,6 +32,7 @@
  */
 
 #include <algorithm>
+#include <boost/format.hpp>
 #include <chrono>
 #include "common.h"
 #include "csv.h"
@@ -42,6 +43,7 @@
 #include <vector>
 #include "workload.hpp"
 
+using boost::format;
 using namespace std;
 using namespace pilot;
 
@@ -365,46 +367,79 @@ char* pilot_workload_t::text_workload_summary(void) const {
 
     // Keep the text in Markdown format
     s << setprecision(4);
+
+    s << endl;
+    s << "  RESULT REPORT" << endl;
+    s << "==================================================" << endl;
+    s << "Rounds: " << rounds_ << endl;
+    s << "Duration: " << analytical_result_.session_duration << " seconds" << endl << endl;
+
     for (size_t piid = 0; piid < num_of_pi_; ++piid) {
+        // Readings
+        if (piid != 0) s << endl;
+        s << format("  PERFORMANCE INDEX %1%: %2%") % piid % pi_info_[piid].name << endl;
+        s << "==================================================" << endl;
+        string prefix = str(format("[PI %1%] Reading ") % piid);
+        if (0 == analytical_result_.readings_num[piid]) {
+            s << prefix << "no data" << endl;
+        } else {
+            s << prefix << "mean: "
+              << analytical_result_.readings_mean_formatted[piid] << " "
+              << pi_info_[piid].unit << endl;
+            s << prefix << "CI: "
+              << analytical_result_.readings_optimal_subsession_ci_width_formatted[piid] << " "
+              << pi_info_[piid].unit << endl;
+            s << prefix << "variance: "
+              << analytical_result_.readings_optimal_subsession_var_formatted[piid] << " "
+              << pi_info_[piid].unit << endl;
+            s << prefix << "optimal subsession size: "
+              << analytical_result_.readings_optimal_subsession_size[piid] << endl;
+        }
+
+        // Unit Readings
+        prefix = str(format("[PI %1%] Unit Reading ") % piid);
         double sm = analytical_result_.unit_readings_mean[piid];
         double smf = analytical_result_.unit_readings_mean_formatted[piid];
         double var = analytical_result_.unit_readings_var[piid];
         size_t cur_ur = analytical_result_.unit_readings_num[piid];
-        if (piid != 0) s << endl;
-        s << "# Performance Index " << piid << " #" << endl;
-        s << "sample size: " << cur_ur << endl;
-        if (0 == cur_ur)
-            continue;
-        s << "sample mean: " << analytical_result_.unit_readings_mean_formatted[piid] << " " << pi_info_[piid].unit << endl;
-        double var_rt = var / sm;
-        s << "sample variance: " << analytical_result_.unit_readings_var_formatted[piid] << " " << pi_info_[piid].unit << endl;
-        s << "sample variance to sample mean ratio: " << var_rt * 100 << "%" << endl;
-        s << "sample autocorrelation coefficient: " << analytical_result_.unit_readings_autocorrelation_coefficient[piid] << endl;
-        size_t q = analytical_result_.unit_readings_optimal_subsession_size[piid];
-        s << "optimal subsession size (q): " << q << endl;
-        s << "subsession variance (q=" << q << "): " << analytical_result_.unit_readings_optimal_subsession_var_formatted[piid] << endl;
-        s << "subsession variance (q=" << q << ") to sample mean ratio: " << analytical_result_.unit_readings_optimal_subsession_var[piid] * 100 / sm << "%" << endl;
-        size_t min_ur = analytical_result_.unit_readings_required_sample_size[piid];
-        s << "minimum numbers of unit readings required (q=" << q << "): " << min_ur << endl;
-        s << "current number of significant unit readings: " << cur_ur << endl;
-        if (cur_ur >= min_ur) {
-            s << "We have a large enough sample size." << endl;
+
+        if (0 == cur_ur) {
+            s << prefix << "no data" << endl;
         } else {
-            if (cur_ur / q < min_sample_size_) {
-                s << "sample size is smaller than the sample size threshold (" << min_sample_size_ << ")" << endl;
-            } else if (cur_ur < min_ur) {
-                s << "sample size is not yet large enough to achieve a confidence interval width of " << required_ci_percent_of_mean_ << " * sample_mean." << endl;
+            s << prefix << "sample size: " << cur_ur << endl;
+            s << prefix << "sample mean: " << analytical_result_.unit_readings_mean_formatted[piid] << " " << pi_info_[piid].unit << endl;
+            double var_rt = var / sm;
+            s << prefix << "sample variance: " << analytical_result_.unit_readings_var_formatted[piid] << " " << pi_info_[piid].unit << endl;
+            s << prefix << "sample variance to sample mean ratio: " << var_rt * 100 << "%" << endl;
+            s << prefix << "sample autocorrelation coefficient: " << analytical_result_.unit_readings_autocorrelation_coefficient[piid] << endl;
+            size_t q = analytical_result_.unit_readings_optimal_subsession_size[piid];
+            s << prefix << "optimal subsession size (q): " << q << endl;
+            s << prefix << "subsession variance (q=" << q << "): " << analytical_result_.unit_readings_optimal_subsession_var_formatted[piid] << endl;
+            s << prefix << "subsession variance (q=" << q << ") to sample mean ratio: " << analytical_result_.unit_readings_optimal_subsession_var[piid] * 100 / sm << "%" << endl;
+            size_t min_ur = analytical_result_.unit_readings_required_sample_size[piid];
+            s << prefix << "minimum numbers of unit readings required (q=" << q << "): " << min_ur << endl;
+            s << prefix << "current number of significant unit readings: " << cur_ur << endl;
+            if (cur_ur >= min_ur) {
+                s << prefix << "sample size large enough." << endl;
+            } else {
+                if (cur_ur / q < min_sample_size_) {
+                    s << prefix << "sample size is smaller than the sample size threshold (" << min_sample_size_ << ")" << endl;
+                } else if (cur_ur < min_ur) {
+                    s << prefix << "sample size is not yet large enough to achieve a confidence interval width of " << required_ci_percent_of_mean_ << " * sample_mean." << endl;
+                }
             }
+            double ci = analytical_result_.unit_readings_optimal_subsession_ci_width_formatted[piid];
+            double ci_low = smf - ci / 2;
+            double ci_high = smf + ci / 2;
+            s << prefix << "95% confidence interval: [" << ci_low << ", " << ci_high << "] " << pi_info_[piid].unit << endl;
+            s << prefix << "95% confidence interval width: " << ci << " " << pi_info_[piid].unit << endl;
+            s << prefix << "95% confidence interval width is " << analytical_result_.unit_readings_optimal_subsession_ci_width[piid] * 100 / sm << "% of sample_mean" << endl;
         }
-        double ci = analytical_result_.unit_readings_optimal_subsession_ci_width_formatted[piid];
-        double ci_low = smf - ci / 2;
-        double ci_high = smf + ci / 2;
-        s << "95% confidence interval: [" << ci_low << ", " << ci_high << "] " << pi_info_[piid].unit << endl;
-        s << "95% confidence interval width: " << ci << " " << pi_info_[piid].unit << endl;
-        s << "95% confidence interval width is " << analytical_result_.unit_readings_optimal_subsession_ci_width[piid] * 100 / sm << "% of sample_mean" << endl;
     }
 
-    s << "== WORK-PER-SECOND ANALYSIS ==" << endl;
+    s << endl;
+    s << "  WORK-PER-SECOND ANALYSIS" << endl;
+    s << "==================================================" << endl;
     s << "naive mean: " << analytical_result_.wps_harmonic_mean_formatted << endl;
     s << "naive mean err: " << analytical_result_.wps_naive_v_err << " (" << analytical_result_.wps_naive_v_err_percent * 100 <<  "%)" << endl;
     if (analytical_result_.wps_has_data) {

@@ -63,6 +63,7 @@ string         g_program_cmd;
 string         g_program_name;
 string         g_result_dir;
 string         g_round_results_dir;
+bool           g_quiet = false;
 bool           g_verbose = false;
 
 /**
@@ -161,6 +162,7 @@ int handle_run_program(int argc, const char** argv) {
                     "            will still collect and do analysis, but won't take this PI as a stop requirement.\n"
                     "            (default to 0.05)\n"
                     "more than one PI's info. can be separated by ;")
+            ("quiet,q", "quiet mode")
             ("result_dir,r", po::value<string>(), "set result directory name")
             ("verbose,v", "print debug information")
             ;
@@ -198,6 +200,15 @@ int handle_run_program(int argc, const char** argv) {
         g_verbose = false;
         pilot_set_log_level(lv_info);
     }
+    if (vm.count("quiet")) {
+        if (g_verbose) {
+            fatal_log << "cannot active both quiet and verbose mode";
+            return 2;
+        }
+        g_quiet = true;
+        pilot_set_log_level(lv_warning);
+    }
+
     bool use_tui = true;
     if (vm.count("no-tui"))
         use_tui = false;
@@ -223,7 +234,7 @@ int handle_run_program(int argc, const char** argv) {
         g_program_cmd += " ";
         g_program_cmd += argv[program_path_start_loc];
     }
-    cerr << GREETING_MSG << endl;
+    info_log << GREETING_MSG;
     debug_log << "Program path and args: " << g_program_cmd;
 
     // create the workload
@@ -306,7 +317,27 @@ int handle_run_program(int argc, const char** argv) {
     else {
         res = pilot_run_workload(wl.get());
         if (0 != res) {
-            cout << pilot_strerror(res) << endl;
+            cerr << pilot_strerror(res) << endl;
+            return res;
+        }
+        if (g_quiet) {
+            shared_ptr<pilot_analytical_result_t> r(pilot_analytical_result(wl.get(), NULL), pilot_free_analytical_result);
+            for (size_t piid = 0; piid < r->num_of_pi; ++piid) {
+                // format: piid,mean,ci,var,...
+                cout << format("%1%,") % piid;
+                if (0 != r->readings_num) {
+                    cout << format("%1%,%2%,%3%,")
+                            % r->readings_mean_formatted[piid]
+                            % r->readings_optimal_subsession_ci_width_formatted[piid]
+                            % r->readings_optimal_subsession_var[piid];
+                } else {
+                    cout << ",,,";
+                }
+            }
+            cout << r->session_duration << endl;
+        } else {
+            shared_ptr<char> psummary(pilot_text_workload_summary(wl.get()), pilot_free_text_dump);
+            cout << psummary;
         }
     }
 
