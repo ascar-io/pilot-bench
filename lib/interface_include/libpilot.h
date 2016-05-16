@@ -59,9 +59,10 @@ enum pilot_error_t {
     ERR_WL_FAIL = 12,
     ERR_STOPPED_BY_DURATION_LIMIT = 13,
     ERR_STOPPED_BY_HOOK = 14,
-    ERR_TOO_MANY_REJECTED_ROUNDS = 15,
-    ERR_NOT_ENOUGH_DATA = 16,
-    ERR_NOT_ENOUGH_DATA_FOR_CI = 17,
+    ERR_STOPPED_BY_REQUEST = 15,
+    ERR_TOO_MANY_REJECTED_ROUNDS = 20,
+    ERR_NOT_ENOUGH_DATA = 30,
+    ERR_NOT_ENOUGH_DATA_FOR_CI = 31,
     ERR_NOT_IMPL = 200,
     ERR_LINKED_WRONG_VER = 201
 };
@@ -354,6 +355,13 @@ int pilot_run_workload(pilot_workload_t *wl);
  * get a pointer to the error message.
  */
 int pilot_run_workload_tui(pilot_workload_t *wl);
+
+/**
+ * \brief Request to stop a workload at a proper time
+ * \details This function is usually used in signal handlers.
+ * @param[in] wl pointer to the workload struct
+ */
+void pilot_stop_workload(pilot_workload_t *wl);
 
 /**
  * \brief Print a message into the UI's message box

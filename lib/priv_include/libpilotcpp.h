@@ -37,6 +37,7 @@
 #ifndef LIB_PRIV_INCLUDE_LIBPILOTCPP_H_
 #define LIB_PRIV_INCLUDE_LIBPILOTCPP_H_
 
+#include <boost/format.hpp>
 #include <boost/math/distributions/students_t.hpp>
 #include <cmath>
 #include "libpilot.h"
@@ -195,7 +196,7 @@ int pilot_optimal_subsession_size(InputIterator first, const size_t n,
     double cov;
     for (size_t q = 1; q != n / 2 + 1; ++q) {
         cov = pilot_subsession_autocorrelation_coefficient(first, n, q, sm, mean_method);
-        debug_log << __func__ << "(): subsession size: " << q << ", auto. cor. coef.: " << cov;
+        trace_log << __func__ << "(): subsession size: " << q << ", auto. cor. coef.: " << cov;
         if (std::abs(cov) <= max_autocorrelation_coefficient)
             return q;
     }
@@ -237,21 +238,21 @@ pilot_optimal_sample_size(InputIterator first, size_t n,
     int res = pilot_optimal_subsession_size(first, n, mean_method, max_autocorrelation_coefficient);
     if (res < 0) return false;
     *q = static_cast<size_t>(res);
-    debug_log << "optimal subsession size (q) = " << *q;
+    trace_log << "optimal subsession size (q) = " << *q;
 
     size_t h = n / *q;
     students_t dist(h-1);
     // T is called z' in [Ferrari78], page 60.
     double T = ::boost::math::quantile(complement(dist, (1 - confidence_level) / 2));
-    debug_log << "T score for " << 100*confidence_level << "% confidence level = " << T;
-    debug_log << "expected CI: " << confidence_interval_width;
+    trace_log << "T score for " << 100 * confidence_level << "% confidence level = " << T;
+    trace_log << "expected CI width: " << confidence_interval_width;
     double e = confidence_interval_width / 2;
 
     double sm = pilot_subsession_mean(first, n, mean_method);
     double var = pilot_subsession_var(first, n, *q, sm, mean_method);
     *opt_sample_size = ceil(var * pow(T / e, 2));
-    debug_log << "subsession sample size required: " << *opt_sample_size;
-    debug_log << "number of unit readings required: " << *opt_sample_size * *q;
+    trace_log << str(boost::format("number of samples required: %1% (subsession sample size %2% x opt. subsession size %3%")
+                 % ((*opt_sample_size) * (*q)) % *opt_sample_size % *q);
     return true;
 }
 

@@ -31,6 +31,7 @@
  * OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <boost/format.hpp>
 #include <boost/log/core.hpp>
 #include <boost/log/expressions.hpp>
 #include <boost/log/sinks/basic_sink_backend.hpp>
@@ -56,6 +57,7 @@
 
 using namespace pilot;
 using namespace std;
+using boost::format;
 using boost::timer::cpu_timer;
 using boost::timer::nanosecond_type;
 
@@ -259,6 +261,13 @@ int pilot_run_workload(pilot_workload_t *wl) {
     if (wl->workload_func_ == nullptr || wl->num_of_pi_ == 0) {
         return ERR_NOT_INIT;
     }
+    if (WL_RUNNING == wl->status_) {
+        fatal_log << "Workload is already running";
+        abort();
+    }
+    shared_ptr<void> wl_status_scope_guard(NULL,
+            [&wl](void*) mutable {wl->status_ = WL_NOT_RUNNING;});
+    wl->status_ = WL_RUNNING;
 
     int result = 0;
     size_t num_of_unit_readings;
@@ -289,6 +298,13 @@ int pilot_run_workload(pilot_workload_t *wl) {
             result = ERR_STOPPED_BY_HOOK;
             break;
         }
+
+        if (WL_STOP_REQUESTED == wl->status_) {
+            info_log << "Stop requested, exiting workload";
+            result = ERR_STOPPED_BY_REQUEST;
+            break;
+        }
+
         info_log << "Starting workload round " << wl->rounds_ << " with work_amount " << work_amount;
 
         round_timer.reset(new cpu_timer);
@@ -392,6 +408,11 @@ int pilot_run_workload_tui(pilot_workload_t *wl) {
     workload_runner.join();
     wl->tui_ = NULL;
     return workload_runner.get_workload_result();
+}
+
+void pilot_stop_workload(pilot_workload_t *wl) {
+    ASSERT_VALID_POINTER(wl);
+    wl->status_ = WL_STOP_REQUESTED;
 }
 
 static void _pilot_ui_printf(pilot_workload_t *wl, const char* prefix, const char* format, va_list args) {
@@ -595,6 +616,15 @@ int pilot_export(const pilot_workload_t *wl, const char *dirname) {
 
         filename.str(string());
         filename << dirname << "/" << "summary.csv";
+        of.exceptions(ofstream::failbit | ofstream::badbit);
+        of.open(filename.str().c_str());
+        of << "workload name,duration,total rounds" << endl;
+        of << format("%1%,%2%,%3%") % wl->workload_name_
+              % wl->analytical_result_.session_duration % wl->rounds_;
+        of.close();
+
+        filename.str(string());
+        filename << dirname << "/" << "pi_results.csv";
         of.exceptions(ofstream::failbit | ofstream::badbit);
         of.open(filename.str().c_str());
         of << "piid,readings_num,readings_mean,readings_mean_formatted,"

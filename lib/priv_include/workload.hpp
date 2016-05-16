@@ -34,6 +34,7 @@
 #ifndef LIB_PRIV_INCLUDE_WORKLOAD_HPP_
 #define LIB_PRIV_INCLUDE_WORKLOAD_HPP_
 
+#include <atomic>
 #include <boost/accumulators/accumulators.hpp>
 #include <boost/accumulators/statistics/stats.hpp>
 #include <boost/accumulators/statistics/mean.hpp>
@@ -114,11 +115,18 @@ struct baseline_info_t {
     baseline_info_t() : set(false), mean(0), sample_size(0), var(0) {}
 };
 
+enum pilot_workload_status_t {
+    WL_NOT_RUNNING,
+    WL_RUNNING,
+    WL_STOP_REQUESTED,
+};
+
 struct pilot_workload_t {
 public:  // FIXME: most of the following members should be private and controlled
          // by getters and setters
     // Essential workload information
     std::string workload_name_;
+    volatile std::atomic<pilot_workload_status_t> status_;
     std::chrono::steady_clock::time_point raw_data_changed_time_; //! The time when the latest raw data came in
     size_t num_of_pi_;                               //! Number of performance indices to collect for each round
     size_t rounds_;                                  //! Number of rounds we've done so far
@@ -185,6 +193,7 @@ public:  // FIXME: most of the following members should be private and controlle
     PilotTUI *tui_;
 
     pilot_workload_t(const char *wl_name) :
+                         status_(WL_NOT_RUNNING),
                          num_of_pi_(0), rounds_(0), init_work_amount_(0),
                          max_work_amount_(0), min_work_amount_(0),
                          adjusted_min_work_amount_(-1),

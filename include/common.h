@@ -40,6 +40,7 @@
 #include <string>
 #include <vector>
 
+#define trace_log   BOOST_LOG_TRIVIAL(trace)
 #define debug_log   BOOST_LOG_TRIVIAL(debug)
 #define info_log    BOOST_LOG_TRIVIAL(info)
 #define warning_log BOOST_LOG_TRIVIAL(warning)

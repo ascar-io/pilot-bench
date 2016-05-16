@@ -408,10 +408,11 @@ int main(int argc, char **argv) {
         pilot_ui_printf_hl(wl.get(), "Benchmark results are saved to %s\n", result_dir_name.c_str());
     } else {
         shared_ptr<pilot_analytical_result_t> r(pilot_analytical_result(wl.get(), NULL), pilot_free_analytical_result);
-        // format: URResult,URCI,URVar,WPSa,WPSv,WPSvCI,TestDuration
+        // format: URResult,URCI,URVar,URSubsessionSize,WPSa,WPSv,WPSvCI,TestDuration
         cout << r->unit_readings_mean_formatted[0] << ","
              << r->unit_readings_optimal_subsession_ci_width_formatted[0] << ","
-             << r->unit_readings_optimal_subsession_var_formatted[0] << ",";
+             << r->unit_readings_optimal_subsession_var_formatted[0] << ","
+             << r->unit_readings_optimal_subsession_size[0];
         if (r->wps_has_data) {
             cout << r->wps_alpha_formatted << ","
                  << r->wps_v_formatted << ","

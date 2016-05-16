@@ -42,6 +42,7 @@
 #include <iostream>
 #include <memory>
 #include "pilot-cli.h"
+#include <signal.h>
 #include <sstream>
 #include <stdexcept>
 #include <string>
@@ -65,6 +66,12 @@ string         g_result_dir;
 string         g_round_results_dir;
 bool           g_quiet = false;
 bool           g_verbose = false;
+shared_ptr<pilot_workload_t> g_wl;
+
+void sigint_handler(int dummy) {
+    if (g_wl)
+        pilot_stop_workload(g_wl.get());
+}
 
 /**
  * \brief Execute cmd and return the stdout of the cmd
@@ -240,19 +247,23 @@ int handle_run_program(int argc, const char** argv) {
     debug_log << "Program path and args: " << g_program_cmd;
 
     // create the workload
-    shared_ptr<pilot_workload_t> wl(pilot_new_workload(g_program_name.c_str()), pilot_destroy_workload);
-    if (!wl) {
+    g_wl.reset(pilot_new_workload(g_program_name.c_str()), pilot_destroy_workload);
+    if (signal(SIGINT, sigint_handler) == SIG_ERR) {
+        fatal_log << "signal(): " << strerror(errno) << endl;
+        return 1;
+    }
+    if (!g_wl) {
         fatal_log << "Error: cannot create workload";
         return 3;
     }
     // this workload doesn't need work amount
-    pilot_set_work_amount_limit(wl.get(), 0);
+    pilot_set_work_amount_limit(g_wl.get(), 0);
 
     size_t min_sample_size = 100;
     if (vm.count("min-sample-size"))
         min_sample_size = vm["min-sample-size"].as<size_t>();
     info_log << "Setting min-sample-size to " << min_sample_size;
-    pilot_set_min_sample_size(wl.get(), min_sample_size);
+    pilot_set_min_sample_size(g_wl.get(), min_sample_size);
 
     // parse and set PI info
     g_num_of_pi = 0;
@@ -265,7 +276,7 @@ int handle_run_program(int argc, const char** argv) {
                 throw runtime_error("Error parsing PI information: empty string provided");
             }
             debug_log << "Total number of PIs: " << g_num_of_pi;
-            pilot_set_num_of_pi(wl.get(), g_num_of_pi);
+            pilot_set_num_of_pi(g_wl.get(), g_num_of_pi);
 
             for (auto &pistr : pi_info_strs) {
                 vector<string> pidata;
@@ -288,12 +299,12 @@ int handle_run_program(int argc, const char** argv) {
                     reading_must_satisfy = true;
                     pi_ci_percent = lexical_cast<double>(pidata[4]);
                 }
-                pilot_set_required_confidence_interval(wl.get(), pi_ci_percent, -1);
+                pilot_set_required_confidence_interval(g_wl.get(), pi_ci_percent, -1);
                 debug_log << "PI[" << g_pi_col.size() - 1 << "] name: " << pi_name << ", "
                           << "unit: " << pi_unit << ", "
                           << "reading must satisfy: " << (reading_must_satisfy? "yes" : "no") << ", "
                           << "mean method: " << (pi_mean_method == 0? "arithmetic": "harmonic");
-                pilot_set_pi_info(wl.get(), g_pi_col.size() - 1,  /* PIID */
+                pilot_set_pi_info(g_wl.get(), g_pi_col.size() - 1,  /* PIID */
                                   pi_name.c_str(),                /* PI name */
                                   pi_unit.c_str(),                /* PI unit */
                                   NULL, NULL,                     /* format functions */
@@ -309,21 +320,20 @@ int handle_run_program(int argc, const char** argv) {
         return 2;
     }
 
-    pilot_set_wps_analysis(wl.get(), NULL, false, false);
-    pilot_set_workload_func(wl.get(), workload_func);
-    pilot_set_autocorrelation_coefficient(wl.get(), 0.1);
+    pilot_set_wps_analysis(g_wl.get(), NULL, false, false);
+    pilot_set_workload_func(g_wl.get(), workload_func);
+    pilot_set_autocorrelation_coefficient(g_wl.get(), 0.1);
     info_log << "Setting the limit of autocorrelation coefficient to 0.1";
-    int res;
+    int wl_res;
     if (use_tui)
-        pilot_run_workload_tui(wl.get());
+        pilot_run_workload_tui(g_wl.get());
     else {
-        res = pilot_run_workload(wl.get());
-        if (0 != res) {
-            cerr << pilot_strerror(res) << endl;
-            return res;
+        wl_res = pilot_run_workload(g_wl.get());
+        if (0 != wl_res && ERR_STOPPED_BY_REQUEST != wl_res) {
+            cerr << pilot_strerror(wl_res) << endl;
         }
         if (g_quiet) {
-            shared_ptr<pilot_analytical_result_t> r(pilot_analytical_result(wl.get(), NULL), pilot_free_analytical_result);
+            shared_ptr<pilot_analytical_result_t> r(pilot_analytical_result(g_wl.get(), NULL), pilot_free_analytical_result);
             for (size_t piid = 0; piid < r->num_of_pi; ++piid) {
                 // format: piid,mean,ci,var,...
                 cout << format("%1%,") % piid;
@@ -338,15 +348,16 @@ int handle_run_program(int argc, const char** argv) {
             }
             cout << r->session_duration << endl;
         } else {
-            shared_ptr<char> psummary(pilot_text_workload_summary(wl.get()), pilot_free_text_dump);
+            shared_ptr<char> psummary(pilot_text_workload_summary(g_wl.get()), pilot_free_text_dump);
             cout << psummary;
         }
     }
-    res = pilot_export(wl.get(), g_result_dir.c_str());
+    int res = pilot_export(g_wl.get(), g_result_dir.c_str());
     if (res != 0) {
         cout << pilot_strerror(res) << endl;
         return res;
     }
+    info_log << "Results saved in " << g_result_dir;
 
-    return 0;
+    return wl_res;
 }
