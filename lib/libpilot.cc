@@ -1077,37 +1077,42 @@ int pilot_wps_warmup_removal_dw_method_p(size_t rounds, const size_t *round_work
 }
 
 int pilot_warm_up_removal_detect(const pilot_workload_t *wl,
-                                 const double *readings,
-                                 size_t num_of_readings,
+                                 const double *data,
+                                 size_t n,
                                  boost::timer::nanosecond_type round_duration,
                                  pilot_warm_up_removal_detection_method_t method,
                                  size_t *begin, size_t *end) {
     ASSERT_VALID_POINTER(wl);
     ASSERT_VALID_POINTER(begin);
     ASSERT_VALID_POINTER(end);
-    if (NO_WARM_UP_REMOVAL == method)
+    if (NO_WARM_UP_REMOVAL == method) {
+        *begin = 0;
+        *end = n;
         return 0;
+    }
 
     // we reject any round that is too short
     if (round_duration < wl->short_round_detection_threshold_) {
         info_log << "Round duration shorter than the lower bound ("
                  << wl->short_round_detection_threshold_ / ONE_SECOND
                  << "s), rejecting";
-        *begin = num_of_readings;
-        *end = num_of_readings;
+        *begin = n;
+        *end = n;
         return ERR_ROUND_TOO_SHORT;
     }
 
     switch (method) {
     case FIXED_PERCENTAGE:
-        if (num_of_readings == 1)
-            return 0;
-        else {
-            return static_cast<ssize_t>(round(wl->warm_up_removal_percentage_ * num_of_readings));
+        *begin = static_cast<size_t>(round(wl->warm_up_removal_percentage_ * n));
+        *end = n;
+        if (*begin == n && n != 0) {
+            // we leave at least one data
+            --(*begin);
         }
+        return 0;
         break;
     case EDM:
-        return pilot_find_dominant_segment(readings, num_of_readings, begin, end);
+        return pilot_find_dominant_segment(data, n, begin, end);
         break;
     default:
         fatal_log << "Unknown method";

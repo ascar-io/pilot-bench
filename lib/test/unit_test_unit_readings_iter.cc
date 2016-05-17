@@ -3,7 +3,7 @@
  * access iterator
  *
  * Copyright (c) 2015, 2016, University of California, Santa Cruz, CA, USA.
- * Created by Yan Li <yanli@ucsc.edu, elliot.li.tech@gmail.com>,
+ * Created by Yan Li <yanli@ascar.io>,
  * Department of Computer Science, Baskin School of Engineering.
  *
  * Redistribution and use in source and binary forms, with or without

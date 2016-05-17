@@ -206,7 +206,7 @@ public:  // FIXME: most of the following members should be private and controlle
                          short_round_detection_threshold_(1 * pilot::ONE_SECOND),
                          desired_p_value_(0.05),
                          short_workload_check_(true),
-                         warm_up_removal_detection_method_(FIXED_PERCENTAGE),
+                         warm_up_removal_detection_method_(EDM),
                          warm_up_removal_percentage_(0.1),
                          warm_up_removal_moving_average_window_size_in_seconds_(3),
                          wholly_rejected_rounds_(0),
