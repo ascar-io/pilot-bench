@@ -773,7 +773,8 @@ pilot_optimal_sample_size_p(const double *data, size_t n,
  * @return 0 on success; otherwise error code
  */
 int pilot_changepoint_detection(const double *data, size_t n,
-        int **changepoints, size_t *cp_n);
+        int **changepoints, size_t *cp_n, int min_size = 30,
+        double percent = 0.25, int degree = 1);
 
 struct pilot_pi_unit_readings_iter_t;
 

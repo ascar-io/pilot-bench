@@ -61,7 +61,7 @@ using boost::format;
 using boost::timer::cpu_timer;
 using boost::timer::nanosecond_type;
 
-extern vector<int> EDM_multi(const double *Z, int n, int min_size=30, double beta=0.008, int degree=1);
+extern vector<int> EDM_percent(const double *Z, int n, int min_size, double percent, int degree);
 
 namespace pilot {
 
@@ -997,14 +997,15 @@ pilot_optimal_sample_size_p(const double *data, size_t n,
 }
 
 int pilot_changepoint_detection(const double *data, size_t n,
-                                int **changepoints, size_t *cp_n) {
+                                int **changepoints, size_t *cp_n,
+                                int min_size, double percent, int degree) {
     ASSERT_VALID_POINTER(changepoints);
     ASSERT_VALID_POINTER(cp_n);
     if (n < 24) {
         error_log << __func__ << "() requires at least 24 data points";
         return ERR_NOT_ENOUGH_DATA;
     }
-    vector<int> t = EDM_multi(data, n);
+    vector<int> t = EDM_percent(data, n, min_size, percent, degree);
 
     // prepare result array from vector
     size_t result_bytes = sizeof(int) * t.size();

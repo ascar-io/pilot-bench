@@ -67,6 +67,7 @@ int handle_detect_changepoint_edm(int argc, const char** argv) {
             ("csv-file,c", po::value<string>(), "input csv file name, use - for stdin")
             ("field,f", po::value<int>(), "the field of the csv to import")
             ("ignore-lines,i", po::value<size_t>(), "ignore the first arg lines")
+            ("percent,p", po::value<double>(), "A real numbered constant used to control the amount of penalization. This value specifies the minimum percent change in the goodness of fit statistic to consider adding an additional change point. A value of 0.25 corresponds to a 25\% increase. Default to 0.25.")
             ("quiet,q", "quiet mode")
             ("verbose,v", "print debug information")
             ;
@@ -108,6 +109,10 @@ int handle_detect_changepoint_edm(int argc, const char** argv) {
         pilot_set_log_level(lv_warning);
     }
 
+    double percent = 0.25;
+    if (vm.count("percent")) {
+        percent = vm["percent"].as<double>();
+    }
     string input_csv;
     if (vm.count("csv-file")) {
         input_csv = vm["csv-file"].as<string>();
@@ -154,7 +159,7 @@ int handle_detect_changepoint_edm(int argc, const char** argv) {
     debug_log << "Finished loading CSV file";
     int *changepoints;
     size_t cp_n;
-    pilot_changepoint_detection(data.data(), data.size(), &changepoints, &cp_n);
+    pilot_changepoint_detection(data.data(), data.size(), &changepoints, &cp_n, 30, percent);
     for (size_t i = 0; i != cp_n; ++i) {
         if (0 != i) cout << ",";
         cout << changepoints[i];
