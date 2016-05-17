@@ -158,7 +158,7 @@ int workload_func(const pilot_workload_t *wl,
         vector<double> rs = extract_csv_fields(prog_stdout, g_pi_col);
         assert(g_pi_col.size() == static_cast<size_t>(g_num_of_pi));
         for (int i = 0; i < g_num_of_pi; ++i) {
-            *readings[i] = rs[i];
+            (*readings)[i] = rs[i];
         }
     } catch (const runtime_error &e) {
         fatal_log << e.what();
@@ -175,7 +175,7 @@ int handle_run_program(int argc, const char** argv) {
             ("min-sample-size,m", po::value<size_t>(), "lower threshold for sample size (default to 100)")
             ("no-tui", "disable the text user interface")
             ("pi,p", po::value<string>(), "PI(s) to read from stdout of the program, which is expected to be csv\n"
-                    "Format:     name,column,type,ci_percent;...\n"
+                    "Format:     name,column,type,ci_percent:...\n"
                     "name:       name of the PI, can be empty\n"
                     "unit:       unit of the PI, can be empty (the name and unit are used only for display purpose)\n"
                     "column:     the column of the PI in the csv output of the client program (0-based)\n"
@@ -184,7 +184,7 @@ int handle_run_program(int argc, const char** argv) {
                     "ci_percent: the desired width of CI as the percent of mean. You can leave it empty, and Pilot\n"
                     "            will still collect and do analysis, but won't take this PI as a stop requirement.\n"
                     "            (default to 0.05)\n"
-                    "more than one PI's info. can be separated by ;")
+                    "more than one PI's info. can be separated by :")
             ("quiet,q", "quiet mode")
             ("result-dir,r", po::value<string>(), "set result directory name")
             ("verbose,v", "print debug information")
@@ -218,7 +218,7 @@ int handle_run_program(int argc, const char** argv) {
     }
     if (vm.count("verbose")) {
         g_verbose = true;
-        pilot_set_log_level(lv_debug);
+        pilot_set_log_level(lv_trace);
     } else {
         g_verbose = false;
         pilot_set_log_level(lv_info);
@@ -284,7 +284,7 @@ int handle_run_program(int argc, const char** argv) {
     try {
         if (vm.count("pi")) {
             vector<string> pi_info_strs;
-            boost::split(pi_info_strs, vm["pi"].as<string>(), boost::is_any_of(";"));
+            boost::split(pi_info_strs, vm["pi"].as<string>(), boost::is_any_of(":"));
             g_num_of_pi = pi_info_strs.size();
             if (0 == g_num_of_pi) {
                 throw runtime_error("Error parsing PI information: empty string provided");
@@ -292,6 +292,7 @@ int handle_run_program(int argc, const char** argv) {
             debug_log << "Total number of PIs: " << g_num_of_pi;
             pilot_set_num_of_pi(g_wl.get(), g_num_of_pi);
 
+            double pi_ci_percent = 0;
             for (auto &pistr : pi_info_strs) {
                 vector<string> pidata;
                 boost::split(pidata, pistr, boost::is_any_of(","));
@@ -308,12 +309,10 @@ int handle_run_program(int argc, const char** argv) {
                 pilot_mean_method_t pi_mean_method = static_cast<pilot_mean_method_t>(tmpi);
 
                 bool reading_must_satisfy = false;
-                double pi_ci_percent = 0.05;
                 if (pidata.size() > 4) {
                     reading_must_satisfy = true;
                     pi_ci_percent = lexical_cast<double>(pidata[4]);
                 }
-                pilot_set_required_confidence_interval(g_wl.get(), pi_ci_percent, -1);
                 debug_log << "PI[" << g_pi_col.size() - 1 << "] name: " << pi_name << ", "
                           << "unit: " << pi_unit << ", "
                           << "reading must satisfy: " << (reading_must_satisfy? "yes" : "no") << ", "
@@ -325,6 +324,11 @@ int handle_run_program(int argc, const char** argv) {
                                   reading_must_satisfy,
                                   false,                          /* unit readings no need to satisfy */
                                   pi_mean_method);
+            }
+            if (0 == pi_ci_percent) {
+                throw runtime_error("Please provide at least one reading's CI requirement");
+            } else {
+                pilot_set_required_confidence_interval(g_wl.get(), pi_ci_percent, -1);
             }
         } else {
             throw runtime_error("Error: PI information missing");

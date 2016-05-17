@@ -251,7 +251,7 @@ pilot_optimal_sample_size(InputIterator first, size_t n,
     double sm = pilot_subsession_mean(first, n, mean_method);
     double var = pilot_subsession_var(first, n, *q, sm, mean_method);
     *opt_sample_size = ceil(var * pow(T / e, 2));
-    trace_log << str(boost::format("number of samples required: %1% (subsession sample size %2% x opt. subsession size %3%")
+    trace_log << str(boost::format("number of samples required: %1% (desired sample size %2% x opt. subsession size %3%)")
                  % ((*opt_sample_size) * (*q)) % *opt_sample_size % *q);
     return true;
 }
