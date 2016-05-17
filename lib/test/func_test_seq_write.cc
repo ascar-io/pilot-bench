@@ -211,6 +211,7 @@ int main(int argc, char **argv) {
             ("baseline,b", po::value<string>(), "the input file that contains baseline data for comparison")
             ("ci,c", po::value<double>(), "the desired width of CI as percentage of its central value (default: 0.4)")
             ("duration-limit,d", po::value<size_t>(), "the maximum duration of the benchmark in seconds (default: unlimited)")
+            ("edm,e", "use the EDM method for warm-up detection (default)")
             ("fsync,f", "call fsync() after each I/O request")
             ("io-size,s", po::value<size_t>(), "the size of I/O operations (default to 1 MB)")
             ("length-limit,l", po::value<size_t>(), "the max. length of the workload in bytes (default to 2048*1024*1024); "
@@ -224,7 +225,7 @@ int main(int argc, char **argv) {
             ("quiet,q", "quiet mode. Print results in this format: URResult,URCI,URVar,WPSa,WPSv,WPSvCI,WPSvVar,TestDuration. Quiet mode always enables --no-tui.")
             ("result-dir,r", po::value<string>(), "set result directory name, (default to seq-write-dir)")
             ("verbose,v", "print more debug information")
-            ("warm-up-io,w", po::value<double>(), "the percent of I/O operations that will be removed from the beginning as the warm-up phase (default to 0.1)")
+            ("warm-up-io,w", po::value<double>(), "the percent of I/O operations that will be removed from the beginning as the warm-up phase. Cannot be used together with EDM (default is use EDM)")
             ("wps", "work amount per second (WPS) CI must meet requirement (default: no)")
             ;
 
@@ -376,7 +377,16 @@ int main(int argc, char **argv) {
     } else {
         pilot_set_autocorrelation_coefficient(wl.get(), 1);
     }
+    bool edm = false;
+    if (vm.count("edm")) {
+        edm = true;
+        pilot_set_warm_up_removal_method(wl.get(), EDM);
+    }
     if (vm.count("warm-up-io")) {
+        if (edm) {
+            cerr << "percentage warm-up removal cannot be used together with edm, exiting...";
+            return 2;
+        }
         double wup = vm["warm-up-io"].as<double>();
         pilot_set_warm_up_removal_method(wl.get(), FIXED_PERCENTAGE);
         pilot_set_warm_up_removal_percentage(wl.get(), wup);

@@ -64,6 +64,7 @@ enum pilot_error_t {
     ERR_NOT_ENOUGH_DATA = 30,
     ERR_NOT_ENOUGH_DATA_FOR_CI = 31,
     ERR_NO_DOMINANT_SEGMENT = 32,
+    ERR_ROUND_TOO_SHORT = 33,
     ERR_NOT_IMPL = 200,
     ERR_LINKED_WRONG_VER = 201
 };
@@ -299,7 +300,7 @@ int pilot_get_init_work_amount(const pilot_workload_t* wl, size_t *p_init_work_a
 enum pilot_warm_up_removal_detection_method_t {
     NO_WARM_UP_REMOVAL = 0,
     FIXED_PERCENTAGE,
-    MOVING_AVERAGE,
+    EDM,
 };
 
 /**
@@ -320,17 +321,18 @@ void pilot_set_warm_up_removal_percentage(pilot_workload_t* wl, double percent);
 
 /**
  * \brief Detect the ending location of the warm-up phase
- * @param[in] readings input data (readings)
- * @param num_of_readings size of input data
+ * @param[in] data input data
+ * @param n size of input data
  * @param round_duration the duration of the round
  * @param method the detection method
- * @return location of the end of the warm-up phase; negative value on detection failure
+ * @return 0 on success; otherwise error code
  */
-ssize_t pilot_warm_up_removal_detect(const double *readings,
-                                     size_t num_of_readings,
-                                     nanosecond_type round_duration,
-                                     pilot_warm_up_removal_detection_method_t method);
-
+int pilot_warm_up_removal_detect(const pilot_workload_t *wl,
+                                 const double *data,
+                                 size_t n,
+                                 nanosecond_type round_duration,
+                                 pilot_warm_up_removal_detection_method_t method,
+                                 size_t *begin, size_t *end);
 
 /**
  * \brief Whether to check for very short-lived workload

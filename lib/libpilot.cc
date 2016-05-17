@@ -1076,11 +1076,15 @@ int pilot_wps_warmup_removal_dw_method_p(size_t rounds, const size_t *round_work
                                               v, ci_width);
 }
 
-ssize_t pilot_warm_up_removal_detect(const pilot_workload_t *wl,
-                                     const double *readings,
-                                     size_t num_of_readings,
-                                     boost::timer::nanosecond_type round_duration,
-                                     pilot_warm_up_removal_detection_method_t method) {
+int pilot_warm_up_removal_detect(const pilot_workload_t *wl,
+                                 const double *readings,
+                                 size_t num_of_readings,
+                                 boost::timer::nanosecond_type round_duration,
+                                 pilot_warm_up_removal_detection_method_t method,
+                                 size_t *begin, size_t *end) {
+    ASSERT_VALID_POINTER(wl);
+    ASSERT_VALID_POINTER(begin);
+    ASSERT_VALID_POINTER(end);
     if (NO_WARM_UP_REMOVAL == method)
         return 0;
 
@@ -1089,7 +1093,9 @@ ssize_t pilot_warm_up_removal_detect(const pilot_workload_t *wl,
         info_log << "Round duration shorter than the lower bound ("
                  << wl->short_round_detection_threshold_ / ONE_SECOND
                  << "s), rejecting";
-        return num_of_readings;
+        *begin = num_of_readings;
+        *end = num_of_readings;
+        return ERR_ROUND_TOO_SHORT;
     }
 
     switch (method) {
@@ -1099,12 +1105,12 @@ ssize_t pilot_warm_up_removal_detect(const pilot_workload_t *wl,
         else {
             return static_cast<ssize_t>(round(wl->warm_up_removal_percentage_ * num_of_readings));
         }
-    case MOVING_AVERAGE:
-        fatal_log << "Unimplemented";
-        abort();
+        break;
+    case EDM:
+        return pilot_find_dominant_segment(readings, num_of_readings, begin, end);
         break;
     default:
-        fatal_log << "Unimplemented";
+        fatal_log << "Unknown method";
         abort();
         break;
     }
@@ -1133,6 +1139,7 @@ void pilot_import_benchmark_results(pilot_workload_t *wl, size_t round,
         wl->round_durations_.push_back(round_duration);
 
     if (!unit_readings) num_of_unit_readings = 0;
+    bool at_least_one_piid_got_new_data = false;
     for (size_t piid = 0; piid < wl->num_of_pi_; ++piid) {
         // first subtract the number of the old unit readings from total_num_of_unit_readings_
         // before updating the data
@@ -1159,31 +1166,37 @@ void pilot_import_benchmark_results(pilot_workload_t *wl, size_t round,
         }
 
         // warm-up removal
-        ssize_t wul; // warm-up phase len
+        size_t dominant_begin = 0, dominant_end = 0;
         if (unit_readings) {
-            wul = pilot_warm_up_removal_detect(wl, unit_readings[piid],
-                                               num_of_unit_readings,
-                                               round_duration,
-                                               wl->warm_up_removal_detection_method_);
-            if (wul < 0) {
-                warning_log << "warm-up phase detection failed on PI "
+            int res = pilot_warm_up_removal_detect(wl, unit_readings[piid],
+                                                   num_of_unit_readings,
+                                                   round_duration,
+                                                   wl->warm_up_removal_detection_method_,
+                                                   &dominant_begin, &dominant_end);
+            if (res < 0) {
+                debug_log << "warm-up phase detection failed on PI "
                             << piid << " at round " << wl->rounds_;
-                wul = 0;
+                dominant_begin = num_of_unit_readings;
+                dominant_end = num_of_unit_readings;
+            } else {
+                debug_log << __func__ << "() detected dominant segment ["
+                          << dominant_begin << ", " << dominant_end << ")";
+                // FIXME: store dominant_end instead of chopping away the data
+                wl->unit_readings_[piid][round].resize(dominant_end);
             }
-        } else {
-            // this round has no unit readings
-            wul = 0;
         }
         if (round == wl->rounds_) {
-            wl->warm_up_phase_len_[piid].push_back(wul);
+            wl->warm_up_phase_len_[piid].push_back(dominant_begin);
         } else {
-            wl->warm_up_phase_len_[piid][round] = wul;
+            wl->warm_up_phase_len_[piid][round] = dominant_begin;
         }
-        if (num_of_unit_readings != 0 && static_cast<size_t>(wul) == num_of_unit_readings)
-            ++wl->wholly_rejected_rounds_;
-        // increase total number of unit readings (the number of old unit readings are
-        // subtracted at the beginning of the for loop).
-        wl->total_num_of_unit_readings_[piid] += num_of_unit_readings - wul;
+        int new_urs = int(wl->unit_readings_[piid][round].size()) - int(dominant_begin);
+        if (new_urs > 0) {
+            // increase total number of unit readings (the number of old unit readings are
+            // subtracted at the beginning of the for loop).
+            wl->total_num_of_unit_readings_[piid] += new_urs;
+            at_least_one_piid_got_new_data = true;
+        }
 
         // handle readings
         if (readings) {
@@ -1195,6 +1208,10 @@ void pilot_import_benchmark_results(pilot_workload_t *wl, size_t round,
             }
         }
     } // for loop for PI
+    if (!at_least_one_piid_got_new_data) {
+        warning_log << __func__ << "() warning: no PI got data this round";
+        ++wl->wholly_rejected_rounds_;
+    }
 
     if (round == wl->rounds_)
         ++wl->rounds_;
