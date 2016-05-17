@@ -32,6 +32,7 @@
  */
 
 #include <boost/algorithm/string.hpp>
+#include <boost/exception/diagnostic_information.hpp>
 #include <boost/filesystem.hpp>
 #include <boost/format.hpp>
 #include <boost/lexical_cast.hpp>
@@ -39,7 +40,6 @@
 #include <boost/timer/timer.hpp>
 #include <common.h>
 #include <cstdio>
-#include <stdexcept>
 #include <iostream>
 #include <memory>
 #include "pilot-cli.h"
@@ -59,15 +59,15 @@ using namespace boost::filesystem;
 using namespace std;
 using namespace pilot;
 
-int            g_num_of_pi = 0;
-vector<int>    g_pi_col;          // column of each PI in client program's output
-string         g_program_cmd;
-string         g_program_name;
-string         g_result_dir;
-string         g_round_results_dir;
-bool           g_quiet = false;
-bool           g_verbose = false;
-shared_ptr<pilot_workload_t> g_wl;
+static int            g_num_of_pi = 0;
+static vector<int>    g_pi_col;          // column of each PI in client program's output
+static string         g_program_cmd;
+static string         g_program_name;
+static string         g_result_dir;
+static string         g_round_results_dir;
+static bool           g_quiet = false;
+static bool           g_verbose = false;
+static shared_ptr<pilot_workload_t> g_wl;
 
 void sigint_handler(int dummy) {
     if (g_wl)
@@ -160,7 +160,11 @@ int workload_func(const pilot_workload_t *wl,
         for (int i = 0; i < g_num_of_pi; ++i) {
             (*readings)[i] = rs[i];
         }
-    } catch (const runtime_error &e) {
+    } catch (const boost::bad_lexical_cast &e) {
+        fatal_log << "Cannot parse client program's output: " << prog_stdout;
+        fatal_log << "Parsing error: " << boost::diagnostic_information(e);
+        return ERR_WL_FAIL;
+    } catch (const exception &e) {
         fatal_log << e.what();
         return ERR_WL_FAIL;
     }

@@ -61,7 +61,7 @@ using boost::format;
 using boost::timer::cpu_timer;
 using boost::timer::nanosecond_type;
 
-extern vector<int> EDM_multi(const double *Z, int n, int min_size=24, double beta=0, int degree=0);
+extern vector<int> EDM_multi(const double *Z, int n, int min_size=30, double beta=0.008, int degree=1);
 
 namespace pilot {
 
@@ -621,6 +621,7 @@ int pilot_export(const pilot_workload_t *wl, const char *dirname) {
         of << "workload name,duration,total rounds" << endl;
         of << format("%1%,%2%,%3%") % wl->workload_name_
               % wl->analytical_result_.session_duration % wl->rounds_;
+        of << endl;
         of.close();
 
         filename.str(string());

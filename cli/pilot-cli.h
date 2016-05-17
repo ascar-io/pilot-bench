@@ -45,6 +45,7 @@
     stringify(PILOT_VERSION_MINOR) " (compiled by " CC_VERSION " on " __DATE__ ")"
 
 int handle_run_program(int argc, const char** argv);
+int handle_detect_changepoint_edm(int argc, const char** argv);
 
 inline std::string get_timestamp(void) {
     using namespace boost::posix_time;
