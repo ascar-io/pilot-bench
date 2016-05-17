@@ -42,6 +42,12 @@ TEST(PilotCLIUnitTest, ExtractCSVFields) {
     vector<int> fields1{7};
     vector<double> results1 = extract_csv_fields(s1, fields1);
     ASSERT_DOUBLE_EQ(11.4436, results1[0]);
+
+    string s2 = "673.976,60.6804,0.148468,14,,,,11.0186";
+    vector<int> fields2{7,3};
+    vector<double> results2 = extract_csv_fields(s2, fields2);
+    ASSERT_DOUBLE_EQ(11.0186, results2[0]);
+    ASSERT_DOUBLE_EQ(14, results2[1]);
 }
 
 int main(int argc, char **argv) {

@@ -46,7 +46,10 @@ if [ $ROUND -ge ${#DATA[@]} ]; then
     rm "$ROUND_FILE"
     exit 1
 fi
-echo ${DATA[$ROUND]}
+
+COLA=${DATA[$ROUND]}
+COLB=`echo $COLA + 1 | bc`
+echo $COLA,$COLB
 
 ROUND=`expr $ROUND + 1`
 echo $ROUND >$ROUND_FILE
