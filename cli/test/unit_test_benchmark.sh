@@ -46,4 +46,4 @@ grep -q "\[PI 0\] Reading optimal subsession size: 4" "$TMPFILE"
 rm -f /tmp/pilot_mock_benchmark_round.txt
 ./pilot run_program --min-sample-size 10 --no-tui --pi "response time,ms,0,0,0.3:delay time,ms,1,0" \
     --quiet \
-    -- ./mock_benchmark.sh 2>&1 | grep -q "0,1.72477,0.283944,0.0446593,1,2.72477,0.283944,0.0446593"
+    -- ./mock_benchmark.sh 2>&1 | grep -q "0,1.72477,0.283944,0.0446593,0,1.72933,0.284016,0.0446822,1,2.72477,0.283944,0.0446593,0,2.72933,0.284016,0.0446822,"

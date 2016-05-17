@@ -583,9 +583,13 @@ struct pilot_analytical_result_t {
     double  session_duration;          //! the total session duration so far
     // Readings analysis
     size_t* readings_num;              //! the following readings fields are undefined if readings_num is 0
+    pilot_mean_method_t* readings_mean_method;
+    size_t* readings_dominant_segment_begin;
+    size_t* readings_dominant_segment_size;
+
+    // Dominant segment analysis (these info. are preferred to raw data)
     double* readings_mean;             //! the mean of all readings so far according to PI reading's mean method
     double* readings_mean_formatted;   //! the mean after being formatted by format_reading()
-    pilot_mean_method_t* readings_mean_method;
     double* readings_var;
     double* readings_var_formatted;
     double* readings_autocorrelation_coefficient;
@@ -596,6 +600,21 @@ struct pilot_analytical_result_t {
     double* readings_optimal_subsession_ci_width;
     double* readings_optimal_subsession_ci_width_formatted;
     ssize_t* readings_required_sample_size;
+
+    // Raw data uses all values
+    double* readings_raw_mean;             //! the mean of all readings so far according to PI reading's mean method
+    double* readings_raw_mean_formatted;   //! the mean after being formatted by format_reading()
+    double* readings_raw_var;
+    double* readings_raw_var_formatted;
+    double* readings_raw_autocorrelation_coefficient;
+    ssize_t* readings_raw_optimal_subsession_size;
+    double* readings_raw_optimal_subsession_var;
+    double* readings_raw_optimal_subsession_var_formatted;
+    double* readings_raw_optimal_subsession_autocorrelation_coefficient;
+    double* readings_raw_optimal_subsession_ci_width;
+    double* readings_raw_optimal_subsession_ci_width_formatted;
+    ssize_t* readings_raw_required_sample_size;
+
     // Unit-readings analysis
     size_t* unit_readings_num;
     double* unit_readings_mean;

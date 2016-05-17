@@ -89,36 +89,12 @@ ssize_t pilot_workload_t::required_num_of_readings(int piid) const {
     if (calc_required_readings_func_) {
         return calc_required_readings_func_(this, piid);
     }
-
-    if (total_num_of_readings_[piid] < 3) {
-        debug_log << "Don't have enough data to calculate required readings sample size yet";
-        return -1;
-    }
-
-    double ci_width;
-    if (required_ci_percent_of_mean_ > 0) {
-        double sm = pilot_subsession_mean(readings_[piid].begin(), readings_[piid].size(),
-                                          pi_info_[piid].reading_mean_method);
-        ci_width = sm * required_ci_percent_of_mean_;
-    } else {
-        ci_width = required_ci_absolute_value_;
-    }
-
-    size_t q, opt_sample_size;
-    if (!pilot_optimal_sample_size(readings_[piid].begin(), readings_[piid].size(),
-                                   ci_width, pi_info_[piid].reading_mean_method,
-                                   &q, &opt_sample_size)) {
-        debug_log << "Don't have enough data to calculate required readings sample size yet";
+    refresh_analytical_result();
+    if (analytical_result_.readings_required_sample_size[piid] < 0) {
         return -1;
     } else {
-        if (opt_sample_size < min_sample_size_) {
-            debug_log << __func__ << "(): optimal sample size ("
-                     << opt_sample_size << ") is smaller than the sample size lower threshold ("
-                     << min_sample_size_
-                     << "). Using the lower threshold instead.";
-            opt_sample_size = min_sample_size_;
-        }
-        return q * opt_sample_size;
+        return total_num_of_readings_[piid] +
+               (analytical_result_.readings_required_sample_size[piid] - analytical_result_.readings_dominant_segment_size[piid]);
     }
 }
 
@@ -251,6 +227,37 @@ pilot_analytical_result_t* pilot_workload_t::get_analytical_result(pilot_analyti
     return info;
 }
 
+static ssize_t _calc_required_num_of_readings(const pilot_workload_t *wl,
+        const double *data, size_t n, size_t *q, pilot_mean_method_t mean_method) {
+    if (n < 3) {
+        debug_log << "Don't have enough data to calculate required readings sample size yet";
+        return -1;
+    }
+
+    double ci_width;
+    if (wl->required_ci_percent_of_mean_ > 0) {
+        double sm = pilot_subsession_mean(data, n, mean_method);
+        ci_width = sm * wl->required_ci_percent_of_mean_;
+    } else {
+        ci_width = wl->required_ci_absolute_value_;
+    }
+
+    size_t opt_sample_size;
+    if (!pilot_optimal_sample_size(data, n, ci_width, mean_method, q, &opt_sample_size)) {
+        debug_log << "Don't have enough data to calculate required readings sample size yet";
+        return -1;
+    } else {
+        if (opt_sample_size < wl->min_sample_size_) {
+            debug_log << __func__ << "(): optimal sample size ("
+                    << opt_sample_size << ") is smaller than the sample size lower threshold ("
+                    << wl->min_sample_size_
+                    << "). Using the lower threshold instead.";
+            opt_sample_size = wl->min_sample_size_;
+        }
+        return *q * opt_sample_size;
+    }
+}
+
 void pilot_workload_t::refresh_analytical_result(void) const {
     if (raw_data_changed_time_ <= analytical_result_update_time_) {
         debug_log << "No need to refresh analytical result";
@@ -263,49 +270,76 @@ void pilot_workload_t::refresh_analytical_result(void) const {
     for (size_t piid = 0; piid < num_of_pi_; ++piid) {
         // Readings analysis
         analytical_result_.readings_num[piid] = readings_[piid].size();
-        if (2 <= analytical_result_.readings_num[piid]) {
-            analytical_result_.readings_mean_method[piid] = pi_info_[piid].reading_mean_method;
-            analytical_result_.readings_mean[piid] = pilot_subsession_mean(readings_[piid].begin(),
-                    readings_[piid].size(),
-                    analytical_result_.readings_mean_method[piid]);
-            double sm = analytical_result_.readings_mean[piid];
-            analytical_result_.readings_mean_formatted[piid] = format_reading(piid, analytical_result_.readings_mean[piid]);
-            analytical_result_.readings_num[piid] = readings_[piid].size();
-            analytical_result_.readings_var[piid] = pilot_subsession_var(readings_[piid].begin(),
-                    readings_[piid].size(),
-                    1,
-                    analytical_result_.readings_mean[piid],
-                    analytical_result_.readings_mean_method[piid]);
-            double var_rt = analytical_result_.readings_var[piid] / sm;
-            analytical_result_.readings_var_formatted[piid] = analytical_result_.readings_mean_formatted[piid] * var_rt;
-            analytical_result_.readings_autocorrelation_coefficient[piid] =
-                    pilot_subsession_autocorrelation_coefficient(readings_[piid].begin(),
-                            readings_[piid].size(), 1, analytical_result_.readings_mean[piid],
-                            analytical_result_.readings_mean_method[piid]);
-            analytical_result_.readings_optimal_subsession_size[piid] =
-                    pilot_optimal_subsession_size(readings_[piid].begin(), readings_[piid].size(),
-                            analytical_result_.readings_mean_method[piid]);
-            if (analytical_result_.readings_optimal_subsession_size[piid] > 0) {
-                analytical_result_.readings_optimal_subsession_var[piid] =
-                        pilot_subsession_var(readings_[piid].begin(), readings_[piid].size(),
-                                analytical_result_.readings_optimal_subsession_size[piid], analytical_result_.readings_mean[piid],
-                                analytical_result_.readings_mean_method[piid]);
-                double subsession_var_rt = analytical_result_.readings_optimal_subsession_var[piid] / sm;
-                analytical_result_.readings_optimal_subsession_var_formatted[piid] = analytical_result_.readings_mean_formatted[piid] * subsession_var_rt;
-                analytical_result_.readings_optimal_subsession_autocorrelation_coefficient[piid] =
-                        pilot_subsession_autocorrelation_coefficient(readings_[piid].begin(),
-                                readings_[piid].size(), analytical_result_.readings_optimal_subsession_size[piid],
-                                analytical_result_.readings_mean[piid], analytical_result_.readings_mean_method[piid]);
-                analytical_result_.readings_optimal_subsession_ci_width[piid] =
-                        pilot_subsession_confidence_interval(readings_[piid].begin(),
-                                readings_[piid].size(), analytical_result_.readings_optimal_subsession_size[piid],
-                                confidence_level_, analytical_result_.readings_mean_method[piid]);
-                double ci = analytical_result_.readings_optimal_subsession_ci_width[piid];
-                double cif_low = format_reading(piid, sm - ci/2);
-                double cif_high = format_reading(piid, sm + ci/2);
-                analytical_result_.readings_optimal_subsession_ci_width_formatted[piid] = abs(cif_high - cif_low);
+        analytical_result_.readings_mean_method[piid] = pi_info_[piid].reading_mean_method;
+        if (analytical_result_.readings_num[piid] >= 2) {
+            // First see if we can find a dominant segment
+            size_t dominant_seg_begin, dominant_seg_end;
+            int res = pilot_find_dominant_segment(readings_[piid].data(), readings_[piid].size(),
+                            &dominant_seg_begin, &dominant_seg_end);
+            if (0 != res) {
+                debug_log << __func__ << "(): readings have no dominant segment yet";
+                dominant_seg_begin = 0;
+                dominant_seg_end = readings_[piid].size();
+            } else {
+                debug_log << __func__ << "() found dominant segment in readings: ["
+                        << dominant_seg_begin << ", " << dominant_seg_end << ")";
             }
-            analytical_result_.readings_required_sample_size[piid] = required_num_of_readings(piid);
+            analytical_result_.readings_dominant_segment_begin[piid] = dominant_seg_begin;
+            analytical_result_.readings_dominant_segment_size[piid] = dominant_seg_end - dominant_seg_begin;
+            const double *dom_seg_data = readings_[piid].data() + dominant_seg_begin;
+            const size_t dom_seg_size = dominant_seg_end - dominant_seg_begin;
+
+            double sm, var_rt, subsession_var_rt, ci, cif_low, cif_high;
+            size_t q;
+
+#define ANALYZE_READINGS(prefix, data, size) \
+            prefix##_mean[piid] = pilot_subsession_mean(data,                                  \
+                    size, analytical_result_.readings_mean_method[piid]);                    \
+            sm = prefix##_mean[piid];                                                          \
+            prefix##_mean_formatted[piid] = format_reading(piid, sm);                          \
+            prefix##_var[piid] = pilot_subsession_var(data,                                    \
+                    size,                                                                    \
+                    1,                                                                       \
+                    sm,                                                                      \
+                    analytical_result_.readings_mean_method[piid]);                          \
+            var_rt = prefix##_var[piid] / sm;                                                  \
+            prefix##_var_formatted[piid] = prefix##_mean_formatted[piid] * var_rt;               \
+            prefix##_autocorrelation_coefficient[piid] =                                       \
+                    pilot_subsession_autocorrelation_coefficient(data,                       \
+                            size, 1, prefix##_mean[piid],                                      \
+                            analytical_result_.readings_mean_method[piid]);                  \
+            prefix##_required_sample_size[piid] = _calc_required_num_of_readings(this,         \
+                    data, size, &q,                                                          \
+                    analytical_result_.readings_mean_method[piid]);                          \
+            if (prefix##_required_sample_size[piid] > 0) {                                     \
+                prefix##_optimal_subsession_size[piid] = q;                                    \
+                prefix##_optimal_subsession_var[piid] =                                        \
+                        pilot_subsession_var(data, size,                                     \
+                                prefix##_optimal_subsession_size[piid], prefix##_mean[piid],     \
+                                analytical_result_.readings_mean_method[piid]);              \
+                subsession_var_rt = prefix##_optimal_subsession_var[piid] / sm;                \
+                prefix##_optimal_subsession_var_formatted[piid] = prefix##_mean_formatted[piid] * subsession_var_rt; \
+                prefix##_optimal_subsession_autocorrelation_coefficient[piid] =                \
+                        pilot_subsession_autocorrelation_coefficient(data,                   \
+                                size, prefix##_optimal_subsession_size[piid],                  \
+                                prefix##_mean[piid], analytical_result_.readings_mean_method[piid]);  \
+                prefix##_optimal_subsession_ci_width[piid] =                                   \
+                        pilot_subsession_confidence_interval(data,                           \
+                                size, prefix##_optimal_subsession_size[piid],                  \
+                                confidence_level_, analytical_result_.readings_mean_method[piid]);  \
+                ci = prefix##_optimal_subsession_ci_width[piid];                               \
+                cif_low = format_reading(piid, sm - ci/2);                                   \
+                cif_high = format_reading(piid, sm + ci/2);                                  \
+                prefix##_optimal_subsession_ci_width_formatted[piid] = abs(cif_high - cif_low); \
+            } else {                                                                         \
+                prefix##_optimal_subsession_size[piid] = -1;                                   \
+            }
+
+            // Dominant segment analysis
+            ANALYZE_READINGS(analytical_result_.readings, dom_seg_data, dom_seg_size)
+            // Raw data analysis
+            ANALYZE_READINGS(analytical_result_.readings_raw, readings_[piid].data(), readings_[piid].size())
+#undef ANALYZE_READINGS
         }
 
         // Unit readings analysis

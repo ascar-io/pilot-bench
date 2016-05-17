@@ -357,15 +357,19 @@ int handle_run_program(int argc, const char** argv) {
         if (g_quiet) {
             shared_ptr<pilot_analytical_result_t> r(pilot_analytical_result(g_wl.get(), NULL), pilot_free_analytical_result);
             for (size_t piid = 0; piid < r->num_of_pi; ++piid) {
-                // format: piid,mean,ci,var,...
+                // format: piid,mean,ci,var,ds_begin,raw_mean,raw_ci,raw_var,...
                 cout << format("%1%,") % piid;
                 if (0 != r->readings_num) {
-                    cout << format("%1%,%2%,%3%,")
+                    cout << format("%1%,%2%,%3%,%4%,%5%,%6%,%7%,")
                             % r->readings_mean_formatted[piid]
                             % r->readings_optimal_subsession_ci_width_formatted[piid]
-                            % r->readings_optimal_subsession_var[piid];
+                            % r->readings_optimal_subsession_var[piid]
+                            % r->readings_dominant_segment_begin[piid]
+                            % r->readings_raw_mean_formatted[piid]
+                            % r->readings_raw_optimal_subsession_ci_width_formatted[piid]
+                            % r->readings_raw_optimal_subsession_var_formatted[piid];
                 } else {
-                    cout << ",,,";
+                    cout << ",,,,,,,";
                 }
             }
             cout << r->session_duration << endl;

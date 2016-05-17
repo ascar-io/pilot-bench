@@ -719,9 +719,11 @@ void pilot_analytical_result_t::_free_all_field() {
 #define FREE_AND_NULL(field) free(field); field = NULL
 
     FREE_AND_NULL(readings_num);
+    FREE_AND_NULL(readings_mean_method);
+    FREE_AND_NULL(readings_dominant_segment_begin);
+    FREE_AND_NULL(readings_dominant_segment_size);
     FREE_AND_NULL(readings_mean);
     FREE_AND_NULL(readings_mean_formatted);
-    FREE_AND_NULL(readings_mean_method);
     FREE_AND_NULL(readings_var);
     FREE_AND_NULL(readings_var_formatted);
     FREE_AND_NULL(readings_autocorrelation_coefficient);
@@ -732,6 +734,19 @@ void pilot_analytical_result_t::_free_all_field() {
     FREE_AND_NULL(readings_optimal_subsession_ci_width);
     FREE_AND_NULL(readings_optimal_subsession_ci_width_formatted);
     FREE_AND_NULL(readings_required_sample_size);
+    FREE_AND_NULL(readings_raw_mean);
+    FREE_AND_NULL(readings_raw_mean_formatted);
+    FREE_AND_NULL(readings_raw_var);
+    FREE_AND_NULL(readings_raw_var_formatted);
+    FREE_AND_NULL(readings_raw_autocorrelation_coefficient);
+    FREE_AND_NULL(readings_raw_optimal_subsession_size);
+    FREE_AND_NULL(readings_raw_optimal_subsession_var);
+    FREE_AND_NULL(readings_raw_optimal_subsession_var_formatted);
+    FREE_AND_NULL(readings_raw_optimal_subsession_autocorrelation_coefficient);
+    FREE_AND_NULL(readings_raw_optimal_subsession_ci_width);
+    FREE_AND_NULL(readings_raw_optimal_subsession_ci_width_formatted);
+    FREE_AND_NULL(readings_raw_required_sample_size);
+
 
     FREE_AND_NULL(unit_readings_num);
     FREE_AND_NULL(unit_readings_mean);
@@ -759,9 +774,11 @@ void pilot_analytical_result_t::_copyfrom(const pilot_analytical_result_t &a) {
     memcpy(field, a.field, sizeof(field[0]) * num_of_pi); } else { field = NULL; }
 
     COPY_ARRAY(readings_num);
+    COPY_ARRAY(readings_mean_method);
+    COPY_ARRAY(readings_dominant_segment_begin);
+    COPY_ARRAY(readings_dominant_segment_size);
     COPY_ARRAY(readings_mean);
     COPY_ARRAY(readings_mean_formatted);
-    COPY_ARRAY(readings_mean_method);
     COPY_ARRAY(readings_var);
     COPY_ARRAY(readings_var_formatted);
     COPY_ARRAY(readings_autocorrelation_coefficient);
@@ -772,6 +789,18 @@ void pilot_analytical_result_t::_copyfrom(const pilot_analytical_result_t &a) {
     COPY_ARRAY(readings_optimal_subsession_ci_width);
     COPY_ARRAY(readings_optimal_subsession_ci_width_formatted);
     COPY_ARRAY(readings_required_sample_size);
+    COPY_ARRAY(readings_raw_mean);
+    COPY_ARRAY(readings_raw_mean_formatted);
+    COPY_ARRAY(readings_raw_var);
+    COPY_ARRAY(readings_raw_var_formatted);
+    COPY_ARRAY(readings_raw_autocorrelation_coefficient);
+    COPY_ARRAY(readings_raw_optimal_subsession_size);
+    COPY_ARRAY(readings_raw_optimal_subsession_var);
+    COPY_ARRAY(readings_raw_optimal_subsession_var_formatted);
+    COPY_ARRAY(readings_raw_optimal_subsession_autocorrelation_coefficient);
+    COPY_ARRAY(readings_raw_optimal_subsession_ci_width);
+    COPY_ARRAY(readings_raw_optimal_subsession_ci_width_formatted);
+    COPY_ARRAY(readings_raw_required_sample_size);
 
     COPY_ARRAY(unit_readings_num);
     COPY_ARRAY(unit_readings_mean);
@@ -831,9 +860,11 @@ void pilot_analytical_result_t::set_num_of_pi(size_t new_num_of_pi) {
     num_of_pi = new_num_of_pi;
 #define INIT_FIELD(field) field = (typeof(field[0])*)realloc(field, sizeof(field[0]) * num_of_pi)
     INIT_FIELD(readings_num);
+    INIT_FIELD(readings_mean_method);
+    INIT_FIELD(readings_dominant_segment_begin);
+    INIT_FIELD(readings_dominant_segment_size);
     INIT_FIELD(readings_mean);
     INIT_FIELD(readings_mean_formatted);
-    INIT_FIELD(readings_mean_method);
     INIT_FIELD(readings_var);
     INIT_FIELD(readings_var_formatted);
     INIT_FIELD(readings_autocorrelation_coefficient);
@@ -844,6 +875,18 @@ void pilot_analytical_result_t::set_num_of_pi(size_t new_num_of_pi) {
     INIT_FIELD(readings_optimal_subsession_ci_width);
     INIT_FIELD(readings_optimal_subsession_ci_width_formatted);
     INIT_FIELD(readings_required_sample_size);
+    INIT_FIELD(readings_raw_mean);
+    INIT_FIELD(readings_raw_mean_formatted);
+    INIT_FIELD(readings_raw_var);
+    INIT_FIELD(readings_raw_var_formatted);
+    INIT_FIELD(readings_raw_autocorrelation_coefficient);
+    INIT_FIELD(readings_raw_optimal_subsession_size);
+    INIT_FIELD(readings_raw_optimal_subsession_var);
+    INIT_FIELD(readings_raw_optimal_subsession_var_formatted);
+    INIT_FIELD(readings_raw_optimal_subsession_autocorrelation_coefficient);
+    INIT_FIELD(readings_raw_optimal_subsession_ci_width);
+    INIT_FIELD(readings_raw_optimal_subsession_ci_width_formatted);
+    INIT_FIELD(readings_raw_required_sample_size);
 
     INIT_FIELD(unit_readings_num);
     INIT_FIELD(unit_readings_mean);
@@ -1022,7 +1065,7 @@ int pilot_find_dominant_segment(const double *data, size_t n, size_t *begin,
     ASSERT_VALID_POINTER(begin);
     ASSERT_VALID_POINTER(end);
     if (n < 24) {
-        error_log << __func__ << "() requires at least 24 data points";
+        debug_log << __func__ << "() requires at least 24 data points";
         return ERR_NOT_ENOUGH_DATA;
     }
     vector<int> cps = EDM_percent(data, n, min_size, percent, degree);
@@ -1205,6 +1248,7 @@ void pilot_import_benchmark_results(pilot_workload_t *wl, size_t round,
 
         // handle readings
         if (readings) {
+            at_least_one_piid_got_new_data = true;
             if (round == wl->rounds_) {
                 wl->readings_[piid].push_back(readings[piid]);
                 ++wl->total_num_of_readings_[piid];
