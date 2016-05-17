@@ -17,7 +17,7 @@ ExternalProject_Get_Property(twitter_breakoutdetection SOURCE_DIR)
 set (TWITTER_BREAKOUTDETECTION_INCLUDE_DIR ${SOURCE_DIR})
 # let the twitter_bd source files depend on the library so CMake will fetch the
 # externalproject before building
-add_custom_command(OUTPUT ${TWITTER_BREAKOUTDETECTION_INCLUDE_DIR}/src/edm-multi.cpp
+add_custom_command(OUTPUT ${TWITTER_BREAKOUTDETECTION_INCLUDE_DIR}/src/edm-per.cpp
                    DEPENDS twitter_breakoutdetection COMMAND "")
 add_custom_command(OUTPUT ${TWITTER_BREAKOUTDETECTION_INCLUDE_DIR}/src/helper.cpp
                    DEPENDS twitter_breakoutdetection COMMAND "")
