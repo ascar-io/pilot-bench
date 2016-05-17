@@ -38,12 +38,27 @@
 #include <common.h>
 #include <config.h>
 #include <libpilot.h>
+#include <sstream>
+#include <vector>
 
 #define GREETING_MSG "Pilot " stringify(PILOT_VERSION_MAJOR) "." \
     stringify(PILOT_VERSION_MINOR) " (compiled by " CC_VERSION " on " __DATE__ ")"
 
 int handle_run_program(int argc, const char** argv);
 
-std::string get_timestamp(void);
+inline std::string get_timestamp(void) {
+    using namespace boost::posix_time;
+    ptime now = second_clock::universal_time();
+
+    static std::locale loc(std::cout.getloc(),
+                      new time_facet("%Y%m%d_%H%M%S"));
+
+    std::stringstream ss;
+    ss.imbue(loc);
+    ss << now;
+    return ss.str();
+}
+
+std::vector<double> extract_csv_fields(const std::string &str, const std::vector<int> &columns);
 
 #endif /* CLI_PILOT_CLI_H_ */

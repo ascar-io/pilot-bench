@@ -412,7 +412,7 @@ int main(int argc, char **argv) {
         cout << r->unit_readings_mean_formatted[0] << ","
              << r->unit_readings_optimal_subsession_ci_width_formatted[0] << ","
              << r->unit_readings_optimal_subsession_var_formatted[0] << ","
-             << r->unit_readings_optimal_subsession_size[0];
+             << r->unit_readings_optimal_subsession_size[0] << ",";
         if (r->wps_has_data) {
             cout << r->wps_alpha_formatted << ","
                  << r->wps_v_formatted << ","

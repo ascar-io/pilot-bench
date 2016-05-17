@@ -39,6 +39,7 @@
 #include <boost/timer/timer.hpp>
 #include <common.h>
 #include <cstdio>
+#include <stdexcept>
 #include <iostream>
 #include <memory>
 #include "pilot-cli.h"
@@ -71,6 +72,20 @@ shared_ptr<pilot_workload_t> g_wl;
 void sigint_handler(int dummy) {
     if (g_wl)
         pilot_stop_workload(g_wl.get());
+}
+
+vector<double> extract_csv_fields(const string &csvstr, const vector<int> &columns) {
+    vector<string> pidata_strs;
+    boost::split(pidata_strs, csvstr, boost::is_any_of(" \n\t,"));
+    vector<double> r(pidata_strs.size());
+    for (int i = 0; i < (int)columns.size(); ++i) {
+        int col = columns[i];
+        if (col >= static_cast<int>(pidata_strs.size())) {
+            throw runtime_error(str(format("Error parsing client program's output: %1%; expected column: %2%") % csvstr % col));
+        }
+        r[i] = lexical_cast<double>(pidata_strs[col]);
+    }
+    return r;
 }
 
 /**
@@ -139,16 +154,15 @@ int workload_func(const pilot_workload_t *wl,
     }
 
     // parse the result
-    vector<string> pidata_strs;
-    boost::split(pidata_strs, prog_stdout, boost::is_any_of(" \n\t,"));
-    for (int piid = 0; piid < g_num_of_pi; ++piid) {
-        int pi_col = g_pi_col[piid];
-        if (pi_col >= static_cast<int>(pidata_strs.size())) {
-            fatal_log << "Error parsing client program's output: " << prog_stdout
-                      << "; expected column: " << pi_col;
-            return ERR_WL_FAIL;
+    try {
+        vector<double> rs = extract_csv_fields(prog_stdout, g_pi_col);
+        assert(g_pi_col.size() == static_cast<size_t>(g_num_of_pi));
+        for (int i = 0; i < g_num_of_pi; ++i) {
+            *readings[i] = rs[i];
         }
-        *readings[piid] = lexical_cast<double>(pidata_strs[pi_col]);
+    } catch (const runtime_error &e) {
+        fatal_log << e.what();
+        return ERR_WL_FAIL;
     }
 
     return 0;

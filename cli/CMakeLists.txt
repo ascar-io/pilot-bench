@@ -33,6 +33,7 @@ set_target_properties (libluaprompt PROPERTIES COMPILE_FLAGS
 
 set (LIBPILOT_LIBRARIES libpilot)
 
+include_directories (SYSTEM ${CMAKE_CURRENT_BINARY_DIR}/../gtest/src/gtest/include)
 include_directories (${CDK_INCLUDE_DIR})
 include_directories (${LUA_INCLUDE_DIR})
 include_directories (${CMAKE_SOURCE_DIR}/include)
@@ -61,11 +62,19 @@ add_custom_command(TARGET pilot POST_BUILD
                    COMMAND ${CMAKE_COMMAND} -E copy_if_different
                        ${CMAKE_CURRENT_LIST_DIR}/test/mock_benchmark.sh $<TARGET_FILE_DIR:pilot>)
 
+# tests
+set (PILOT_TESTS_LIBRARIES libpilot ${Boost_LIBRARIES} ${GTEST_BINARY_DIR}/libgtest.a ${GTEST_BINARY_DIR}/libgtest_main.a ${CMAKE_THREAD_LIBS_INIT} ${CDK_LIBRARIES})
+
+add_executable (unit_test_cli test/unit_test_cli.cc run_program.cc)
+target_link_libraries (unit_test_cli ${PILOT_TESTS_LIBRARIES})
+
 add_test (NAME unit_test_lua_prompt
           COMMAND unit_test_lua_prompt.sh)
 add_test (NAME unit_test_pilot_opt_parsing
           COMMAND unit_test_pilot_opt_parsing.sh)
 add_test (NAME unit_test_benchmark
           COMMAND unit_test_benchmark.sh)
+add_test (NAME unit_test_cli
+		  COMMAND unit_test_cli)
 
 install (TARGETS pilot DESTINATION bin)
