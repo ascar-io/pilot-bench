@@ -1,4 +1,4 @@
-commit cfd55db85b8b876b587f5d0e4441ba6eff66dcf7
+commit 81cf5268b77feb15953d2346ea6646b66b798503
 Author: Yan Li <yanli@soe.ucsc.edu>
 Date:   Wed Apr 6 11:46:24 2016 -0700
 
@@ -48,10 +48,10 @@ index 8c96601..6adb0f1 100644
 +	return ret;
  }
 diff --git a/src/edm-per.cpp b/src/edm-per.cpp
-index 2da4eb8..9c37846 100644
+index 2da4eb8..097b517 100644
 --- a/src/edm-per.cpp
 +++ b/src/edm-per.cpp
-@@ -4,17 +4,20 @@
+@@ -4,17 +4,19 @@
  	Quadratic penalty means that each new brekaout must result in at least an (X*k)% increase for k breakouts
  */
  
@@ -62,7 +62,7 @@ index 2da4eb8..9c37846 100644
  #include"helper.h"
 +#include<vector>
  
- using namespace Rcpp;
+-using namespace Rcpp;
  using namespace std;
 +typedef vector<int> List;
 +typedef vector<double> NumericVector;
@@ -74,7 +74,7 @@ index 2da4eb8..9c37846 100644
  //Z: time series
  //min_size: minimum segment size
  //beta: penalization term for the addition of a change point
-@@ -30,8 +33,7 @@ List EDM_percent(const NumericVector& Z, int min_size=24, double percent=0, int
+@@ -30,8 +32,7 @@ List EDM_percent(const NumericVector& Z, int min_size=24, double percent=0, int
  			break;
  	}
  
@@ -84,7 +84,7 @@ index 2da4eb8..9c37846 100644
  	vector<int> prev(n+1,0);//store optimal location of previous change point
  	vector<int> number(n+1,0);//store the number of change points in optimal segmentation
  	vector<double> F(n+1,0);//store optimal statistic value
-@@ -105,5 +107,5 @@ List EDM_percent(const NumericVector& Z, int min_size=24, double percent=0, int
+@@ -105,5 +106,5 @@ List EDM_percent(const NumericVector& Z, int min_size=24, double percent=0, int
  	//return statment for debugging
  	//return List::create(_["loc"]=ret, _["F"]=F, _["number"]=number,_["prev"]=prev);
  
