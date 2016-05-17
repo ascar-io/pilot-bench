@@ -197,6 +197,7 @@ bool pilot_workload_t::calc_next_round_work_amount(size_t * const needed_work_am
         // special case for first round
         if (0 == max_work_amount_) {
             // workload doesn't support setting work amount
+            *needed_work_amount = 0;
             return true;
         } else if (0 != init_work_amount_) {
             *needed_work_amount = init_work_amount_;
@@ -210,7 +211,12 @@ bool pilot_workload_t::calc_next_round_work_amount(size_t * const needed_work_am
             // have other need
         }
     } else {
-        *needed_work_amount = max(adjusted_min_work_amount_, ssize_t(min_work_amount_));
+        if (0 == max_work_amount_) {
+            // workload doesn't support setting work amount
+            *needed_work_amount = 0;
+        } else {
+            *needed_work_amount = max(adjusted_min_work_amount_, ssize_t(min_work_amount_));
+        }
     }
     for (auto &r : runtime_analysis_plugins_) {
         if (!r.enabled || r.finished) continue;
@@ -226,6 +232,10 @@ bool pilot_workload_t::calc_next_round_work_amount(size_t * const needed_work_am
     if (0 == rounds_) {
         return true;
     } else {
+        if (0 == max_work_amount_) {
+            // workload doesn't support setting work amount
+            *needed_work_amount = 0;
+        }
         return more_rounds_needed;
     }
     SHOULD_NOT_REACH_HERE;
