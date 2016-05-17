@@ -999,6 +999,7 @@ pilot_optimal_sample_size_p(const double *data, size_t n,
 int pilot_changepoint_detection(const double *data, size_t n,
                                 int **changepoints, size_t *cp_n,
                                 int min_size, double percent, int degree) {
+    ASSERT_VALID_POINTER(data);
     ASSERT_VALID_POINTER(changepoints);
     ASSERT_VALID_POINTER(cp_n);
     if (n < 24) {
@@ -1013,6 +1014,44 @@ int pilot_changepoint_detection(const double *data, size_t n,
     memcpy(*changepoints, t.data(), result_bytes);
     *cp_n = t.size();
     return 0;
+}
+
+int pilot_find_dominant_segment(const double *data, size_t n, size_t *begin,
+        size_t *end, int min_size, double percent, int degree) {
+    ASSERT_VALID_POINTER(data);
+    ASSERT_VALID_POINTER(begin);
+    ASSERT_VALID_POINTER(end);
+    if (n < 24) {
+        error_log << __func__ << "() requires at least 24 data points";
+        return ERR_NOT_ENOUGH_DATA;
+    }
+    vector<int> cps = EDM_percent(data, n, min_size, percent, degree);
+    stringstream ss;
+    ss << cps;
+    debug_log << __func__ << "(): changepoints detected: " << ss.str();
+    // we always add the last point for easy of calculation below
+    cps.push_back(n - 1);
+    struct segment_t {
+        size_t begin;
+        size_t end;
+        size_t length;
+    };
+    segment_t longest_seg{0, 0, 0};
+    segment_t cur_seg{0, 0, 0};
+    for (int cp : cps) {
+        cur_seg.end = cp;
+        cur_seg.length = cp - cur_seg.begin;
+        if (cur_seg.length > longest_seg.length) {
+            longest_seg = cur_seg;
+            if (longest_seg.length > n / 2) {
+                *begin = longest_seg.begin;
+                *end = longest_seg.end;
+                return 0;
+            }
+        }
+        cur_seg.begin = cp;
+    }
+    return ERR_NO_DOMINANT_SEGMENT;
 }
 
 int pilot_wps_warmup_removal_lr_method_p(size_t rounds, const size_t *round_work_amounts,

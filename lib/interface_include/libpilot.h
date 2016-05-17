@@ -63,6 +63,7 @@ enum pilot_error_t {
     ERR_TOO_MANY_REJECTED_ROUNDS = 20,
     ERR_NOT_ENOUGH_DATA = 30,
     ERR_NOT_ENOUGH_DATA_FOR_CI = 31,
+    ERR_NO_DOMINANT_SEGMENT = 32,
     ERR_NOT_IMPL = 200,
     ERR_LINKED_WRONG_VER = 201
 };
@@ -775,6 +776,22 @@ pilot_optimal_sample_size_p(const double *data, size_t n,
 int pilot_changepoint_detection(const double *data, size_t n,
         int **changepoints, size_t *cp_n, int min_size = 30,
         double percent = 0.25, int degree = 1);
+
+/**
+ * Find the dominant segment
+ * \brief The dominant segment is the longest segment between changepoints. It
+ * has to contain more than 50\% of total samples.
+ * @param data
+ * @param n
+ * @param min_size
+ * @param percent
+ * @param degree
+ * @param begin
+ * @param end
+ * @return
+ */
+int pilot_find_dominant_segment(const double *data, size_t n, size_t *begin,
+        size_t *end, int min_size = 30, double percent = 0.25, int degree = 1);
 
 struct pilot_pi_unit_readings_iter_t;
 

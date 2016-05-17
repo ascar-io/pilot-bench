@@ -165,6 +165,7 @@ int handle_detect_changepoint_edm(int argc, const char** argv) {
         cout << changepoints[i];
     }
     cout << endl;
+    pilot_free(changepoints);
 
     return 0;
 }

@@ -242,6 +242,31 @@ TEST(StatisticsUnitTest, TestChangeInMean1) {
     pilot_free(changepoints);
 }
 
+TEST(StatisticsUnitTest, FindDominantSegment) {
+    vector<double> data;
+    for (int i = 0; i < 30; ++i)
+        data.push_back(1.1);
+    for (int i = 0; i < 30; ++i)
+        data.push_back(5.1);
+    for (int i = 0; i < 30; ++i)
+        data.push_back(1.1);
+    size_t begin, end;
+    ASSERT_EQ(ERR_NO_DOMINANT_SEGMENT, pilot_find_dominant_segment(data.data(), data.size(), &begin, &end));
+
+    data.clear();
+    for (int i = 0; i < 30; ++i)
+        data.push_back(1.1);
+    for (int i = 0; i < 130; ++i)
+        data.push_back(5.1);
+    for (int i = 0; i < 30; ++i)
+        data.push_back(1.1);
+    ASSERT_EQ(0, pilot_find_dominant_segment(data.data(), data.size(), &begin, &end));
+    // due to the quirks of EDM, these changepoints are approximate, thus the
+    // 30, 131 here don't have special meanings but just the output of EDM
+    ASSERT_EQ(30, begin);
+    ASSERT_EQ(131, end);
+}
+
 int main(int argc, char **argv) {
     PILOT_LIB_SELF_CHECK;
     // we only display fatals because errors are expected in some test cases
