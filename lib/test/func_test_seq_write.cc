@@ -416,7 +416,7 @@ int main(int argc, char **argv) {
         pilot_run_workload_tui(g_wl.get());
     else {
         res = pilot_run_workload(g_wl.get());
-        if (0 != res) {
+        if (0 != res && ERR_STOPPED_BY_REQUEST != res) {
             cout << pilot_strerror(res) << endl;
         }
     }
