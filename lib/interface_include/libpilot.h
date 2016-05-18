@@ -641,6 +641,7 @@ struct pilot_analytical_result_t {
     double wps_alpha_formatted;
     double wps_v;                      //! the v as in t = alpha + v*w
     double wps_v_formatted;
+    size_t wps_optimal_subsession_size;
     double wps_err;
     double wps_err_percent;
     double wps_v_ci;                   //! the width of the confidence interval of v

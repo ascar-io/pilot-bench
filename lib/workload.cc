@@ -579,7 +579,8 @@ void pilot_workload_t::refresh_wps_analysis_results(void) const {
                                                      &analytical_result_.wps_v_ci,
                                                      &analytical_result_.wps_err,
                                                      &analytical_result_.wps_err_percent,
-                                                     &analytical_result_.wps_subsession_sample_size);
+                                                     &analytical_result_.wps_subsession_sample_size,
+                                                     &analytical_result_.wps_optimal_subsession_size);
         if (ERR_NOT_ENOUGH_DATA == res) {
             debug_log << "Not enough data for calculating WPS warm-up removal (duration_threshold = " << duration_threshold << ")";
             analytical_result_.wps_has_data = false;

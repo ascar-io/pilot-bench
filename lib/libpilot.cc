@@ -832,6 +832,7 @@ void pilot_analytical_result_t::_copyfrom(const pilot_analytical_result_t &a) {
         COPY_FIELD(wps_v_formatted);
         COPY_FIELD(wps_v_ci);
         COPY_FIELD(wps_v_ci_formatted);
+        COPY_FIELD(wps_optimal_subsession_size);
         COPY_FIELD(wps_err);
         COPY_FIELD(wps_err_percent);
     }

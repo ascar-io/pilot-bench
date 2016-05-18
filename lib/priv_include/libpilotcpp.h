@@ -285,7 +285,8 @@ int pilot_wps_warmup_removal_lr_method(size_t rounds, WorkAmountInputIterator ro
         RoundDurationInputIterator round_durations_raw,
         float autocorrelation_coefficient_limit, nanosecond_type duration_threshold,
         double *wps_alpha, double *wps_v,
-        double *wps_v_ci, double *ssr_out = NULL, double *ssr_percent_out = NULL, size_t *subsession_sample_size = NULL) {
+        double *wps_v_ci, double *ssr_out = NULL, double *ssr_percent_out = NULL,
+        size_t *subsession_sample_size = NULL, size_t *out_q = NULL) {
     // first we create copies of round_work_amounts and round_durations with
     // rounds that are shorter than round_durations filtered out
     std::vector<size_t> round_work_amounts;
@@ -312,6 +313,7 @@ int pilot_wps_warmup_removal_lr_method(size_t rounds, WorkAmountInputIterator ro
         debug_log << __func__ << "() samples' autocorrelation coefficient too high; need more samples";
         return ERR_NOT_ENOUGH_DATA;
     }
+    if (out_q) { *out_q = q; }
     debug_log << "WPS analysis: optimal subsession size (q) = " << q;
     size_t h = round_work_amounts.size() / q;
     if (subsession_sample_size) *subsession_sample_size = h;

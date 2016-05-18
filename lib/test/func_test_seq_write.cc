@@ -210,6 +210,8 @@ int main(int argc, char **argv) {
             ("autocorr-threshold,a", po::value<double>(), "the threshold for autocorrelation coefficient (default to 1)")
             ("baseline,b", po::value<string>(), "the input file that contains baseline data for comparison")
             ("ci,c", po::value<double>(), "the desired width of CI as percentage of its central value (default: 0.4)")
+            ("disable-r", "disable readings analysis")
+            ("disable-ur", "disable unit readings analysis")
             ("duration-limit,d", po::value<size_t>(), "the maximum duration of the benchmark in seconds (default: unlimited)")
             ("edm,e", "use the EDM method for warm-up detection (default)")
             ("fsync,f", "call fsync() after each I/O request")
@@ -331,6 +333,12 @@ int main(int argc, char **argv) {
     bool need_wps = false;
     if (vm.count("wps"))
         need_wps = true;
+    bool disable_r = true;
+    if (vm.count("disable-r"))
+        disable_r = true;
+    bool disable_ur = false;
+    if (vm.count("disable-ur"))
+        disable_ur = true;
 
     string baseline_file;
     if (vm.count("baseline")) {
@@ -350,7 +358,7 @@ int main(int argc, char **argv) {
     // Starting the actual work
     shared_ptr<pilot_workload_t> wl(pilot_new_workload("Sequential write"), pilot_destroy_workload);
     pilot_set_num_of_pi(wl.get(), num_of_pi);
-    pilot_set_pi_info(wl.get(), 0, "Write throughput", "MB/s", NULL, ur_format_func, false, true);
+    pilot_set_pi_info(wl.get(), 0, "Write throughput", "MB/s", NULL, ur_format_func, !disable_r, !disable_ur);
     pilot_set_wps_analysis(wl.get(), wps_format_func, need_wps, need_wps);
     pilot_set_work_amount_limit(wl.get(), io_limit);
     pilot_set_init_work_amount(wl.get(), init_length);
@@ -426,9 +434,10 @@ int main(int argc, char **argv) {
         if (r->wps_has_data) {
             cout << r->wps_alpha_formatted << ","
                  << r->wps_v_formatted << ","
-                 << r->wps_v_ci_formatted << ",";
+                 << r->wps_v_ci_formatted << ","
+                 << r->wps_optimal_subsession_size << ",";
         } else {
-            cout << ",,,";
+            cout << ",,,,";
         }
         cout << r->session_duration << endl;
     }
