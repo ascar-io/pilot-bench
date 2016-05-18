@@ -45,6 +45,7 @@
 #include <fcntl.h>
 #include <iomanip>
 #include <iostream>
+#include <signal.h>
 #include <string>
 #include <vector>
 #include "../interface_include/libpilot.h"
@@ -61,6 +62,7 @@ string g_output_file_name;
 char *g_io_buf;
 bool g_fsync = false;
 bool g_quiet_mode = false;
+static shared_ptr<pilot_workload_t> g_wl;
 
 // We are using two PIs. 0 is time per I/O, 1 is throughput per I/O.
 enum piid_t {
@@ -68,6 +70,11 @@ enum piid_t {
     //tp_pi = 1
 };
 static const size_t num_of_pi = 1;
+
+void sigint_handler(int dummy) {
+    if (g_wl)
+        pilot_stop_workload(g_wl.get());
+}
 
 /**
  * \brief the sequential write workload func for libpilot
@@ -356,24 +363,28 @@ int main(int argc, char **argv) {
     }
 
     // Starting the actual work
-    shared_ptr<pilot_workload_t> wl(pilot_new_workload("Sequential write"), pilot_destroy_workload);
-    pilot_set_num_of_pi(wl.get(), num_of_pi);
-    pilot_set_pi_info(wl.get(), 0, "Write throughput", "MB/s", NULL, ur_format_func, !disable_r, !disable_ur);
-    pilot_set_wps_analysis(wl.get(), wps_format_func, need_wps, need_wps);
-    pilot_set_work_amount_limit(wl.get(), io_limit);
-    pilot_set_init_work_amount(wl.get(), init_length);
-    pilot_set_workload_func(wl.get(), &workload_func);
-    pilot_set_required_confidence_interval(wl.get(), ci_perc, -1);
+    g_wl.reset(pilot_new_workload("Sequential write"), pilot_destroy_workload);
+    if (signal(SIGINT, sigint_handler) == SIG_ERR) {
+        cerr << "signal(): " << strerror(errno) << endl;
+        return 1;
+    }
+    pilot_set_num_of_pi(g_wl.get(), num_of_pi);
+    pilot_set_pi_info(g_wl.get(), 0, "Write throughput", "MB/s", NULL, ur_format_func, !disable_r, !disable_ur);
+    pilot_set_wps_analysis(g_wl.get(), wps_format_func, need_wps, need_wps);
+    pilot_set_work_amount_limit(g_wl.get(), io_limit);
+    pilot_set_init_work_amount(g_wl.get(), init_length);
+    pilot_set_workload_func(g_wl.get(), &workload_func);
+    pilot_set_required_confidence_interval(g_wl.get(), ci_perc, -1);
     if (0 != baseline_file.size())
-        pilot_load_baseline_file(wl.get(), baseline_file.c_str());
+        pilot_load_baseline_file(g_wl.get(), baseline_file.c_str());
     // Set up hooks for displaying progress information
-    pilot_set_hook_func(wl.get(), PRE_WORKLOAD_RUN, &pre_workload_run_hook);
-    pilot_set_hook_func(wl.get(), POST_WORKLOAD_RUN, &post_workload_run_hook);
+    pilot_set_hook_func(g_wl.get(), PRE_WORKLOAD_RUN, &pre_workload_run_hook);
+    pilot_set_hook_func(g_wl.get(), POST_WORKLOAD_RUN, &post_workload_run_hook);
     if (0 != duration_limit) {
-        pilot_set_session_duration_limit(wl.get(), duration_limit);
+        pilot_set_session_duration_limit(g_wl.get(), duration_limit);
     }
     if (vm.count("min-round-duration")) {
-        pilot_set_short_round_detection_threshold(wl.get(), ONE_SECOND * vm["min-round-duration"].as<size_t>());
+        pilot_set_short_round_detection_threshold(g_wl.get(), ONE_SECOND * vm["min-round-duration"].as<size_t>());
     }
     if (vm.count("autocorr-threshold")) {
         double at = vm["autocorr-threshold"].as<double>();
@@ -381,14 +392,14 @@ int main(int argc, char **argv) {
             cerr << "autocorrelation coefficient threshold must be within [-1, 1]" << endl;
             return 2;
         }
-        pilot_set_autocorrelation_coefficient(wl.get(), at);
+        pilot_set_autocorrelation_coefficient(g_wl.get(), at);
     } else {
-        pilot_set_autocorrelation_coefficient(wl.get(), 1);
+        pilot_set_autocorrelation_coefficient(g_wl.get(), 1);
     }
     bool edm = false;
     if (vm.count("edm")) {
         edm = true;
-        pilot_set_warm_up_removal_method(wl.get(), EDM);
+        pilot_set_warm_up_removal_method(g_wl.get(), EDM);
     }
     if (vm.count("warm-up-io")) {
         if (edm) {
@@ -396,36 +407,36 @@ int main(int argc, char **argv) {
             return 2;
         }
         double wup = vm["warm-up-io"].as<double>();
-        pilot_set_warm_up_removal_method(wl.get(), FIXED_PERCENTAGE);
-        pilot_set_warm_up_removal_percentage(wl.get(), wup);
+        pilot_set_warm_up_removal_method(g_wl.get(), FIXED_PERCENTAGE);
+        pilot_set_warm_up_removal_percentage(g_wl.get(), wup);
     }
 
     int res;
     if (use_tui)
-        pilot_run_workload_tui(wl.get());
+        pilot_run_workload_tui(g_wl.get());
     else {
-        res = pilot_run_workload(wl.get());
+        res = pilot_run_workload(g_wl.get());
         if (0 != res) {
             cout << pilot_strerror(res) << endl;
         }
     }
 
     if (!g_quiet_mode) {
-        pilot_ui_printf(wl.get(), "Benchmark finished\n");
+        pilot_ui_printf(g_wl.get(), "Benchmark finished\n");
     }
 
-    //const double* time_readings = pilot_get_pi_unit_readings(wl.get(), time_pi, 0, &num_of_work_units) + warmupio;
+    //const double* time_readings = pilot_get_pi_unit_readings(g_wl.get(), time_pi, 0, &num_of_work_units) + warmupio;
     //num_of_work_units -= warmupio;
 
-    res = pilot_export(wl.get(), result_dir_name.c_str());
+    res = pilot_export(g_wl.get(), result_dir_name.c_str());
     if (res != 0) {
         cout << pilot_strerror(res) << endl;
         return res;
     }
     if (!g_quiet_mode) {
-        pilot_ui_printf_hl(wl.get(), "Benchmark results are saved to %s\n", result_dir_name.c_str());
+        pilot_ui_printf_hl(g_wl.get(), "Benchmark results are saved to %s\n", result_dir_name.c_str());
     } else {
-        shared_ptr<pilot_analytical_result_t> r(pilot_analytical_result(wl.get(), NULL), pilot_free_analytical_result);
+        shared_ptr<pilot_analytical_result_t> r(pilot_analytical_result(g_wl.get(), NULL), pilot_free_analytical_result);
         // format: URResult,URCI,URVar,URSubsessionSize,WPSa,WPSv,WPSvCI,TestDuration
         cout << r->unit_readings_mean_formatted[0] << ","
              << r->unit_readings_optimal_subsession_ci_width_formatted[0] << ","
