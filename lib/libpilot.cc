@@ -1203,7 +1203,7 @@ void pilot_import_benchmark_results(pilot_workload_t *wl, size_t round,
                 debug_log << "new round num_of_unit_readings = " << num_of_unit_readings;
                 wl->unit_readings_[piid].emplace_back(vector<double>(unit_readings[piid], unit_readings[piid] + num_of_unit_readings));
             } else {
-                debug_log << "no unit readings in this new round";
+                debug_log << str(format("[PI %1%] has no unit readings data in round %2%") % piid % round);
                 wl->unit_readings_[piid].emplace_back(vector<double>());
             }
         } else {
@@ -1258,7 +1258,7 @@ void pilot_import_benchmark_results(pilot_workload_t *wl, size_t round,
         }
     } // for loop for PI
     if (!at_least_one_piid_got_new_data) {
-        warning_log << __func__ << "() warning: no PI got data this round";
+        info_log << __func__ << "() no PI got data in round " << round;
         ++wl->wholly_rejected_rounds_;
     }
 
