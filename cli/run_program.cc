@@ -158,6 +158,7 @@ int workload_func(const pilot_workload_t *wl,
         vector<double> rs = extract_csv_fields(prog_stdout, g_pi_col);
         assert(g_pi_col.size() == static_cast<size_t>(g_num_of_pi));
         for (int i = 0; i < g_num_of_pi; ++i) {
+            debug_log << str(format("[PI %1%] new reading: %2%") % i % rs[i]);
             (*readings)[i] = rs[i];
         }
     } catch (const boost::bad_lexical_cast &e) {
