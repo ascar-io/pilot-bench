@@ -1393,8 +1393,23 @@ bool calc_next_round_work_amount_from_unit_readings(const pilot_workload_t *wl, 
             continue;
         }
         if (0 == wl->total_num_of_unit_readings_[piid]) {
-            // no need to do anything if this PIID has no unit reading
-            continue;
+            if (0 == wl->max_work_amount_) {
+                return true;
+            } else {
+                if (wl->round_work_amounts_.back() == 0) {
+                    max_work_amount_needed = max(max_work_amount_needed, wl->init_work_amount_);
+                    if (0 == max_work_amount_needed) {
+                        max_work_amount_needed = wl->max_work_amount_ / 10;
+                    }
+                    if (0 == max_work_amount_needed) {
+                        max_work_amount_needed = wl->max_work_amount_;
+                    }
+                } else {
+                    max_work_amount_needed = min(wl->max_work_amount_, wl->round_work_amounts_.back() * 2);
+                }
+                need_more_rounds = true;
+                continue;
+            }
         }
         size_t work_amount_for_this_pi = 0;
         if (0 != wl->max_work_amount_ && abs(wl->calc_avg_work_unit_per_amount(piid)) < 0.00000001) {
