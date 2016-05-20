@@ -283,7 +283,7 @@ public:  // FIXME: most of the following members should be private and controlle
         for (auto const & c : round_work_amounts_)
             total_work_amount += c;
         double res = (double)total_work_amount / total_work_units;
-        info_log << "[PI " << piid << "] average work per unit reading: " << res;
+        debug_log << "[PI " << piid << "] average work per unit reading: " << res;
         return res;
     }
 
