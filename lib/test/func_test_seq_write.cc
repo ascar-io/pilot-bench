@@ -396,13 +396,11 @@ int main(int argc, char **argv) {
     } else {
         pilot_set_autocorrelation_coefficient(g_wl.get(), 1);
     }
-    bool edm = true;
     if (vm.count("edm") && vm.count("warm-up-io")) {
         cerr << "percentage warm-up removal cannot be used together with edm, exiting...";
         return 2;
     }
     if (vm.count("warm-up-io")) {
-        edm = false;
         double wup = vm["warm-up-io"].as<double>();
         pilot_set_warm_up_removal_method(g_wl.get(), FIXED_PERCENTAGE);
         pilot_set_warm_up_removal_percentage(g_wl.get(), wup);
