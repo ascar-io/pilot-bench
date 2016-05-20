@@ -1321,7 +1321,12 @@ bool calc_next_round_work_amount_meet_lower_bound(const pilot_workload_t *wl, si
         debug_log << "previous round duration (" << wl->round_durations_.back() << ") "
                  << "is shorter than the lower bound (" << wl->short_round_detection_threshold_ << "), "
                  "double the previous work amount";
-        *needed_work_amount = wl->round_work_amounts_.back() * 2;
+        if (wl->round_work_amounts_.back() == wl->max_work_amount_) {
+            fatal_log << "Running at max_work_amount_ still cannot meet round duration requirement. Please increase the max work amount upper limit.";
+            *needed_work_amount = wl->max_work_amount_;
+        } else {
+            *needed_work_amount = min(wl->round_work_amounts_.back() * 2, wl->max_work_amount_);
+        }
         return true;
     } else if (wl->adjusted_min_work_amount_ < 0) {
         info_log << "setting adjusted_min_work_amount to " << wl->round_work_amounts_.back();

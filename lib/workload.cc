@@ -204,6 +204,7 @@ bool pilot_workload_t::calc_next_round_work_amount(size_t * const needed_work_am
         *needed_work_amount = max(*needed_work_amount, nwa);
         more_rounds_needed = more_rounds_needed | rc;
     }
+    *needed_work_amount = min(*needed_work_amount, max_work_amount_);
 
     if (0 == rounds_) {
         return true;
