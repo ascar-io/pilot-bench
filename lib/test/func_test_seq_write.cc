@@ -92,13 +92,14 @@ int workload_func(const pilot_workload_t *wl,
                   pilot_malloc_func_t *lib_malloc_func,
                   size_t *num_of_work_unit,
                   double ***unit_readings,
-                  double **readings) {
+                  double **readings,
+                  nanosecond_type *round_duration) {
     *num_of_work_unit = total_work_amount / g_io_size;
     // allocate space for storing result readings
+    *readings = (double*)lib_malloc_func(sizeof(double) * num_of_pi);
     *unit_readings = (double**)lib_malloc_func(sizeof(double*) * num_of_pi);
     (*unit_readings)[0] = (double*)lib_malloc_func(sizeof(double) * *num_of_work_unit);
     //(*unit_readings)[1] = (double*)lib_malloc_func(sizeof(double) * *num_of_work_unit);
-    *readings = NULL;
     vector<nanosecond_type> work_unit_elapsed_times(*num_of_work_unit);
 
     int fd = open(g_output_file_name.c_str(), O_CREAT | O_WRONLY, S_IRUSR | S_IWUSR | S_IRGRP);
@@ -147,7 +148,7 @@ int workload_func(const pilot_workload_t *wl,
             work_unit_elapsed_times[unit_id] = timer.elapsed().wall;
         ++unit_id;
     }
-    //nanosecond_type total_elapsed_time = timer.elapsed().wall;
+    *round_duration = timer.elapsed().wall;
     // sync to make sure the tear down phase appear
     fsync(fd);
     close(fd);
@@ -161,8 +162,8 @@ int workload_func(const pilot_workload_t *wl,
     }
 
     // We don't provide readings yet, and will just rely on WPS analysis.
-    //(*readings)[time_pi] = (double)total_elapsed_time / ONE_SECOND;
-    //(*readings)[tp_pi] = ((double)total_work_amount / MEGABYTE) / ((double)total_elapsed_time / ONE_SECOND);
+    (*readings)[time_pi] = double(*round_duration) / ONE_SECOND;
+    //(*readings)[tp_pi] = ((double)total_work_amount / MEGABYTE) / (double(*round_duration) / ONE_SECOND);
     return 0;
 }
 
@@ -440,7 +441,7 @@ int main(int argc, char **argv) {
              << r->unit_readings_optimal_subsession_var_formatted[0] << ","
              << r->unit_readings_optimal_subsession_size[0] << ",";
         if (r->wps_has_data) {
-            cout << r->wps_alpha_formatted << ","
+            cout << r->wps_alpha << ","
                  << r->wps_v_formatted << ","
                  << r->wps_v_ci_formatted << ","
                  << r->wps_optimal_subsession_size << ",";

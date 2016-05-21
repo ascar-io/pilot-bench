@@ -501,7 +501,7 @@ char* pilot_workload_t::text_workload_summary(void) const {
     s << "naive mean: " << analytical_result_.wps_harmonic_mean_formatted << endl;
     s << "naive mean err: " << analytical_result_.wps_naive_v_err << " (" << analytical_result_.wps_naive_v_err_percent * 100 <<  "%)" << endl;
     if (analytical_result_.wps_has_data) {
-        s << "WPS alpha: " << analytical_result_.wps_alpha_formatted << endl;
+        s << "WPS alpha: " << analytical_result_.wps_alpha << endl;
         s << "WPS v: " << analytical_result_.wps_v_formatted << endl;
         s << "WPS v CI: " << analytical_result_.wps_v_ci_formatted << endl;
         s << "WPS err: " << analytical_result_.wps_err << " (" << analytical_result_.wps_err_percent << "%)" << endl;
@@ -591,7 +591,6 @@ void pilot_workload_t::refresh_wps_analysis_results(void) const {
             return;
         } else {
             analytical_result_.wps_has_data = true;
-            analytical_result_.wps_alpha_formatted = format_wps(analytical_result_.wps_alpha);
             analytical_result_.wps_v_formatted = format_wps(analytical_result_.wps_v);
             double v_ci_low  = format_wps(analytical_result_.wps_v - analytical_result_.wps_v_ci / 2);
             double v_ci_high = format_wps(analytical_result_.wps_v + analytical_result_.wps_v_ci / 2);

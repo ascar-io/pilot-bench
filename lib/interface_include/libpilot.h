@@ -131,7 +131,8 @@ typedef int pilot_workload_func_t(const pilot_workload_t *wl,
                                   pilot_malloc_func_t *lib_malloc_func,
                                   size_t *num_of_work_unit,
                                   double ***unit_readings,
-                                  double **readings);
+                                  double **readings,
+                                  nanosecond_type *round_duration);
 
 struct pilot_pi_unit_readings_iter_t;
 
@@ -638,7 +639,6 @@ struct pilot_analytical_result_t {
     double wps_naive_v_err;
     double wps_naive_v_err_percent;
     double wps_alpha;                  //! the alpha as in t = alpha + v*w
-    double wps_alpha_formatted;
     double wps_v;                      //! the v as in t = alpha + v*w
     double wps_v_formatted;
     size_t wps_optimal_subsession_size;

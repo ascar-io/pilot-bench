@@ -277,7 +277,7 @@ int pilot_run_workload(pilot_workload_t *wl) {
 
     // ready to start the workload
     size_t work_amount;
-    nanosecond_type round_duration;
+    nanosecond_type measured_round_duration, reported_round_duration, round_duration;
     auto session_start_time = std::chrono::steady_clock::now();
     while (true) {
         unit_readings = NULL;
@@ -307,13 +307,15 @@ int pilot_run_workload(pilot_workload_t *wl) {
 
         info_log << "Starting workload round " << wl->rounds_ << " with work_amount " << work_amount;
 
+        reported_round_duration = 0;
         round_timer.reset(new cpu_timer);
         int rc =
         wl->workload_func_(wl, wl->rounds_, work_amount, &pilot_malloc_func,
                            &num_of_unit_readings, &unit_readings,
-                           &readings);
-        round_duration = round_timer->elapsed().wall;
+                           &readings, &reported_round_duration);
+        measured_round_duration = round_timer->elapsed().wall;
         debug_log << "finished workload round " << wl->rounds_;
+        round_duration = reported_round_duration == 0 ? measured_round_duration : reported_round_duration;
 
         // result check first
         if (0 != rc)   { result = ERR_WL_FAIL; break; }
@@ -549,7 +551,6 @@ int pilot_export(const pilot_workload_t *wl, const char *dirname) {
            << wl->analytical_result_.wps_naive_v_err_percent << ",";
         if (wl->analytical_result_.wps_has_data) {
             of << wl->analytical_result_.wps_alpha << ","
-               << wl->analytical_result_.wps_alpha_formatted << ","
                << wl->analytical_result_.wps_v << ","
                << wl->analytical_result_.wps_v_formatted << ","
                << wl->analytical_result_.wps_v_ci << ","
@@ -827,7 +828,6 @@ void pilot_analytical_result_t::_copyfrom(const pilot_analytical_result_t &a) {
     COPY_FIELD(wps_has_data);
     if (a.wps_has_data) {
         COPY_FIELD(wps_alpha);
-        COPY_FIELD(wps_alpha_formatted);
         COPY_FIELD(wps_v);
         COPY_FIELD(wps_v_formatted);
         COPY_FIELD(wps_v_ci);

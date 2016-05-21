@@ -125,7 +125,8 @@ int workload_func(const pilot_workload_t *wl,
                   pilot_malloc_func_t *lib_malloc_func,
                   size_t *num_of_work_unit,
                   double ***unit_readings,
-                  double **readings) {
+                  double **readings,
+                  nanosecond_type *round_duration) {
     // allocate space for storing result readings
     *readings = (double*)lib_malloc_func(sizeof(double) * g_num_of_pi);
     // this workload has no unit readings

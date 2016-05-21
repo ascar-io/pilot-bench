@@ -53,7 +53,8 @@ int mock_workload_func(const pilot_workload_t *wl,
                        pilot_malloc_func_t *lib_malloc_func,
                        size_t *num_of_work_unit,
                        double ***unit_readings,
-                       double **readings) {
+                       double **readings,
+                       nanosecond_type *round_duration) {
     assert(g_work_amount_limit >= work_amount);
     *num_of_work_unit = work_amount;
 
