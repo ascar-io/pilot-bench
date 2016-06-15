@@ -203,7 +203,7 @@ public:  // FIXME: most of the following members should be private and controlle
                          autocorrelation_coefficient_limit_(0.1),
                          required_ci_percent_of_mean_(0.1), required_ci_absolute_value_(-1),
                          session_duration_limit_in_sec_(0),
-                         short_round_detection_threshold_(1 * pilot::ONE_SECOND),
+                         short_round_detection_threshold_(20 * pilot::ONE_SECOND),
                          desired_p_value_(0.05),
                          short_workload_check_(true),
                          warm_up_removal_detection_method_(EDM),
