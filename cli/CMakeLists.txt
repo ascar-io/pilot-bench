@@ -31,7 +31,7 @@ add_library(libluaprompt ${LUAPROMPT_SOURCE_DIR}/prompt.c)
 set_target_properties (libluaprompt PROPERTIES COMPILE_FLAGS
                        "-DHAVE_LIBREADLINE -DHAVE_READLINE_HISTORY -DHAVE_IOCTL -D_GNU_SOURCE")
 
-set (LIBPILOT_LIBRARIES libpilot)
+set (LIBPILOT_LIBRARIES pilot_sharedlib)
 
 include_directories (SYSTEM ${CMAKE_CURRENT_BINARY_DIR}/../gtest/src/gtest/include)
 include_directories (${CDK_INCLUDE_DIR})
@@ -63,7 +63,7 @@ add_custom_command(TARGET pilot POST_BUILD
                        ${CMAKE_CURRENT_LIST_DIR}/test/mock_benchmark.sh $<TARGET_FILE_DIR:pilot>)
 
 # tests
-set (PILOT_TESTS_LIBRARIES libpilot ${Boost_LIBRARIES} ${GTEST_BINARY_DIR}/libgtest.a ${GTEST_BINARY_DIR}/libgtest_main.a ${CMAKE_THREAD_LIBS_INIT} ${CDK_LIBRARIES})
+set (PILOT_TESTS_LIBRARIES pilot_sharedlib ${Boost_LIBRARIES} ${GTEST_BINARY_DIR}/libgtest.a ${GTEST_BINARY_DIR}/libgtest_main.a ${CMAKE_THREAD_LIBS_INIT} ${CDK_LIBRARIES})
 
 add_executable (unit_test_cli test/unit_test_cli.cc run_program.cc)
 target_link_libraries (unit_test_cli ${PILOT_TESTS_LIBRARIES})

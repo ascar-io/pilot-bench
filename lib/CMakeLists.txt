@@ -31,19 +31,40 @@ include_directories (interface_include)
 include_directories (priv_include)
 include_directories (SYSTEM ${CDK_INCLUDE_DIR})
 
-# the main library
-add_library (libpilot libpilot.cc workload.cc
+# object library for libpilot
+set (PILOT_LIBSRC libpilot.cc workload.cc
              ${TWITTER_BREAKOUTDETECTION_INCLUDE_DIR}/src/edm-per.cpp
              ${TWITTER_BREAKOUTDETECTION_INCLUDE_DIR}/src/helper.cpp)
-target_link_libraries (libpilot ${CDK_STATIC_LIBRARIES})
-add_dependencies (libpilot cdk twitter_breakoutdetection)
+# Object files need to be compiled twice. With PIC for shared lib, without PIC
+# for static lib.
+add_library (pilot_sharedlib SHARED ${PILOT_LIBSRC})
+set_target_properties(pilot_sharedlib PROPERTIES OUTPUT_NAME pilot)
+set_target_properties(pilot_sharedlib PROPERTIES SOVERSION ${PILOT_VERSION_MAJOR})
+set_target_properties(pilot_sharedlib PROPERTIES VERSION
+                      ${PILOT_VERSION_MAJOR}.${PILOT_VERSION_MINOR})
+target_link_libraries (pilot_sharedlib ${CDK_STATIC_LIBRARIES} ${Boost_LIBRARIES}
+             ${CMAKE_THREAD_LIBS_INIT} ${CDK_LIBRARIES})
+add_dependencies (pilot_sharedlib cdk twitter_breakoutdetection)
+
+# static library
+add_library (pilot_staticlib STATIC ${PILOT_LIBSRC})
+set_target_properties(pilot_staticlib PROPERTIES OUTPUT_NAME pilot)
+add_dependencies (pilot_staticlib cdk twitter_breakoutdetection)
+
+# installation
+install (TARGETS pilot_sharedlib pilot_staticlib
+         ARCHIVE DESTINATION lib
+         LIBRARY DESTINATION lib
+         RUNTIME DESTINATION bin)
+file(GLOB HEADER_FILES "interface_include/*.h*")
+install (FILES ${HEADER_FILES} DESTINATION include/pilot)
 
 # needed by boost 1.59+
 add_definitions ("-std=gnu++11")
 # we should use target_compile_features() when everyone upgrades to cmake 3.1+
 
 # tests
-set (PILOT_TESTS_LIBRARIES libpilot ${Boost_LIBRARIES} ${GTEST_BINARY_DIR}/libgtest.a ${GTEST_BINARY_DIR}/libgtest_main.a ${CMAKE_THREAD_LIBS_INIT} ${CDK_LIBRARIES})
+set (PILOT_TESTS_LIBRARIES pilot_sharedlib ${Boost_LIBRARIES} ${GTEST_BINARY_DIR}/libgtest.a ${GTEST_BINARY_DIR}/libgtest_main.a ${CMAKE_THREAD_LIBS_INIT} ${CDK_LIBRARIES})
 
 add_executable (func_test_seq_write test/func_test_seq_write.cc)
 target_link_libraries (func_test_seq_write ${PILOT_TESTS_LIBRARIES})
@@ -84,4 +105,3 @@ add_test (NAME unit_test_compare_results
 add_test (NAME func_test_seq_write
 		  COMMAND func_test_seq_write -o /tmp/test_output_file --no-tui -d 240)
 
-install (DIRECTORY interface_include DESTINATION include/pilot)
