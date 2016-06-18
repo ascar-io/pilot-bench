@@ -93,7 +93,7 @@ int workload_func(const pilot_workload_t *wl,
                   size_t *num_of_work_unit,
                   double ***unit_readings,
                   double **readings,
-                  nanosecond_type *round_duration) {
+                  nanosecond_type *round_duration, void *data) {
     *num_of_work_unit = total_work_amount / g_io_size;
     // allocate space for storing result readings
     *readings = (double*)lib_malloc_func(sizeof(double) * num_of_pi);

@@ -80,8 +80,6 @@ enum pilot_reading_type_t {
     WPS_TYPE = 2
 };
 
-const int kWPSInitSlices = 50;
-
 typedef int_least64_t nanosecond_type;
 
 /**
@@ -120,6 +118,7 @@ struct pilot_workload_t;
 /**
  * \brief A function from the library's user for running one benchmark and collecting readings.
  * @param[in] total_work_amount
+ * @param[in] data arbitrary data that can be passed to the workload func. Set by using pilot_set_workload_data().
  * @param[out] num_of_work_unit
  * @param[out] unit_readings the reading of each work unit. Format: unit_readings[piid][unit_id]. The user needs to allocate memory using lib_malloc_func.
  * @param[out] readings the final readings of this workload run. Format: readings[piid]. The user needs to allocate memory using lib_malloc_func.
@@ -132,7 +131,15 @@ typedef int pilot_workload_func_t(const pilot_workload_t *wl,
                                   size_t *num_of_work_unit,
                                   double ***unit_readings,
                                   double **readings,
-                                  nanosecond_type *round_duration);
+                                  nanosecond_type *round_duration,
+                                  void *data);
+
+/**
+ * \brief A simplified version of pilot_workload_func_t.
+ * @param[in] round_work_amount
+ * @return 0 on success; any other values stop the benchmark
+ */
+typedef int pilot_simple_workload_func_t(size_t round_work_amount);
 
 struct pilot_pi_unit_readings_iter_t;
 
@@ -239,6 +246,12 @@ void pilot_set_pi_info(pilot_workload_t* wl, int piid,
 // TODO: implement a get_pi_info()
 
 pilot_workload_t* pilot_new_workload(const char *workload_name);
+
+/**
+ * Set an arbitrary pointer that will be passed to the workload_func
+ * @param data
+ */
+void pilot_set_workload_data(pilot_workload_t* wl, void *data);
 
 /**
  * \brief Set the number of performance indices to record
@@ -981,6 +994,16 @@ void pilot_set_wps_analysis(pilot_workload_t *wl,
         bool enabled, bool wps_must_satisfy);
 
 /**
+ * \brief Set the desired duration for running a session
+ * \details Pilot will try to get a result within this desired duration but
+ * does not guarantee it. Default to 30 seconds.
+  * @param[in] wl pointer to the workload struct
+ * @param sec the desired session duration limit
+ * @return previous setting
+ */
+size_t pilot_set_session_desired_duration(pilot_workload_t *wl, size_t sec);
+
+/**
  * \brief Set the duration limit for running a session. The session will stop after
  * sec seconds.
  * @param[in] wl pointer to the workload struct
@@ -1038,6 +1061,13 @@ int pilot_load_baseline_file(pilot_workload_t *wl, const char *filename);
  * @return the old min sample size
  */
 size_t pilot_set_min_sample_size(pilot_workload_t *wl, size_t min_sample_size);
+
+int _pilot_run_benchmarks(pilot_simple_workload_func_t func,
+                          const char *benchmark_name,
+                          size_t min_wa, size_t max_wa,
+                          nanosecond_type short_round_threshold);
+#define pilot_run_benchmarks(func, min_wa, max_wa, short_round_threshold) \
+    _pilot_run_benchmarks(func, #func, min_wa, max_wa, short_round_threshold)
 
 #ifdef __cplusplus
 } // namespace pilot

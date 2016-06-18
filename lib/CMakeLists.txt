@@ -87,6 +87,9 @@ target_link_libraries (unit_test_readings_warmup_removal ${PILOT_TESTS_LIBRARIES
 add_executable (unit_test_compare_results test/unit_test_compare_results.cc)
 target_link_libraries (unit_test_compare_results ${PILOT_TESTS_LIBRARIES})
 
+add_executable (unit_test_macros test/unit_test_macros.cc)
+target_link_libraries (unit_test_macros ${PILOT_TESTS_LIBRARIES})
+
 
 add_test (NAME unit_test_statistics
 		  COMMAND unit_test_statistics)
@@ -102,6 +105,8 @@ add_test (NAME unit_test_readings_warmup_removal
           COMMAND unit_test_readings_warmup_removal)
 add_test (NAME unit_test_compare_results
           COMMAND unit_test_compare_results ${CMAKE_CURRENT_LIST_DIR}/test/unit_test_compare_results_input.csv)
+add_test (NAME unit_test_macros
+		  COMMAND unit_test_macros)
 add_test (NAME func_test_seq_write
 		  COMMAND func_test_seq_write -o /tmp/test_output_file --no-tui -d 240)
 

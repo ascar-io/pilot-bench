@@ -54,7 +54,7 @@ int mock_workload_func(const pilot_workload_t *wl,
                        size_t *num_of_work_unit,
                        double ***unit_readings,
                        double **readings,
-                       nanosecond_type *round_duration) {
+                       nanosecond_type *round_duration, void *data) {
     assert(g_work_amount_limit >= work_amount);
     *num_of_work_unit = work_amount;
 
@@ -142,29 +142,38 @@ TEST(PilotRunWorkloadTest, CalculatingOptimalSessionDuration) {
 TEST(PilotRunWorkloadTest, TestCalcNextRoundWorkAmountFromWPS) {
     pilot_workload_t *wl = pilot_new_workload("Test workload");
     size_t wa_limit = 1000;
-    size_t wa_slice_size = wa_limit / kWPSInitSlices;
     pilot_set_work_amount_limit(wl, wa_limit);
     pilot_set_wps_analysis(wl, NULL, true, true);
+    pilot_set_init_work_amount(wl, 0);
+    pilot_set_session_desired_duration(wl, 60);
+    wl->adjusted_min_work_amount_ = 10;
+    wl->round_work_amounts_.push_back(10);
+    wl->round_durations_.push_back(1 * ONE_SECOND);
+    wl->rounds_++;
+    // See [Li16] Equation (5)
+    double k = (2.0 * 60 - 2 * 1 * 10) / (10 * 10 - 10);
+    size_t wa_slice_size = size_t(k * 10 / 1);
     size_t wa;
     ASSERT_TRUE(calc_next_round_work_amount_from_wps(wl, &wa));
-    ASSERT_EQ(wa_slice_size, wa);
-    // let's add some mock data
+    ASSERT_EQ(10 + wa_slice_size, wa);
+
+    // more mock rounds
     wl->round_work_amounts_.push_back(365);
-    wl->round_durations_.push_back(1);
+    wl->round_durations_.push_back(ONE_SECOND);
     wl->rounds_++;
     ASSERT_TRUE(calc_next_round_work_amount_from_wps(wl, &wa));
-    ASSERT_EQ((365 / wa_slice_size + 1) * wa_slice_size, wa);
+    ASSERT_EQ(((365 - 10) / wa_slice_size + 1) * wa_slice_size + 10, wa);
     wl->round_work_amounts_.push_back(999);
-    wl->round_durations_.push_back(1);
+    wl->round_durations_.push_back(ONE_SECOND);
     wl->rounds_++;
     wa_slice_size /= 2;
     ASSERT_TRUE(calc_next_round_work_amount_from_wps(wl, &wa));
-    ASSERT_EQ(wa_slice_size, wa);
-    wl->round_work_amounts_.push_back(wa_slice_size);
-    wl->round_durations_.push_back(1);
+    ASSERT_EQ(10 + wa_slice_size, wa);
+    wl->round_work_amounts_.push_back(10 + wa_slice_size);
+    wl->round_durations_.push_back(ONE_SECOND);
     wl->rounds_++;
     ASSERT_TRUE(calc_next_round_work_amount_from_wps(wl, &wa));
-    ASSERT_EQ(wa_slice_size * 2, wa);
+    ASSERT_EQ(10 + wa_slice_size * 2, wa);
     pilot_destroy_workload(wl);
 }
 

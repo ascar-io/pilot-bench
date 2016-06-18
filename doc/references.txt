@@ -4,3 +4,8 @@ Evaluation. Prentice-Hall, 1978.
 [Le Boudec15] Jean-Yves Le Boudec, Performance Evaluation of Computer
 and Communication Systems. EPFL, 2015.
 https://web.archive.org/web/20151123010849/http://infoscience.epfl.ch/record/146812/files/perfLastEdition_1.pdf
+
+[Li16] Yan Li. Pilot: A Framework that Understands How to Do Performance
+Benchmarks The Right Way. IEEE 24th International Symposium on Modeling,
+Analysis and Simulation of Computer and Telecommunication Systems
+(MASCOTS 2016), September 19--21, 2016, London, UK.

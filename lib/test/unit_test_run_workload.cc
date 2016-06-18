@@ -66,7 +66,7 @@ int mock_workload_func(const pilot_workload_t *wl,
                        size_t *num_of_work_unit,
                        double ***unit_readings,
                        double **readings,
-                       nanosecond_type *round_duration) {
+                       nanosecond_type *round_duration, void *data) {
     if (0 == g_test_round)
         assert(500/10 == total_work_amount);
     *num_of_work_unit = g_mock_unit_readings[g_test_round][0].size();

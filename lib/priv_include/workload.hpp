@@ -135,6 +135,7 @@ public:  // FIXME: most of the following members should be private and controlle
     size_t min_work_amount_;                         //! The minimum work amount set by user
     mutable ssize_t adjusted_min_work_amount_;       //! The minimum work amount that can make the round no shorter than short_round_detection_threshold_. -1 means not found yet.
     pilot_workload_func_t *workload_func_;
+    void *workload_data_;
     std::vector<pilot_pi_info_t> pi_info_;
     pilot_display_format_functor format_wps_;
     bool wps_must_satisfy_;                          //! if the result of WPS analysis must satisfy
@@ -145,6 +146,7 @@ public:  // FIXME: most of the following members should be private and controlle
     double autocorrelation_coefficient_limit_;
     double required_ci_percent_of_mean_;
     double required_ci_absolute_value_;
+    size_t session_desired_duration_in_sec_;
     size_t session_duration_limit_in_sec_;
     nanosecond_type short_round_detection_threshold_;
     double desired_p_value_;
@@ -197,11 +199,12 @@ public:  // FIXME: most of the following members should be private and controlle
                          num_of_pi_(0), rounds_(0), init_work_amount_(0),
                          max_work_amount_(0), min_work_amount_(0),
                          adjusted_min_work_amount_(-1),
-                         workload_func_(nullptr),
+                         workload_func_(nullptr), workload_data_(NULL),
                          wps_must_satisfy_(false), min_sample_size_(200),
                          confidence_interval_(0.05), confidence_level_(.95),
                          autocorrelation_coefficient_limit_(0.1),
                          required_ci_percent_of_mean_(0.1), required_ci_absolute_value_(-1),
+                         session_desired_duration_in_sec_(60),
                          session_duration_limit_in_sec_(0),
                          short_round_detection_threshold_(20 * pilot::ONE_SECOND),
                          desired_p_value_(0.05),
@@ -212,7 +215,7 @@ public:  // FIXME: most of the following members should be private and controlle
                          wholly_rejected_rounds_(0),
                          analytical_result_(),
                          analytical_result_update_time_(std::chrono::steady_clock::time_point::min()),
-                         wps_slices_(kWPSInitSlices),
+                         wps_slices_(0),
                          next_round_work_amount_hook_(NULL),
                          hook_pre_workload_run_(NULL), hook_post_workload_run_(NULL),
                          calc_required_readings_func_(NULL),
@@ -352,6 +355,7 @@ public:  // FIXME: most of the following members should be private and controlle
     void set_wps_analysis(bool enabled, bool wps_must_satisfy);
     void refresh_wps_analysis_results(void) const;
 
+    size_t set_session_desired_duration(size_t sec);
     size_t set_session_duration_limit(size_t sec);
     size_t set_min_sample_size(size_t min_sample_size);
 

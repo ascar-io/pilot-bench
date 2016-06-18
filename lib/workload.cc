@@ -176,6 +176,7 @@ bool pilot_workload_t::calc_next_round_work_amount(size_t * const needed_work_am
             *needed_work_amount = 0;
             return true;
         } else if (0 != init_work_amount_) {
+            info_log << "Using init work amount set by user.";
             *needed_work_amount = init_work_amount_;
             return true;
         } else {
@@ -183,6 +184,7 @@ bool pilot_workload_t::calc_next_round_work_amount(size_t * const needed_work_am
             size_t min = max(adjusted_min_work_amount_, ssize_t(min_work_amount_));
             size_t valid_range = max_work_amount_ - min;
             *needed_work_amount = min + valid_range / 10;
+            info_log << "No preset init work amount. Using 1/10 of total work amount.";
             // in this case we also run through all the plugins to see if they
             // have other need
         }
@@ -599,6 +601,12 @@ void pilot_workload_t::refresh_wps_analysis_results(void) const {
     } while (analytical_result_.wps_has_data &&
              analytical_result_.wps_alpha < 0 &&
              duration_threshold != static_cast<nanosecond_type>(-analytical_result_.wps_alpha));
+}
+
+size_t pilot_workload_t::set_session_desired_duration(size_t sec) {
+    size_t old_val = session_desired_duration_in_sec_;
+    session_desired_duration_in_sec_ = sec;
+    return old_val;
 }
 
 size_t pilot_workload_t::set_session_duration_limit(size_t sec) {
