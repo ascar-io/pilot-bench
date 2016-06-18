@@ -8,14 +8,14 @@ provides the following features:
 *  handling the correlation between test runs,
 *  saving test results in a standard format for sharing and comparing results.
 
-Tutorials and more information can be found on the wiki: https://github.com/mlogic/pilot-bench/wiki
+Tutorials and more information can be found on the wiki: https://github.com/ascar-io/pilot-tool/wiki
 
 Join our Slack to give feedback and dicsuss your ideas:
 https://pilot-tool.slack.com/signup
 
 # INSTALL
 
-See https://github.com/mlogic/pilot-bench/wiki/Requirements-and-Installation-Instructions for details.
+See https://github.com/ascar-io/pilot-tool/wiki/Requirements-and-Installation-Instructions for details.
 
 # RUN IT
 
