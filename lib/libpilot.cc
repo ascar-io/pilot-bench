@@ -358,6 +358,9 @@ int pilot_run_workload(pilot_workload_t *wl) {
             unique_ptr<pilot_analytical_result_t> wi(wl->get_analytical_result());
             stringstream ss;
             ss << setw(3) << left << wl->rounds_ - 1 << " | ";
+            if (!wl->num_of_pi_) {
+                ss << "no PI";
+            }
             for (size_t piid = 0; piid < wl->num_of_pi_; ++piid) {
                 if (0 != piid) ss << "; ";
                 ss << wl->pi_info_[piid].name << ": ";
@@ -371,6 +374,15 @@ int pilot_run_workload(pilot_workload_t *wl) {
                        << " c" << wl->analytical_result_.unit_readings_optimal_subsession_ci_width_formatted[piid]
                        << " v" << wl->analytical_result_.unit_readings_optimal_subsession_var_formatted[piid];
                 }
+            }
+            ss << "; WPS: ";
+            if (wi->wps_has_data) {
+                ss << str(format("a %1%, v %2%, v_ci %3% (%4%%%)")
+                          % wi->wps_alpha % wi->wps_v_formatted
+                          % wi->wps_v_ci_formatted
+                          % (100.0 * wi->wps_v_ci_formatted / wi->wps_v_formatted));
+            } else {
+                ss << "no data";
             }
             info_log << ss.str();
         }
@@ -1300,9 +1312,9 @@ bool pilot_next_round_work_amount(const pilot_workload_t *wl, size_t *needed_wor
     return wl->calc_next_round_work_amount(needed_work_amount);
 }
 
-void pilot_set_short_round_detection_threshold(pilot_workload_t *wl, nanosecond_type threshold) {
+void pilot_set_short_round_detection_threshold(pilot_workload_t *wl, size_t threshold) {
     ASSERT_VALID_POINTER(wl);
-    wl->short_round_detection_threshold_ = threshold;
+    wl->short_round_detection_threshold_ = ONE_SECOND * threshold;
 }
 
 void pilot_set_required_confidence_interval(pilot_workload_t *wl, double percent_of_mean, double absolute_value) {
@@ -1324,14 +1336,23 @@ bool calc_next_round_work_amount_meet_lower_bound(const pilot_workload_t *wl, si
     }
 
     if (wl->round_durations_.back() < wl->short_round_detection_threshold_) {
-        info_log << "Previous round duration (" << wl->round_durations_.back() << ") "
-                 << "is shorter than the lower bound (" << wl->short_round_detection_threshold_ << ").";
+        info_log << "Previous round duration (" << double(wl->round_durations_.back()) / ONE_SECOND << "s) "
+                 << "is shorter than the lower bound (" << double(wl->short_round_detection_threshold_) / ONE_SECOND << "ns).";
         if (wl->round_work_amounts_.back() == wl->max_work_amount_) {
             fatal_log << "Running at max_work_amount_ still cannot meet round duration requirement. Please increase the max work amount upper limit.";
             *needed_work_amount = wl->max_work_amount_;
         } else {
-            *needed_work_amount = min(wl->round_work_amounts_.back() * 2, wl->max_work_amount_);
-            info_log << str(format("Proposing to using previous round's work amount x 2 (%1%).") % *needed_work_amount);
+            if (wl->round_work_amounts_.back() == wl->max_work_amount_) {
+                fatal_log << "The round using max_work_amount_ is still shorter than the lower bound,"
+                             "please change your settings.";
+                abort();
+            } else if (wl->round_work_amounts_.back() > wl->max_work_amount_ / 2) {
+                *needed_work_amount = wl->max_work_amount_;
+                info_log << str(format("Proposing to using max_work_amount (%1%).") % *needed_work_amount);
+            } else {
+                *needed_work_amount = min(wl->round_work_amounts_.back() * 2, wl->max_work_amount_);
+                info_log << str(format("Proposing to using previous round's work amount x 2 (%1%).") % *needed_work_amount);
+            }
         }
         return true;
     } else if (wl->adjusted_min_work_amount_ < 0) {
@@ -1481,7 +1502,8 @@ bool calc_next_round_work_amount_from_wps(const pilot_workload_t *wl, size_t *ne
         double slice_size_float = k * work_amount_per_nanosec;
         // 5 is a fail-safe value
         wl->wps_slices_ = max(size_t(5), size_t( (wl->max_work_amount_ - min_wa) / slice_size_float ));
-        info_log << "Calculated initial number of WPS slices: " << wl->wps_slices_;
+        info_log << str(format("Calculated initial number of WPS slices %1% with slice size %2%")
+                        % wl->wps_slices_ % ((wl->max_work_amount_ - min_wa) / wl->wps_slices_));
     }
     size_t wa_slice_size = (wl->max_work_amount_ - min_wa) / wl->wps_slices_;
     if (0 == wl->rounds_) {
@@ -1492,11 +1514,26 @@ bool calc_next_round_work_amount_from_wps(const pilot_workload_t *wl, size_t *ne
     if (wl->rounds_ > 3) {
         wl->refresh_wps_analysis_results();
 
-        if (wl->analytical_result_.wps_has_data && wl->analytical_result_.wps_subsession_sample_size > 20 &&
-            wl->analytical_result_.wps_v > 0 && wl->analytical_result_.wps_v_ci > 0 &&
-            wl->analytical_result_.wps_v_ci < wl->required_ci_percent_of_mean_ * wl->analytical_result_.wps_v) {
-            debug_log << "WPS confidence interval small enough";
-            return false;
+        if (wl->analytical_result_.wps_has_data) {
+            const size_t kWPSSubsessionSampleSizeThreshold = 20;
+            if (wl->analytical_result_.wps_subsession_sample_size > kWPSSubsessionSampleSizeThreshold) {
+                if (wl->analytical_result_.wps_v > 0 && wl->analytical_result_.wps_v_ci > 0 &&
+                    wl->analytical_result_.wps_v_ci < wl->required_ci_percent_of_mean_ * wl->analytical_result_.wps_v) {
+                    info_log << "WPS confidence interval small enough";
+                    return false;
+                } else {
+                    if (wl->wps_must_satisfy_) {
+                        info_log << "WPS confidence interval not small enough, needs more samples";
+                        // TODO: calculate how many more samples are needed
+                    }
+                }
+            } else {
+                if (wl->wps_must_satisfy_) {
+                    info_log << str(format("WPS analysis needs more samples (proposed subsession size %1%, probably needs %2% more samples)")
+                                           % wl->analytical_result_.wps_optimal_subsession_size
+                                           % ((kWPSSubsessionSampleSizeThreshold - wl->analytical_result_.wps_subsession_sample_size) * wl->analytical_result_.wps_optimal_subsession_size) );
+                }
+            }
         }
     }
 
@@ -1655,22 +1692,65 @@ int _simple_workload_func_runner(const pilot_workload_t *wl,
                        void *data) {
     ASSERT_VALID_POINTER(data);
     pilot_simple_workload_func_t *func = (pilot_simple_workload_func_t*)data;
+    int rc;
+    for (size_t i = 0; i != total_work_amount; ++i) {
+        rc = func();
+        if (rc)
+            return rc;
+    }
+    return 0;
+}
+
+int _simple_workload_func_with_wa_runner(const pilot_workload_t *wl,
+                       size_t round,
+                       size_t total_work_amount,
+                       pilot_malloc_func_t *lib_malloc_func,
+                       size_t *num_of_work_unit,
+                       double ***unit_readings,
+                       double **readings,
+                       nanosecond_type *round_duration,
+                       void *data) {
+    ASSERT_VALID_POINTER(data);
+    pilot_simple_workload_with_wa_func_t *func = (pilot_simple_workload_with_wa_func_t*)data;
     return func(total_work_amount);
 }
 
-int _pilot_run_benchmarks(pilot_simple_workload_func_t func,
-                           const char* benchmark_name,
-                           size_t min_wa, size_t max_wa,
-                           nanosecond_type short_round_threshold) {
+int __simple_runner_worker(void *func,
+                    const char* benchmark_name,
+                    size_t min_wa, size_t max_wa,
+                    nanosecond_type short_round_threshold,
+                    pilot_workload_func_t wrapper_func) {
+    pilot_set_log_level(lv_info);
     pilot_workload_t *wl = pilot_new_workload(benchmark_name);
     pilot_set_num_of_pi(wl, 0);                   // we use WPS analysis only
     pilot_set_init_work_amount(wl, min_wa);
     pilot_set_work_amount_limit(wl, max_wa);
-    pilot_set_workload_data(wl, (void*)func);
-    pilot_set_workload_func(wl, _simple_workload_func_runner);
+    pilot_set_workload_data(wl, func);
+    pilot_set_workload_func(wl, wrapper_func);
     pilot_set_wps_analysis(wl, NULL, true, true);
     pilot_set_short_round_detection_threshold(wl, short_round_threshold);
     return pilot_run_workload(wl);
+}
+
+
+int _simple_runner(pilot_simple_workload_func_t func,
+                   const char* benchmark_name,
+                   size_t min_wa, size_t max_wa,
+                   nanosecond_type short_round_threshold) {
+    return
+    __simple_runner_worker((void*)func, benchmark_name, min_wa, max_wa,
+                           short_round_threshold,
+                           _simple_workload_func_runner);
+}
+
+int _simple_runner_with_wa(pilot_simple_workload_with_wa_func_t func,
+                           const char* benchmark_name,
+                           size_t min_wa, size_t max_wa,
+                           nanosecond_type short_round_threshold) {
+    return
+    __simple_runner_worker((void*)func, benchmark_name, min_wa, max_wa,
+                           short_round_threshold,
+                           _simple_workload_func_with_wa_runner);
 }
 
 } // namespace pilot

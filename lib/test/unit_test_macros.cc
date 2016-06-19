@@ -35,12 +35,11 @@
 
 const int len = 10000;
 char val[len];
-int h1, h2;
+int h1 = 1, h2 = 1;
 
-int hash_func_one(size_t work_amount) {
-    for (size_t loop = 0; loop != work_amount; ++loop)
-        for (int i = 0; i < len; i++)
-            h1 = 31 * h1 + val[i];
+int hash_func_one(void) {
+    for (int i = 0; i < len; i++)
+        h1 = 31 * h1 + val[i];
     return 0;
 }
 
@@ -59,7 +58,8 @@ int main() {
     // init val with some pseudo random data
     for (int i = 0; i != len; ++i)
         val[i] = (char)(i * 42);
-    pilot::pilot_run_benchmarks(hash_func_one, 100000, 100000000, 1);
+    pilot::simple_runner(hash_func_one);
+    pilot::simple_runner_with_wa(hash_func_two);
     //assert (h1 == h2);
 
     //pilot_comparison_t cmp_result = pilot_compare_workloads(hash_func_one, hash_func_two);

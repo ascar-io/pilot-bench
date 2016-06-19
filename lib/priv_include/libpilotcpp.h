@@ -291,6 +291,8 @@ int pilot_wps_warmup_removal_lr_method(size_t rounds, WorkAmountInputIterator ro
     // rounds that are shorter than round_durations filtered out
     std::vector<size_t> round_work_amounts;
     std::vector<nanosecond_type> round_durations;
+    // TODO: we can probably switch to using a more efficient iterator to skip
+    // those rounds that are too short. See FB#2947.
     for (size_t i = 0; i < rounds; ++i) {
         if (round_durations_raw[i] > duration_threshold) {
             round_work_amounts.push_back(round_work_amounts_raw[i]);

@@ -181,10 +181,8 @@ bool pilot_workload_t::calc_next_round_work_amount(size_t * const needed_work_am
             return true;
         } else {
             // initial work amount
-            size_t min = max(adjusted_min_work_amount_, ssize_t(min_work_amount_));
-            size_t valid_range = max_work_amount_ - min;
-            *needed_work_amount = min + valid_range / 10;
-            info_log << "No preset init work amount. Using 1/10 of total work amount.";
+            *needed_work_amount = 1;
+            info_log << "No preset init work amount, trying 1.";
             // in this case we also run through all the plugins to see if they
             // have other need
         }
@@ -569,7 +567,7 @@ void pilot_workload_t::refresh_wps_analysis_results(void) const {
         if (analytical_result_.wps_has_data) {
             duration_threshold = analytical_result_.wps_alpha < 0? nanosecond_type(-analytical_result_.wps_alpha) : 0;
         } else {
-            duration_threshold = 0;
+            duration_threshold = short_round_detection_threshold_;
         }
         debug_log << __func__ << "(): round " << r << " WPS regression (duration_threshold = " << duration_threshold << ")";
         int res = pilot_wps_warmup_removal_lr_method(round_work_amounts_.size(),
@@ -586,6 +584,13 @@ void pilot_workload_t::refresh_wps_analysis_results(void) const {
                                                      &analytical_result_.wps_optimal_subsession_size);
         if (ERR_NOT_ENOUGH_DATA == res) {
             debug_log << "Not enough data for calculating WPS warm-up removal (duration_threshold = " << duration_threshold << ")";
+            analytical_result_.wps_has_data = false;
+            analytical_result_.wps_alpha = -1;
+            analytical_result_.wps_v = -1;
+            analytical_result_.wps_v_ci = -1;
+            return;
+        } else if (analytical_result_.wps_v < 0) {
+            debug_log << "Calculated wps_v < 0, needs more rounds (duration_threshold = " << duration_threshold << ")";
             analytical_result_.wps_has_data = false;
             analytical_result_.wps_alpha = -1;
             analytical_result_.wps_v = -1;

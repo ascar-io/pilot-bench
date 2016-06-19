@@ -385,7 +385,7 @@ int main(int argc, char **argv) {
         pilot_set_session_duration_limit(g_wl.get(), duration_limit);
     }
     if (vm.count("min-round-duration")) {
-        pilot_set_short_round_detection_threshold(g_wl.get(), ONE_SECOND * vm["min-round-duration"].as<size_t>());
+        pilot_set_short_round_detection_threshold(g_wl.get(), vm["min-round-duration"].as<size_t>());
     }
     if (vm.count("autocorr-threshold")) {
         double at = vm["autocorr-threshold"].as<double>();
