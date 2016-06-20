@@ -112,3 +112,5 @@ add_subdirectory (cli)
 add_subdirectory (doc)
 
 include (CPack)
+set (CPACK_RPM_POST_INSTALL_SCRIPT_FILE "${CMAKE_SOURCE_DIR}/packaging/post-install.sh")
+set (CPACK_RPM_POST_UNINSTALL_SCRIPT_FILE "${CMAKE_SOURCE_DIR}/packaging/post-install.sh")
