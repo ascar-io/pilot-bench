@@ -1,0 +1,70 @@
+---
+- hosts: all
+  become: true
+  become_user: root
+  become_method: sudo
+  vars:
+    cmake_version: cmake-3.5.2-Linux-x86_64
+    boost_version: 1.61.0
+    boost_prefix: '/opt/boost_{{ boost_version.replace(".", "_") }}'
+    boost_fpic: True
+
+  pre_tasks:
+  # epel-release has to be installed first
+  - name: install packages first batch
+    yum: name={{ item }} state=latest
+    with_items:
+      - epel-release
+      - libselinux-python
+      - wget
+      - deltarpm
+      - unzip
+    when: ansible_os_family == "RedHat"
+
+  - name: install packages second batch
+    yum: name={{ item }} state=latest
+    with_items:
+      - doxygen
+      - gcc-c++
+      - git
+      - graphviz
+      - lua-devel
+      - mg
+      - ncurses-devel
+      - numpy
+      - patch
+      - python-matplotlib
+      - readline-devel
+      - valgrind
+    when: ansible_os_family == "RedHat"
+
+  - name: check cmake
+    shell: which cmake &>/dev/null
+    register: cmake_check
+    ignore_errors: True
+
+  - name: download cmake
+    get_url: url=https://cmake.org/files/v3.5/{{ cmake_version }}.tar.gz dest=/tmp/{{ cmake_version }}.tar.gz checksum=sha256:5f7aeaebe33521647625e0411467de71a2886743e4aa2c179e04c9e141c6c8cd
+    when: cmake_check|failed
+
+  - name: install cmake
+    unarchive: src=/tmp/{{ cmake_version }}.tar.gz dest=/opt copy=no
+    when: cmake_check|failed
+
+  - name: add cmake to path
+    lineinfile:
+      dest: /etc/profile.d/cmake.sh
+      regexp: "^export PATH=$PATH:/opt/{{ cmake_version }}/bin"
+      line: "export PATH=$PATH:/opt/{{ cmake_version }}/bin"
+      create: yes
+      insertafter: EOF
+      state: present
+    when: cmake_check|failed
+
+  - name: check boost
+    file: path='{{ boost_prefix }}/include/boost/version.hpp'
+    register: boost_file
+    ignore_errors: True
+
+  roles:
+    - { role: ansible-boost, when: boost_file.state != 'file' }
