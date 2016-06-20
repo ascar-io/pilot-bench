@@ -87,8 +87,10 @@ set (CDK_LIBRARIES ${CURSES_LIBRARIES})
 ## BOOST LIBRARIES
 
 # default is off (using dynamic libraries)
-#set (Boost_USE_STATIC_LIBS        ON)
-#set (Boost_USE_STATIC_RUNTIME     ON)
+if (BOOST_USE_STATIC)
+    set (Boost_USE_STATIC_LIBS        ON)
+    set (Boost_USE_STATIC_RUNTIME     ON)
+endif ()
 
 set (Boost_USE_MULTITHREADED      ON)
 find_package (Boost COMPONENTS filesystem log program_options system timer chrono thread REQUIRED)
@@ -108,3 +110,5 @@ add_subdirectory (lib)
 add_subdirectory (cli)
 # documentation
 add_subdirectory (doc)
+
+include (CPack)
