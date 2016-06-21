@@ -44,7 +44,7 @@ This is a research project from the [Storage Systems Research
 Center](http://www.ssrc.ucsc.edu/) in [UC Santa
 Cruz](http://ucsc.edu).  This research was supported in part by the
 National Science Foundation under awards IIP-1266400, CCF-1219163,
-CNS-1018928, the Department of Energy under award
+CNS-1018928, CNS-1528179, the Department of Energy under award
 DE-FC02-10ER26017/DESC0005417, Symantec Graduate Fellowship, and
 industrial members of the Center for Research in Storage Systems. We
 would like to thank the sponsors of the Storage Systems Research
