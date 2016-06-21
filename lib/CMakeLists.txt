@@ -57,9 +57,10 @@ install (TARGETS pilot_sharedlib pilot_staticlib
          LIBRARY DESTINATION lib
          RUNTIME DESTINATION bin)
 file(GLOB HEADER_FILES "interface_include/*.h*")
-file(GLOB COMMON_HEADER_FILES "${CMAKE_SOURCE_DIR}/include/*.h*")
+file(GLOB COMMON_HEADER_FILES "${CMAKE_SOURCE_DIR}/include/*.h")
 install (FILES ${HEADER_FILES} DESTINATION include/pilot)
 install (FILES ${COMMON_HEADER_FILES} DESTINATION include/pilot)
+install (FILES ${CMAKE_CURRENT_BINARY_DIR}/config.h DESTINATION include/pilot)
 
 # needed by boost 1.59+
 add_definitions ("-std=gnu++11")
