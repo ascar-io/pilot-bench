@@ -53,7 +53,8 @@ const vector<double> g_response_time{
 
 TEST(StatisticsUnitTest, CornerCases) {
     ASSERT_DEATH(pilot_subsession_auto_cov_p(g_response_time.data(), 1, 1, 0, ARITHMETIC_MEAN), "") << "Shouldn't be able to calculate covariance for one sample";
-    ASSERT_DEATH(pilot_optimal_subsession_size_p(g_response_time.data(), 1, ARITHMETIC_MEAN), "") << "Shouldn't be able to calculate optimal subsession size for one sample";
+    // Shouldn't be able to calculate optimal subsession size for one sample
+    ASSERT_EQ(-1, pilot_optimal_subsession_size_p(g_response_time.data(), 1, ARITHMETIC_MEAN));
 }
 
 TEST(StatisticsUnitTest, AutocorrelationCoefficient) {

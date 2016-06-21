@@ -189,8 +189,8 @@ int pilot_optimal_subsession_size(InputIterator first, const size_t n,
                                   pilot_mean_method_t mean_method,
                                   double max_autocorrelation_coefficient = 0.1) {
     if (n <= 1) {
-        error_log << "cannot calculate covariance for " << n << " sample(s)";
-        abort();
+        debug_log << "cannot calculate covariance for " << n << " sample(s)";
+        return -1;
     }
     double sm = pilot_subsession_mean(first, n, mean_method);
     double cov;
