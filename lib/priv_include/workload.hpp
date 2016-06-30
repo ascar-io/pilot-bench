@@ -252,8 +252,9 @@ public:  // FIXME: most of the following members should be private and controlle
     double unit_readings_autocorrelation_coefficient(int piid, size_t q, pilot_mean_method_t mean_method) const;
 
     /**
-     * Calculate the required number of readings
-     * @return
+     * Calculate the total required number of readings needed to meet the CI
+     * requirement
+     * @return -1 if there is not enough data to calculate
      */
     ssize_t required_num_of_readings(int piid) const;
 

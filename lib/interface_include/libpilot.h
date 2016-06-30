@@ -611,18 +611,18 @@ struct pilot_analytical_result_t {
     size_t* readings_dominant_segment_size;
 
     // Dominant segment analysis (these info. are preferred to raw data)
-    double* readings_mean;             //! the mean of all readings so far according to PI reading's mean method
-    double* readings_mean_formatted;   //! the mean after being formatted by format_reading()
-    double* readings_var;
-    double* readings_var_formatted;
-    double* readings_autocorrelation_coefficient;
-    ssize_t* readings_optimal_subsession_size;
-    double* readings_optimal_subsession_var;
-    double* readings_optimal_subsession_var_formatted;
-    double* readings_optimal_subsession_autocorrelation_coefficient;
-    double* readings_optimal_subsession_ci_width;
-    double* readings_optimal_subsession_ci_width_formatted;
-    ssize_t* readings_required_sample_size;
+    double* readings_mean;             //! the mean of all readings so far according to PI reading's mean method; is undefined if readings_num < 2
+    double* readings_mean_formatted;   //! the mean after being formatted by format_reading(); is undefined if readings_num < 2
+    double* readings_var;              //! is undefined if readings_num < 2
+    double* readings_var_formatted;    //! is undefined if readings_num < 2
+    double* readings_autocorrelation_coefficient; //! is undefined if readings_num < 2
+    ssize_t* readings_required_sample_size;  //! is -1 if not enough data
+    ssize_t* readings_optimal_subsession_size; //! is undefined if readings_required_sample_size < 0
+    double* readings_optimal_subsession_var; //! is undefined if readings_required_sample_size < 0
+    double* readings_optimal_subsession_var_formatted; //! is undefined if readings_required_sample_size < 0
+    double* readings_optimal_subsession_autocorrelation_coefficient; //! is undefined if readings_required_sample_size < 0
+    double* readings_optimal_subsession_ci_width; //! is undefined if readings_required_sample_size < 0
+    double* readings_optimal_subsession_ci_width_formatted; //! is undefined if readings_required_sample_size < 0
 
     // Raw data uses all values
     double* readings_raw_mean;             //! the mean of all readings so far according to PI reading's mean method
@@ -630,13 +630,13 @@ struct pilot_analytical_result_t {
     double* readings_raw_var;
     double* readings_raw_var_formatted;
     double* readings_raw_autocorrelation_coefficient;
-    ssize_t* readings_raw_optimal_subsession_size;
-    double* readings_raw_optimal_subsession_var;
-    double* readings_raw_optimal_subsession_var_formatted;
-    double* readings_raw_optimal_subsession_autocorrelation_coefficient;
-    double* readings_raw_optimal_subsession_ci_width;
-    double* readings_raw_optimal_subsession_ci_width_formatted;
-    ssize_t* readings_raw_required_sample_size;
+    ssize_t* readings_raw_required_sample_size; //! is -1 if not enough data
+    ssize_t* readings_raw_optimal_subsession_size; //! is undefined if readings_raw_required_sample_size < 0
+    double* readings_raw_optimal_subsession_var; //! is undefined if readings_raw_required_sample_size < 0
+    double* readings_raw_optimal_subsession_var_formatted; //! is undefined if readings_raw_required_sample_size < 0
+    double* readings_raw_optimal_subsession_autocorrelation_coefficient; //! is undefined if readings_raw_required_sample_size < 0
+    double* readings_raw_optimal_subsession_ci_width; //! is undefined if readings_raw_required_sample_size < 0
+    double* readings_raw_optimal_subsession_ci_width_formatted; //! is undefined if readings_raw_required_sample_size < 0
 
     // Unit-readings analysis
     size_t* unit_readings_num;
@@ -646,13 +646,13 @@ struct pilot_analytical_result_t {
     double* unit_readings_var;
     double* unit_readings_var_formatted;
     double* unit_readings_autocorrelation_coefficient;
-    ssize_t* unit_readings_optimal_subsession_size;
-    double* unit_readings_optimal_subsession_var;
-    double* unit_readings_optimal_subsession_var_formatted;
-    double* unit_readings_optimal_subsession_autocorrelation_coefficient;
-    double* unit_readings_optimal_subsession_ci_width;
-    double* unit_readings_optimal_subsession_ci_width_formatted;
-    ssize_t* unit_readings_required_sample_size;
+    ssize_t* unit_readings_optimal_subsession_size; //! is -1 if not enough data
+    double* unit_readings_optimal_subsession_var; //! is undefined if unit_readings_optimal_subsession_size < 0
+    double* unit_readings_optimal_subsession_var_formatted; //! is undefined if unit_readings_optimal_subsession_size < 0
+    double* unit_readings_optimal_subsession_autocorrelation_coefficient; //! is undefined if unit_readings_optimal_subsession_size < 0
+    double* unit_readings_optimal_subsession_ci_width; //! is undefined if unit_readings_optimal_subsession_size < 0
+    double* unit_readings_optimal_subsession_ci_width_formatted; //! is undefined if unit_readings_optimal_subsession_size < 0
+    ssize_t* unit_readings_required_sample_size; //! is -1 if not enough data
     // Work amount-per-second analysis
     bool   wps_has_data;               //! whether the following fields have data
     size_t wps_subsession_sample_size; //! sample size after merging adjacent samples to reduce autocorrelation coefficient

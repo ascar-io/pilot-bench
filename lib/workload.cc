@@ -342,7 +342,7 @@ void pilot_workload_t::refresh_analytical_result(void) const {
             // Raw data analysis
             ANALYZE_READINGS(analytical_result_.readings_raw, readings_[piid].data(), readings_[piid].size())
 #undef ANALYZE_READINGS
-        }
+        } /* if (analytical_result_.readings_num[piid] >= 2) */
 
         // Unit readings analysis
         double sm = unit_readings_mean(piid);

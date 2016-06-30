@@ -365,14 +365,24 @@ int pilot_run_workload(pilot_workload_t *wl) {
                 if (0 != piid) ss << "; ";
                 ss << wl->pi_info_[piid].name << ": ";
                 if (4 < wl->analytical_result_.readings_num[piid]) {
-                    ss << "R m" << setprecision(4) << wl->analytical_result_.readings_mean_formatted[piid]
-                       << " c" << wl->analytical_result_.readings_optimal_subsession_ci_width_formatted[piid]
-                       << " v" << wl->analytical_result_.readings_optimal_subsession_var_formatted[piid];
+                    ss << "R m" << setprecision(4) << wl->analytical_result_.readings_mean_formatted[piid];
+                    if (wl->analytical_result_.readings_required_sample_size[piid] > 0) {
+                        ss << " c" << wl->analytical_result_.readings_optimal_subsession_ci_width_formatted[piid]
+                           << " v" << wl->analytical_result_.readings_optimal_subsession_var_formatted[piid]
+                           << " ";
+                    } else {
+                        ss << " c v ";
+                    }
                 }
                 if (4 < wl->analytical_result_.unit_readings_num[piid]) {
-                    ss << "UR m" << setprecision(4) << wl->analytical_result_.unit_readings_mean_formatted[piid]
-                       << " c" << wl->analytical_result_.unit_readings_optimal_subsession_ci_width_formatted[piid]
-                       << " v" << wl->analytical_result_.unit_readings_optimal_subsession_var_formatted[piid];
+                    ss << "UR m" << setprecision(4) << wl->analytical_result_.unit_readings_mean_formatted[piid];
+                    if (wl->analytical_result_.unit_readings_optimal_subsession_size[piid] > 0) {
+                        ss << " c" << wl->analytical_result_.unit_readings_optimal_subsession_ci_width_formatted[piid]
+                           << " v" << wl->analytical_result_.unit_readings_optimal_subsession_var_formatted[piid]
+                           << " ";
+                    } else {
+                        ss << " c v ";
+                    }
                 }
             }
             ss << "; WPS: ";
@@ -876,9 +886,14 @@ pilot_analytical_result_t::~pilot_analytical_result_t() {
 }
 
 void pilot_analytical_result_t::set_num_of_pi(size_t new_num_of_pi) {
+    size_t old_num_of_pi = num_of_pi;
     num_of_pi = new_num_of_pi;
 #define INIT_FIELD(field) field = (typeof(field[0])*)realloc(field, sizeof(field[0]) * num_of_pi)
+// SET_VAL only touches newly allocated space and doesn't change existing value
+#define SET_VAL(field, val) if (new_num_of_pi > old_num_of_pi) for (size_t i=old_num_of_pi; i<new_num_of_pi; ++i) field[i] = val
+
     INIT_FIELD(readings_num);
+    SET_VAL(readings_num, 0);
     INIT_FIELD(readings_mean_method);
     INIT_FIELD(readings_dominant_segment_begin);
     INIT_FIELD(readings_dominant_segment_size);
@@ -887,25 +902,29 @@ void pilot_analytical_result_t::set_num_of_pi(size_t new_num_of_pi) {
     INIT_FIELD(readings_var);
     INIT_FIELD(readings_var_formatted);
     INIT_FIELD(readings_autocorrelation_coefficient);
+    INIT_FIELD(readings_required_sample_size);
+    SET_VAL(readings_required_sample_size, -1);
     INIT_FIELD(readings_optimal_subsession_size);
+    SET_VAL(readings_optimal_subsession_size, -1);
     INIT_FIELD(readings_optimal_subsession_var);
     INIT_FIELD(readings_optimal_subsession_var_formatted);
     INIT_FIELD(readings_optimal_subsession_autocorrelation_coefficient);
     INIT_FIELD(readings_optimal_subsession_ci_width);
     INIT_FIELD(readings_optimal_subsession_ci_width_formatted);
-    INIT_FIELD(readings_required_sample_size);
     INIT_FIELD(readings_raw_mean);
     INIT_FIELD(readings_raw_mean_formatted);
     INIT_FIELD(readings_raw_var);
     INIT_FIELD(readings_raw_var_formatted);
     INIT_FIELD(readings_raw_autocorrelation_coefficient);
+    INIT_FIELD(readings_raw_required_sample_size);
+    SET_VAL(readings_raw_required_sample_size, -1);
     INIT_FIELD(readings_raw_optimal_subsession_size);
+    SET_VAL(readings_raw_optimal_subsession_size, -1);
     INIT_FIELD(readings_raw_optimal_subsession_var);
     INIT_FIELD(readings_raw_optimal_subsession_var_formatted);
     INIT_FIELD(readings_raw_optimal_subsession_autocorrelation_coefficient);
     INIT_FIELD(readings_raw_optimal_subsession_ci_width);
     INIT_FIELD(readings_raw_optimal_subsession_ci_width_formatted);
-    INIT_FIELD(readings_raw_required_sample_size);
 
     INIT_FIELD(unit_readings_num);
     INIT_FIELD(unit_readings_mean);
@@ -915,12 +934,15 @@ void pilot_analytical_result_t::set_num_of_pi(size_t new_num_of_pi) {
     INIT_FIELD(unit_readings_var_formatted);
     INIT_FIELD(unit_readings_autocorrelation_coefficient);
     INIT_FIELD(unit_readings_optimal_subsession_size);
+    SET_VAL(unit_readings_optimal_subsession_size, -1);
     INIT_FIELD(unit_readings_optimal_subsession_var);
     INIT_FIELD(unit_readings_optimal_subsession_var_formatted);
     INIT_FIELD(unit_readings_optimal_subsession_autocorrelation_coefficient);
     INIT_FIELD(unit_readings_optimal_subsession_ci_width);
     INIT_FIELD(unit_readings_optimal_subsession_ci_width_formatted);
     INIT_FIELD(unit_readings_required_sample_size);
+    SET_VAL(unit_readings_required_sample_size, -1);
+#undef SET_VAL
 #undef INIT_FIELD
 }
 
@@ -1391,14 +1413,16 @@ bool calc_next_round_work_amount_from_readings(const pilot_workload_t *wl, size_
             continue;
         }
         ssize_t req = wl->required_num_of_readings(piid);
-        debug_log << "[PI " << piid << "] required readings sample size: " << req;
+        debug_log << "[PI " << piid << "] required readings sample size (-1 means not enough data): " << req;
         if (req > 0) {
-            if (static_cast<size_t>(req) < wl->total_num_of_readings_[piid]) {
-                debug_log << "[PI " << piid << "] already has enough readings";
+            if (static_cast<size_t>(req) <= wl->total_num_of_readings_[piid]) {
+                info_log << "[PI " << piid << "] already has enough readings";
                 continue;
+            } else {
+                info_log << str(format("[PI %1%] needs %2% more readings") % piid % (static_cast<size_t>(req) - wl->total_num_of_readings_[piid]));
             }
         } else {
-            debug_log << "[PI " << piid << "] doesn't have enough readings for calculating required sample size, using init_work_amount";
+            info_log << "[PI " << piid << "] doesn't have enough readings for calculating required sample size, continuing to next round";
         }
         // return true when any PI needs more samples
         return true;
