@@ -1,27 +1,32 @@
 # INTRODUCTION
 
-The Pilot Benchmark Framework provides a tool and a library (libpilot)
-to automate computer performance measurement tasks. This is a project
-under active development. The project is designed to answer questions
-like these that rise often from performance measurement:
+The Pilot Benchmark Framework provides a tool (bench) and a library
+(libpilot) to automate computer performance measurement tasks. This is
+a project under active development. The project is designed to answer
+questions like these that rise often from performance measurement:
 
 *  How long shall I run this benchmark to get a precise result?
-*  Is this new scheduler really 3% faster than our old one or is that a measurement error?
+*  Is this new scheduler really 3% faster than our old one or is that a
+   measurement error?
 *  Which setting is faster for my database, 20 worker threads or 25 threads?
 
 Our design goals include:
-*  helping testers or users who may not have enough statistics knowledge,
-*  getting accurate, precise, repeatable results,
-*  getting results using shortest possible time while still meet statistical requirements.
 
-To achieve these goals Pilot does the following:
+*  Be as intelligent as possible so users do not have to go through rigorous
+   statistics or computer science training.
+*  Results must be statistical valid (accurate, precise, and repeatable).
+*  Using the shortest possible time.
 
-*  automatically decide and perform necessary statistics analyses on time sequence data according to system configuration and measuring requirements to get statistical valid results,
-*  deciding the shortest length for running a benchmark session to achieve the desired measurement goal such as confidence interval,
-*  use the analytical results as a feedback to automate and accelerate the measurement and benchmark process,
-*  save the test results in a standard format for sharing and comparing results.
+To achieve these goals Pilot has the following functions:
 
-Tutorials and more information can be found on the wiki:
+*  Automatically deciding what statistical analysis method is suitable based on
+   system configuration, measuring requirements, and existing results.
+*  Deciding the shortest length for running a benchmark to achieve the desired
+   measurement goal such as confidence interval.
+*  Save the test results in a standard format for sharing and comparing results.
+*  And much more...
+
+To learn how to use Pilot, read the tutorials on the wiki:
 https://github.com/ascar-io/pilot-tool/wiki
 
 Pilot is written in C++ for doing fast in place analysis. It is
@@ -66,10 +71,6 @@ We partially follow Google's C++ coding standard:
 https://google-styleguide.googlecode.com/svn/trunk/cppguide.html . The
 exception is we use four spaces for indentation (Google's style uses
 two spaces).
-
-Don't use logging functions in test cases, because we should keep each
-test cases as standalone as possible so that they can also be used as
-samples.
 
 # ACKNOWLEDGMENTS
 
