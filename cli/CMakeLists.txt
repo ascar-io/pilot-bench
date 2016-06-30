@@ -40,27 +40,32 @@ include_directories (${CMAKE_SOURCE_DIR}/include)
 include_directories (${CMAKE_SOURCE_DIR}/lib/interface_include)
 include_directories (${LUAPROMPT_INCLUDE_DIR})
 
-add_executable (pilot pilot.cc run_program.cc detect_changepoint_edm.cc)
-add_dependencies (pilot cdk luaprompt)
+add_executable (bench pilot.cc run_program.cc detect_changepoint_edm.cc)
+add_dependencies (bench cdk luaprompt)
 set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=gnu++11")
 
-target_link_libraries (pilot ${LIBPILOT_LIBRARIES} libluaprompt ${CDK_STATIC_LIBRARIES}
+target_link_libraries (bench ${LIBPILOT_LIBRARIES} libluaprompt ${CDK_STATIC_LIBRARIES}
                        ${CDK_LIBRARIES} ${Boost_LIBRARIES} ${READLINE_LIBRARY}
                        ${LUA_LIBRARY} ${CMAKE_THREAD_LIBS_INIT})
 
+# "pilot" is an optional alias for the "bench" command
+add_custom_command(TARGET bench POST_BUILD
+                   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+                   COMMAND if [ ! -e pilot ]\; then ln -s bench pilot\; fi)
+
 # tests
-add_custom_command(TARGET pilot POST_BUILD
+add_custom_command(TARGET bench POST_BUILD
                    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-                       ${CMAKE_CURRENT_LIST_DIR}/test/unit_test_lua_prompt.sh $<TARGET_FILE_DIR:pilot>)
-add_custom_command(TARGET pilot POST_BUILD
+                       ${CMAKE_CURRENT_LIST_DIR}/test/unit_test_lua_prompt.sh $<TARGET_FILE_DIR:bench>)
+add_custom_command(TARGET bench POST_BUILD
                    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-                       ${CMAKE_CURRENT_LIST_DIR}/test/unit_test_pilot_opt_parsing.sh $<TARGET_FILE_DIR:pilot>)
-add_custom_command(TARGET pilot POST_BUILD
+                       ${CMAKE_CURRENT_LIST_DIR}/test/unit_test_pilot_opt_parsing.sh $<TARGET_FILE_DIR:bench>)
+add_custom_command(TARGET bench POST_BUILD
                    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-                       ${CMAKE_CURRENT_LIST_DIR}/test/unit_test_benchmark.sh $<TARGET_FILE_DIR:pilot>)
-add_custom_command(TARGET pilot POST_BUILD
+                       ${CMAKE_CURRENT_LIST_DIR}/test/unit_test_benchmark.sh $<TARGET_FILE_DIR:bench>)
+add_custom_command(TARGET bench POST_BUILD
                    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-                       ${CMAKE_CURRENT_LIST_DIR}/test/mock_benchmark.sh $<TARGET_FILE_DIR:pilot>)
+                       ${CMAKE_CURRENT_LIST_DIR}/test/mock_benchmark.sh $<TARGET_FILE_DIR:bench>)
 
 # tests
 set (PILOT_TESTS_LIBRARIES pilot_sharedlib ${Boost_LIBRARIES} ${GTEST_BINARY_DIR}/libgtest.a ${GTEST_BINARY_DIR}/libgtest_main.a ${CMAKE_THREAD_LIBS_INIT} ${CDK_LIBRARIES})
@@ -77,4 +82,5 @@ add_test (NAME unit_test_benchmark
 add_test (NAME unit_test_cli
 		  COMMAND unit_test_cli)
 
-install (TARGETS pilot DESTINATION bin)
+install (TARGETS bench DESTINATION bin)
+install (PROGRAMS pilot DESTINATION bin)
