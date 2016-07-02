@@ -43,7 +43,7 @@
 #include <functional>
 #include <vector>
 #include "common.h"
-#include "libpilot.h"
+#include "pilot/libpilot.h"
 
 namespace pilot {
 
@@ -353,7 +353,7 @@ public:  // FIXME: most of the following members should be private and controlle
         return format_wps_(this, wps);
     }
 
-    void set_wps_analysis(bool enabled, bool wps_must_satisfy);
+    int set_wps_analysis(bool enabled, bool wps_must_satisfy);
     void refresh_wps_analysis_results(void) const;
 
     size_t set_session_desired_duration(size_t sec);
@@ -384,6 +384,12 @@ public:  // FIXME: most of the following members should be private and controlle
                       double baseline_mean, size_t baseline_sample_size,
                       double baseline_var);
     int load_baseline_file(const char *filename);
+
+    /**
+     * Check if WPS analysis is enabled
+     * @return true if WPS analysis is enabled
+     */
+    bool wps_enabled(void) const;
 };
 
 struct pilot_pi_unit_readings_iter_t {

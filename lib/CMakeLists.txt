@@ -90,6 +90,9 @@ target_link_libraries (unit_test_readings_warmup_removal ${PILOT_TESTS_LIBRARIES
 add_executable (unit_test_compare_results test/unit_test_compare_results.cc)
 target_link_libraries (unit_test_compare_results ${PILOT_TESTS_LIBRARIES})
 
+add_executable (unit_test_wps test/unit_test_wps.cc)
+target_link_libraries (unit_test_wps ${PILOT_TESTS_LIBRARIES})
+
 add_executable (unit_test_macros test/unit_test_macros.cc)
 target_link_libraries (unit_test_macros ${PILOT_TESTS_LIBRARIES})
 
@@ -108,6 +111,8 @@ add_test (NAME unit_test_readings_warmup_removal
           COMMAND unit_test_readings_warmup_removal)
 add_test (NAME unit_test_compare_results
           COMMAND unit_test_compare_results ${CMAKE_CURRENT_LIST_DIR}/test/unit_test_compare_results_input.csv)
+add_test (NAME unit_test_wps
+          COMMAND unit_test_wps)
 # Disabled this test because it is too long.
 # add_test (NAME unit_test_macros
 #		  COMMAND unit_test_macros)

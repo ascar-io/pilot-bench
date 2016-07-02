@@ -48,7 +48,7 @@
 #include <signal.h>
 #include <string>
 #include <vector>
-#include "../interface_include/libpilot.h"
+#include "../interface_include/pilot/libpilot.h"
 
 using namespace pilot;
 using namespace std;
@@ -149,9 +149,11 @@ int workload_func(const pilot_workload_t *wl,
         ++unit_id;
     }
     *round_duration = timer.elapsed().wall;
-    // sync to make sure the tear down phase appear
+    // sync to make sure the cool down phase appear
     fsync(fd);
     close(fd);
+    // TODO: we need to move the "*round_duration = timer.elapsed().wall;" here
+    // and see if the result changes or not.
 
     // we do calculation after finishing the workload to minimize the overhead
     nanosecond_type prev_ts = 0;

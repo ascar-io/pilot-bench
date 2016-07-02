@@ -36,7 +36,7 @@
 #include <chrono>
 #include "common.h"
 #include "csv.h"
-#include "libpilot.h"
+#include "pilot/libpilot.h"
 #include "libpilotcpp.h"
 #include <numeric>
 #include <sstream>
@@ -133,34 +133,8 @@ ssize_t pilot_workload_t::required_num_of_unit_readings(int piid) const {
         return calc_required_unit_readings_func_(this, piid);
     }
 
-    double ci_width;
-    if (required_ci_percent_of_mean_ > 0) {
-        double sm = pilot_subsession_mean(pilot_pi_unit_readings_iter_t(this, piid),
-                                          total_num_of_unit_readings_[piid],
-                                          pi_info_[piid].unit_reading_mean_method);
-        ci_width = sm * required_ci_percent_of_mean_;
-    } else {
-        ci_width = required_ci_absolute_value_;
-    }
-
-    size_t q, opt_sample_size;
-    if (!pilot_optimal_sample_size(pilot_pi_unit_readings_iter_t(this, piid),
-                                   total_num_of_unit_readings_[piid], ci_width,
-                                   pi_info_[piid].unit_reading_mean_method,
-                                   &q, &opt_sample_size)) {
-        // we don't have enough data
-        return -1;
-    } else {
-        if (opt_sample_size < min_sample_size_) {
-            debug_log << __func__ << "(): optimal sample size ("
-                     << opt_sample_size << ") is smaller than the sample size lower threshold ("
-                     << min_sample_size_
-                     << "). Using the lower threshold instead.";
-            opt_sample_size = min_sample_size_;
-        }
-        return q * opt_sample_size;
-    }
-
+    refresh_analytical_result();
+    return analytical_result_.unit_readings_required_sample_size[piid];
 }
 
 bool pilot_workload_t::calc_next_round_work_amount(size_t * const needed_work_amount) const {
@@ -228,10 +202,11 @@ pilot_analytical_result_t* pilot_workload_t::get_analytical_result(pilot_analyti
     return info;
 }
 
+template <typename InputIterator>
 static ssize_t _calc_required_num_of_readings(const pilot_workload_t *wl,
-        const double *data, size_t n, size_t *q, pilot_mean_method_t mean_method) {
+        const InputIterator data, size_t n, size_t *q, pilot_mean_method_t mean_method) {
     if (n < 3) {
-        debug_log << "Don't have enough data to calculate required readings sample size yet";
+        debug_log << "Need more than 3 samples to calculate required sample size";
         return -1;
     }
 
@@ -249,12 +224,17 @@ static ssize_t _calc_required_num_of_readings(const pilot_workload_t *wl,
         return -1;
     } else {
         if (opt_sample_size < wl->min_sample_size_) {
-            debug_log << __func__ << "(): optimal sample size ("
+            debug_log << "optimal sample size ("
                     << opt_sample_size << ") is smaller than the sample size lower threshold ("
                     << wl->min_sample_size_
                     << "). Using the lower threshold instead.";
             opt_sample_size = wl->min_sample_size_;
         }
+        if (*q != 1) {
+            debug_log << str(format("High autocorrelation detected, merging every %1% samples to reduce autocorrelation") % *q);
+        }
+        debug_log << str(format("Required reading size = subsession size (%1%) x required subsession sample size (%2%) = %3%")
+                               % (*q) % opt_sample_size % (*q * opt_sample_size));
         return *q * opt_sample_size;
     }
 }
@@ -269,7 +249,7 @@ void pilot_workload_t::refresh_analytical_result(void) const {
     analytical_result_.num_of_rounds = rounds_;
 
     for (size_t piid = 0; piid < num_of_pi_; ++piid) {
-        debug_log << str(format("[PI %1%] generating analytical results") % piid);
+        info_log << str(format("[PI %1%] analyzing results") % piid);
         // Readings analysis
         analytical_result_.readings_num[piid] = readings_[piid].size();
         analytical_result_.readings_mean_method[piid] = pi_info_[piid].reading_mean_method;
@@ -358,10 +338,13 @@ void pilot_workload_t::refresh_analytical_result(void) const {
         double var_rt = analytical_result_.unit_readings_var[piid] / sm;
         analytical_result_.unit_readings_var_formatted[piid] = var_rt * analytical_result_.unit_readings_mean_formatted[piid];
         analytical_result_.unit_readings_autocorrelation_coefficient[piid] = unit_readings_autocorrelation_coefficient(piid, 1, ARITHMETIC_MEAN);
-        ssize_t q = pilot_optimal_subsession_size(pilot_pi_unit_readings_iter_t(this, piid),
-                total_num_of_unit_readings_[piid], ARITHMETIC_MEAN);
-        analytical_result_.unit_readings_optimal_subsession_size[piid] = q;
-        if (analytical_result_.unit_readings_optimal_subsession_size[piid] > 0) {
+        size_t q;
+        if ((analytical_result_.unit_readings_required_sample_size[piid] =
+                _calc_required_num_of_readings(this, pilot_pi_unit_readings_iter_t(this, piid),
+                        total_num_of_unit_readings_[piid], &q, ARITHMETIC_MEAN)) < 0) {
+            analytical_result_.unit_readings_optimal_subsession_size[piid] = -1;
+        } else {
+            analytical_result_.unit_readings_optimal_subsession_size[piid] = q;
             analytical_result_.unit_readings_optimal_subsession_var[piid] = unit_readings_var(piid, q);
             double subsession_var_rt = analytical_result_.unit_readings_optimal_subsession_var[piid] / sm;
             analytical_result_.unit_readings_optimal_subsession_var_formatted[piid] = subsession_var_rt * analytical_result_.unit_readings_mean_formatted[piid];
@@ -373,7 +356,6 @@ void pilot_workload_t::refresh_analytical_result(void) const {
             double cif_high = format_unit_reading(piid, sm + ci / 2);
             analytical_result_.unit_readings_optimal_subsession_ci_width_formatted[piid] = abs(cif_high - cif_low);
         }
-        analytical_result_.unit_readings_required_sample_size[piid] = required_num_of_unit_readings(piid);
     }
     // WPS analysis data
     refresh_wps_analysis_results();
@@ -523,18 +505,30 @@ char* pilot_workload_t::text_workload_summary(void) const {
     return result;
 }
 
-void pilot_workload_t::set_wps_analysis(bool enabled, bool wps_must_satisfy) {
+int pilot_workload_t::set_wps_analysis(bool enabled, bool wps_must_satisfy) {
     if (wps_must_satisfy && !enabled) {
         fatal_log << __func__ << "(): WPS analysis is not enabled yet satisfaction is required";
-        abort();
+        return ERR_WRONG_PARAM;
+    }
+    if (enabled && max_work_amount_ <= init_work_amount_) {
+        fatal_log << __func__ << str(format("(): It is impossible to do WPS analysis when init_work_amount (%1%) == max_work_amount (%2%). Consider increasing max_work_amount.")
+                % init_work_amount_ % max_work_amount_);
+        return ERR_WRONG_PARAM;
     }
     wps_must_satisfy_ = wps_must_satisfy;
     load_runtime_analysis_plugin(calc_next_round_work_amount_from_wps, enabled);
+    return 0;
 }
 
 void pilot_workload_t::refresh_wps_analysis_results(void) const {
     if (rounds_ < 3) {
-        debug_log << __func__ << "(): need more than 3 rounds data for wps analysis";
+        debug_log << __func__ << "(): need more than 3 rounds data for WPS analysis";
+        analytical_result_.wps_has_data = false;
+        return;
+    }
+    if (!wps_enabled()) {
+        debug_log << __func__ << "(): WPS analysis is disabled";
+        analytical_result_.wps_has_data = false;
         return;
     }
     // calculate naive_v and its error
@@ -762,4 +756,14 @@ int pilot_workload_t::load_baseline_file(const char *filename) {
     }
     enable_runtime_analysis_plugin(&calc_next_round_work_amount_for_comparison);
     return 0;
+}
+
+bool pilot_workload_t::wps_enabled(void) const {
+    for (auto &c : runtime_analysis_plugins_) {
+        if (calc_next_round_work_amount_from_wps == c.calc_next_round_work_amount) {
+            return c.enabled;
+        }
+    }
+    // it is not even loaded
+    return false;
 }

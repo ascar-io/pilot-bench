@@ -37,7 +37,7 @@
 #include <boost/date_time/posix_time/posix_time.hpp>
 #include <common.h>
 #include <config.h>
-#include <libpilot.h>
+#include <pilot/libpilot.h>
 #include <sstream>
 #include <vector>
 

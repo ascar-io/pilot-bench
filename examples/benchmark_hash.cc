@@ -1,7 +1,8 @@
 /*
- * test_hash_func.cc
+ * benchmark_hash.c
+ * A sample program that uses libpilot to benchmark two hash functions
  *
- * Copyright (c) 2016, University of California, Santa Cruz, CA, USA.
+ * Copyright (c) 2015, 2016, University of California, Santa Cruz, CA, USA.
  * Created by Yan Li <yanli@ascar.io>,
  * Department of Computer Science, Baskin School of Engineering.
  *
@@ -32,32 +33,42 @@
  */
 
 #include <pilot/libpilot.h>
+using namespace pilot;
 
-const int len = 10000;
-char val[len];
-int h1 = 1, h2 = 1;
+// We set up a 1 GB buffer. Feel free to reduce the buffer size if you can't
+// allocate this much memory.
+const size_t max_len = 1000 * 1000 * 1000;
+char buf[max_len];
+// We use global variables to store the result so the compiler would not
+// optimize them away.
+int hash1, hash2;
 
 int hash_func_one(void) {
-    for (int i = 0; i < len; i++)
-        h1 = 31 * h1 + val[i];
+    hash1 = 1;
+    for (size_t i = 0; i < max_len; ++i) {
+        hash1 = 31 * hash1 + buf[i];
+    }
+    // 0 means correct
     return 0;
 }
 
 int hash_func_two(size_t work_amount) {
-    for (size_t loop = 0; loop != work_amount; ++loop)
-        for (int i = 0; i + 3 < len; i += 4)
-            h2 = 31 * 31 * 31 * 31 * h2
-               + 31 * 31 * 31 * val[i]
-               + 31 * 31 * val[i + 1]
-               + 31 * val[i + 2]
-               + val[i + 3];
+    hash2 = 1;
+    for (size_t i = 0; i + 3 < work_amount; i += 4) {
+        hash2 = 31 * 31 * 31 * 31 * hash2
+              + 31 * 31 * 31 * buf[i]
+              + 31 * 31 * buf[i + 1]
+              + 31 * buf[i + 2]
+              + buf[i + 3];
+    }
     return 0;
 }
 
 int main() {
-    // init val with some pseudo random data
-    for (int i = 0; i != len; ++i)
-        val[i] = (char)(i * 42);
-    pilot::simple_runner(hash_func_one);
-    pilot::simple_runner_with_wa(hash_func_two);
+    // init buffer with some pseudo random data
+    for (size_t i = 0; i != max_len; ++i) {
+        buf[i] = (char)(i * 42);
+    }
+    simple_runner(hash_func_one);
+    simple_runner_with_wa(hash_func_two, 1024, max_len);
 }

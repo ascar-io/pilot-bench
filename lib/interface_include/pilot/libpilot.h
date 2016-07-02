@@ -37,7 +37,7 @@
 
 // This file must retain C99-compatibility so do not include C++ header files
 // here.
-#include <climits>
+#include <limits.h>
 #include "config.h"
 #include <fcntl.h>
 #include "pilot_exports.h"
@@ -480,7 +480,8 @@ enum pilot_log_level_t
     lv_info,
     lv_warning,
     lv_error,
-    lv_fatal
+    lv_fatal,
+    lv_no_show,   /* Set log level to this to prevent all logs from being shown */
 };
 /**
  * \brief Set the logging level of the library
@@ -997,8 +998,9 @@ bool calc_next_round_work_amount_for_comparison(const pilot_workload_t *wl, size
  * to NULL to disable it.
  * @param enabled if WPS analysis is enabled
  * @param wps_must_satisfy if WPS CI must satisfy
+ * @return 0 on success; otherwise error code
  */
-void pilot_set_wps_analysis(pilot_workload_t *wl,
+int pilot_set_wps_analysis(pilot_workload_t *wl,
         pilot_pi_display_format_func_t *format_wps_func,
         bool enabled, bool wps_must_satisfy);
 
@@ -1072,13 +1074,11 @@ int pilot_load_baseline_file(pilot_workload_t *wl, const char *filename);
 size_t pilot_set_min_sample_size(pilot_workload_t *wl, size_t min_sample_size);
 
 int _simple_runner(pilot_simple_workload_func_t func,
-                   const char *benchmark_name,
-                   size_t min_wa = 0, size_t max_wa = ULONG_MAX,
-                   nanosecond_type short_round_threshold = 1);
+                   const char *benchmark_name);
 int _simple_runner_with_wa(pilot_simple_workload_with_wa_func_t func,
                            const char *benchmark_name,
                            size_t min_wa = 0, size_t max_wa = ULONG_MAX,
-                           nanosecond_type short_round_threshold = 1);
+                           size_t short_round_threshold = 1);
 #define simple_runner(func, ...) \
     _simple_runner(func, #func, ##__VA_ARGS__)
 #define simple_runner_with_wa(func, ...) \

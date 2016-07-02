@@ -38,7 +38,7 @@
 #include <boost/timer/timer.hpp>
 #include <common.h>
 #include <fcntl.h>
-#include "../interface_include/libpilot.h"
+#include "../interface_include/pilot/libpilot.h"
 #include <string>
 #include <thread>
 #include <vector>

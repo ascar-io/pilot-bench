@@ -39,13 +39,13 @@ run() {
     fi
 }
 
-run ./pilot run_program 2>&1 | grep -q "Error: program_path is required"
+run ./bench run_program 2>&1 | grep -q "Error: program_path is required"
 
-run ./pilot run_program -- 2>&1 | grep -q "Error: program_path is required"
+run ./bench run_program -- 2>&1 | grep -q "Error: program_path is required"
 
-run ./pilot run_program -- true 2>&1 | grep -q "Error: PI information missing"
+run ./bench run_program -- true 2>&1 | grep -q "Error: PI information missing"
 
-run ./pilot run_program -v --pi "throughput,MB/s,2,1,0.05" -- true 2>&1 | grep -q "PI\[0\] name: throughput, unit: MB/s, reading must satisfy: yes, mean method: harmonic"
+run ./bench run_program -v --pi "throughput,MB/s,2,1,0.05" -- true 2>&1 | grep -q "PI\[0\] name: throughput, unit: MB/s, reading must satisfy: yes, mean method: harmonic"
 
-run ./pilot run_program -v --pi "throughput,MB/s,2,1:throughput,MB/s,2,1:throughput,MB/s,2,1" -- true 2>&1 | grep -q "Please provide at least one reading's CI requirement"
+run ./bench run_program -v --pi "throughput,MB/s,2,1:throughput,MB/s,2,1:throughput,MB/s,2,1" -- true 2>&1 | grep -q "Please provide at least one reading's CI requirement"
 

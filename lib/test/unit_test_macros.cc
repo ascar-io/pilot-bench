@@ -31,7 +31,7 @@
  * OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <libpilot.h>
+#include <pilot/libpilot.h>
 
 const int len = 10000;
 char val[len];

@@ -48,10 +48,10 @@
 #include <cstdio>
 #include "csv.h"
 #include <fstream>
-#include "libpilot.h"
+#include "pilot/libpilot.h"
 #include "libpilotcpp.h"
-#include "pilot_tui.hpp"
-#include "pilot_workload_runner.hpp"
+#include "pilot/pilot_tui.hpp"
+#include "pilot/pilot_workload_runner.hpp"
 #include <vector>
 #include "workload.hpp"
 
@@ -69,6 +69,8 @@ stringstream g_in_mem_log_buffer;
 boost::shared_ptr< boost::log::sinks::sink > g_console_log_sink;
 pilot_log_level_t g_log_level = lv_info;
 
+// We store the log in memory to prevent generating I/O, which may interfere
+// with the benchmark. TODO: compress the log.
 class PilotInMemLogBackend :
         public boost::log::sinks::basic_formatted_sink_backend<
         char,
@@ -82,7 +84,12 @@ public:
     }
 };
 
+bool g_lib_self_check_done = false;
+
 void pilot_lib_self_check(int vmajor, int vminor, size_t nanosecond_type_size) {
+    // Only need to run once
+    if (g_lib_self_check_done) return;
+
     die_if(vmajor != PILOT_VERSION_MAJOR || vminor != PILOT_VERSION_MINOR,
             ERR_LINKED_WRONG_VER, "libpilot header files and library version mismatch");
     die_if(nanosecond_type_size != sizeof(boost::timer::nanosecond_type),
@@ -108,13 +115,21 @@ void pilot_lib_self_check(int vmajor, int vminor, size_t nanosecond_type_size) {
     sink->set_formatter
     (
             expr::format("%1%:[%2%] <%3%> %4%")
-    % expr::attr< unsigned int >("LineID")
-    % expr::format_date_time< boost::posix_time::ptime >("TimeStamp", "%Y-%m-%d %H:%M:%S")
-    % logging::trivial::severity
-    % expr::smessage
+                % expr::attr< unsigned int >("LineID")
+                % expr::format_date_time< boost::posix_time::ptime >("TimeStamp", "%Y-%m-%d %H:%M:%S")
+                % logging::trivial::severity
+                % expr::smessage
     );
     core->add_sink(sink);
-    g_console_log_sink = logging::add_console_log();
+    g_console_log_sink = logging::add_console_log(std::cout, logging::keywords::format =
+    (
+            expr::format("%1%:[%2%] <%3%> %4%")
+                % expr::attr< unsigned int >("LineID")
+                % expr::format_date_time< boost::posix_time::ptime >("TimeStamp", "%Y-%m-%d %H:%M:%S")
+                % logging::trivial::severity
+                % expr::smessage
+    ));
+    g_lib_self_check_done = true;
 }
 
 void pilot_free(void *p) {
@@ -157,7 +172,6 @@ void pilot_set_workload_data(pilot_workload_t* wl, void *data) {
     ASSERT_VALID_POINTER(wl);
     wl->workload_data_ = data;
 }
-
 
 void pilot_set_next_round_work_amount_hook(pilot_workload_t* wl, next_round_work_amount_hook_t *f) {
     ASSERT_VALID_POINTER(wl);
@@ -373,26 +387,31 @@ int pilot_run_workload(pilot_workload_t *wl) {
                     } else {
                         ss << " c v ";
                     }
+                } else {
+                    ss << "R has no data, ";
                 }
                 if (4 < wl->analytical_result_.unit_readings_num[piid]) {
                     ss << "UR m" << setprecision(4) << wl->analytical_result_.unit_readings_mean_formatted[piid];
                     if (wl->analytical_result_.unit_readings_optimal_subsession_size[piid] > 0) {
                         ss << " c" << wl->analytical_result_.unit_readings_optimal_subsession_ci_width_formatted[piid]
-                           << " v" << wl->analytical_result_.unit_readings_optimal_subsession_var_formatted[piid]
-                           << " ";
+                           << " v" << wl->analytical_result_.unit_readings_optimal_subsession_var_formatted[piid];
                     } else {
                         ss << " c v ";
                     }
+                } else {
+                    ss << "UR has no data";
                 }
             }
-            ss << "; WPS: ";
-            if (wi->wps_has_data) {
-                ss << str(format("a %1%, v %2%, v_ci %3% (%4%%%)")
-                          % wi->wps_alpha % wi->wps_v_formatted
-                          % wi->wps_v_ci_formatted
-                          % (100.0 * wi->wps_v_ci_formatted / wi->wps_v_formatted));
-            } else {
-                ss << "no data";
+            if (wl->wps_enabled()) {
+                ss << "; WPS: ";
+                if (wi->wps_has_data) {
+                    ss << str(format("a %1%, v %2%, v_ci %3% (%4%%%)")
+                              % wi->wps_alpha % wi->wps_v_formatted
+                              % wi->wps_v_ci_formatted
+                              % (100.0 * wi->wps_v_ci_formatted / wi->wps_v_formatted));
+                } else {
+                    ss << "no data";
+                }
             }
             info_log << ss.str();
         }
@@ -1112,7 +1131,7 @@ int pilot_find_dominant_segment(const double *data, size_t n, size_t *begin,
     vector<int> cps = EDM_percent(data, n, min_size, percent, degree);
     stringstream ss;
     ss << cps;
-    debug_log << __func__ << "(): changepoints detected: " << ss.str();
+    info_log << "changepoints detected: " << ss.str();
     // we always add the last point for easy of calculation below
     cps.push_back(n - 1);
     struct segment_t {
@@ -1257,18 +1276,34 @@ void pilot_import_benchmark_results(pilot_workload_t *wl, size_t round,
         // warm-up removal
         size_t dominant_begin = 0, dominant_end = 0;
         if (unit_readings) {
+            info_log << "Running changepoint detection on UR data";
             int res = pilot_warm_up_removal_detect(wl, unit_readings[piid],
                                                    num_of_unit_readings,
                                                    round_duration,
                                                    wl->warm_up_removal_detection_method_,
                                                    &dominant_begin, &dominant_end);
-            if (res < 0) {
-                debug_log << "warm-up phase detection failed on PI "
-                            << piid << " at round " << wl->rounds_;
-                dominant_begin = num_of_unit_readings;
-                dominant_end = num_of_unit_readings;
+            if (res != 0) {
+                switch (res) {
+                case ERR_NOT_ENOUGH_DATA:
+                    info_log << "Skipping non-stable phases detection because we have fewer than 24 URs in the last round. Ingesting all URs in the last round.";
+                    // When we cannot detect non-stable phases we just use the whole section for now
+                    dominant_begin = 0;
+                    dominant_end = num_of_unit_readings;
+                    break;
+                case ERR_NO_DOMINANT_SEGMENT:
+                    info_log << "No dominant section can be found in last round UR data, this can be caused by 1) round too short; 2) variance too high; 3) unknown temporal or spatial drift of PI. Pilot will not ingest URs from this round, because high varaince data would make it harder to converge.";
+                    dominant_begin = num_of_unit_readings;
+                    dominant_end = num_of_unit_readings;
+                    break;
+                default:
+                    info_log << str(format("Non-stable phase detection failed on PI %1% at round %2% (error %3%). Ignoring UR data in last round.")
+                                    % piid % wl->rounds_ % res);
+                    dominant_begin = num_of_unit_readings;
+                    dominant_end = num_of_unit_readings;
+                }
+
             } else {
-                debug_log << __func__ << "() detected dominant segment ["
+                info_log << __func__ << "Detected dominant segment in UR data ["
                           << dominant_begin << ", " << dominant_end << ")";
                 // FIXME: store dominant_end instead of chopping away the data
                 wl->unit_readings_[piid][round].resize(dominant_end);
@@ -1283,6 +1318,7 @@ void pilot_import_benchmark_results(pilot_workload_t *wl, size_t round,
         if (new_urs > 0) {
             // increase total number of unit readings (the number of old unit readings are
             // subtracted at the beginning of the for loop).
+            info_log << str(format("Ingested %1% URs from last round") % new_urs);
             wl->total_num_of_unit_readings_[piid] += new_urs;
             at_least_one_piid_got_new_data = true;
         }
@@ -1299,7 +1335,7 @@ void pilot_import_benchmark_results(pilot_workload_t *wl, size_t round,
         }
     } // for loop for PI
     if (wl->num_of_pi_ != 0 && !at_least_one_piid_got_new_data) {
-        info_log << __func__ << "() no PI got data in round " << round;
+        info_log << "No data ingested in round " << round;
         ++wl->wholly_rejected_rounds_;
     }
 
@@ -1358,8 +1394,8 @@ bool calc_next_round_work_amount_meet_lower_bound(const pilot_workload_t *wl, si
     }
 
     if (wl->round_durations_.back() < wl->short_round_detection_threshold_) {
-        info_log << "Previous round duration (" << double(wl->round_durations_.back()) / ONE_SECOND << "s) "
-                 << "is shorter than the lower bound (" << double(wl->short_round_detection_threshold_) / ONE_SECOND << "ns).";
+        info_log << "Previous round duration (" << double(wl->round_durations_.back()) / ONE_SECOND << " s) "
+                 << "is shorter than the lower bound (" << double(wl->short_round_detection_threshold_) / ONE_SECOND << " s).";
         if (wl->round_work_amounts_.back() == wl->max_work_amount_) {
             fatal_log << "Running at max_work_amount_ still cannot meet round duration requirement. Please increase the max work amount upper limit.";
             *needed_work_amount = wl->max_work_amount_;
@@ -1470,8 +1506,15 @@ bool calc_next_round_work_amount_from_unit_readings(const pilot_workload_t *wl, 
         } else {
             size_t num_of_ur_needed;
             ssize_t req = wl->required_num_of_unit_readings(piid);
-            debug_log << "[PI " << piid << "] required unit readings sample size: " << req;
             if (req > 0) {
+                ssize_t subsession_size = wl->analytical_result_.unit_readings_optimal_subsession_size[piid];
+                if (subsession_size > 1) {
+                    info_log << str(format("[PI %1%] has high autocorrelation (%2%), merging every %3% samples to make URs indepedent.")
+                                           % piid % (wl->analytical_result_.unit_readings_autocorrelation_coefficient[piid])
+                                           % subsession_size);
+                }
+                info_log << str(format("[PI %1%] required unit readings sample size %2% (required sample size %3% x subsession size %4%)")
+                                % piid % req % (req / subsession_size) % subsession_size);
                 if (static_cast<size_t>(req) < wl->total_num_of_unit_readings_[piid]) {
                     debug_log << "[PI " << piid << "] already has enough samples";
                     continue;
@@ -1480,7 +1523,7 @@ bool calc_next_round_work_amount_from_unit_readings(const pilot_workload_t *wl, 
             } else {
                 // in case when there's not enough data to calculate the number of UR,
                 // we try to double the total number of unit readings
-                debug_log << "[PI " << piid << "] doesn't have enough information for calculating required sample size, using the current total sample size instead";
+                info_log << "[PI " << piid << "] doesn't have enough information for calculating required sample size";
                 num_of_ur_needed = wl->total_num_of_unit_readings_[piid];
             }
             if (0 == wl->max_work_amount_) {
@@ -1505,8 +1548,7 @@ bool calc_next_round_work_amount_from_unit_readings(const pilot_workload_t *wl, 
 bool calc_next_round_work_amount_from_wps(const pilot_workload_t *wl, size_t *needed_work_amount) {
     *needed_work_amount = 0;
     if (0 == wl->max_work_amount_) {
-        debug_log << "max_work_amount is not set, disabling WPS analysis";
-        wl->load_runtime_analysis_plugin(calc_next_round_work_amount_from_wps, false);
+        warning_log << "max_work_amount is not set, skipping WPS analysis";
         return false;
     }
     if (wl->adjusted_min_work_amount_ < 0) {
@@ -1515,19 +1557,30 @@ bool calc_next_round_work_amount_from_wps(const pilot_workload_t *wl, size_t *ne
         return true;
     }
     size_t min_wa = max(wl->adjusted_min_work_amount_, ssize_t(wl->min_work_amount_));
+    if (min_wa == wl->max_work_amount_) {
+        warning_log << "min_work_amount == max_work_amount, WPS analysis is impossible, skipping.";
+        return false;
+    }
     if (0 == wl->wps_slices_) {
         // Calculating the initial slice size. See [Li16] Equation (5).
+        // Basically we want to do n rounds within session_desired_duration_in_sec_.
         int n = 10;
-        double t = double(ONE_SECOND) * wl->session_desired_duration_in_sec_;
-        double s = double(wl->round_durations_.back());
-        // next round should be at least 1 sec longer than previous round
-        double k = max(double(ONE_SECOND), (2 * t - 2 * s * n) / (n * n - n));
-        double work_amount_per_nanosec = double(wl->round_work_amounts_.back()) / wl->round_durations_.back();
-        double slice_size_float = k * work_amount_per_nanosec;
-        // 5 is a fail-safe value
-        wl->wps_slices_ = max(size_t(5), size_t( (wl->max_work_amount_ - min_wa) / slice_size_float ));
-        info_log << str(format("Calculated initial number of WPS slices %1% with slice size %2%")
-                        % wl->wps_slices_ % ((wl->max_work_amount_ - min_wa) / wl->wps_slices_));
+        if (wl->max_work_amount_ - min_wa <= size_t(n)) {
+            // Handle the rare case when the max_work_amount is very close to min_wa
+            warning_log << "max_work_amount - min_work_amount is too small. WPS analysis may never get enough samples to finish.";
+            wl->wps_slices_ = wl->max_work_amount_ - min_wa;
+        } else {
+            double t = double(ONE_SECOND) * wl->session_desired_duration_in_sec_;
+            double s = double(wl->round_durations_.back());
+            // next round should be at least 1 sec longer than previous round
+            double k = max(double(ONE_SECOND), (2 * t - 2 * s * n) / (n * n - n));
+            double work_amount_per_nanosec = double(wl->round_work_amounts_.back()) / wl->round_durations_.back();
+            double slice_size_float = k * work_amount_per_nanosec;
+            // 5 is a fail-safe value
+            wl->wps_slices_ = max(size_t(5), size_t( (wl->max_work_amount_ - min_wa) / slice_size_float ));
+            info_log << str(format("Calculated initial number of WPS slices %1% with slice size %2%")
+                                   % wl->wps_slices_ % ((wl->max_work_amount_ - min_wa) / wl->wps_slices_));
+        }
     }
     size_t wa_slice_size = (wl->max_work_amount_ - min_wa) / wl->wps_slices_;
     if (0 == wl->rounds_) {
@@ -1567,14 +1620,19 @@ bool calc_next_round_work_amount_from_wps(const pilot_workload_t *wl, size_t *ne
         return wl->wps_must_satisfy_;
     }
     if (last_round_wa > wl->max_work_amount_ - wa_slice_size) {
-        wl->wps_slices_ *= 2;
-        wa_slice_size /= 2;
+        if (1 == wa_slice_size) {
+            warning_log << "It is impossible to further decrease WPS slice size. WPS analysis may never finish. Consider increasing max_work_amount.";
+        } else {
+            wl->wps_slices_ *= 2;
+            wa_slice_size /= 2;
+        }
         *needed_work_amount = min_wa + wa_slice_size;
         return wl->wps_must_satisfy_;
+    } else {
+        // calculate the location of the next slice from last_round_wa
+        *needed_work_amount = min_wa + ((last_round_wa - min_wa) / wa_slice_size + 1) * wa_slice_size;
+        return wl->wps_must_satisfy_;
     }
-    // calculate the location of the next slice from last_round_wa
-    *needed_work_amount = min_wa + ((last_round_wa - min_wa) / wa_slice_size + 1) * wa_slice_size;
-    return wl->wps_must_satisfy_;
 }
 
 bool calc_next_round_work_amount_for_comparison(const pilot_workload_t *wl, size_t *needed_work_amount) {
@@ -1629,11 +1687,11 @@ bool calc_next_round_work_amount_for_comparison(const pilot_workload_t *wl, size
     return need_more_rounds;
 }
 
-void pilot_set_wps_analysis(pilot_workload_t *wl,
+int pilot_set_wps_analysis(pilot_workload_t *wl,
         pilot_pi_display_format_func_t *format_wps_func,
         bool enabled, bool wps_must_satisfy) {
     wl->format_wps_.format_func_ = format_wps_func;
-    wl->set_wps_analysis(enabled, wps_must_satisfy);
+    return wl->set_wps_analysis(enabled, wps_must_satisfy);
 }
 
 size_t pilot_set_session_desired_duration(pilot_workload_t *wl, size_t sec) {
@@ -1716,9 +1774,19 @@ int _simple_workload_func_runner(const pilot_workload_t *wl,
                        void *data) {
     ASSERT_VALID_POINTER(data);
     pilot_simple_workload_func_t *func = (pilot_simple_workload_func_t*)data;
+    const size_t num_of_pi = 1;
+    *num_of_work_unit = total_work_amount;
+    *unit_readings = (double**)lib_malloc_func(sizeof(double*) * num_of_pi);
+    (*unit_readings)[0] = (double*)lib_malloc_func(sizeof(double) * *num_of_work_unit);
+
     int rc;
+    cpu_timer timer;
+    nanosecond_type start_time, end_time;
     for (size_t i = 0; i != total_work_amount; ++i) {
+        start_time = timer.elapsed().wall;
         rc = func();
+        end_time = timer.elapsed().wall;
+        (*unit_readings)[0][i] = double((end_time - start_time)) / ONE_SECOND;
         if (rc)
             return rc;
     }
@@ -1739,42 +1807,37 @@ int _simple_workload_func_with_wa_runner(const pilot_workload_t *wl,
     return func(total_work_amount);
 }
 
-int __simple_runner_worker(void *func,
-                    const char* benchmark_name,
-                    size_t min_wa, size_t max_wa,
-                    nanosecond_type short_round_threshold,
-                    pilot_workload_func_t wrapper_func) {
-    pilot_set_log_level(lv_info);
-    pilot_workload_t *wl = pilot_new_workload(benchmark_name);
-    pilot_set_num_of_pi(wl, 0);                   // we use WPS analysis only
-    pilot_set_init_work_amount(wl, min_wa);
-    pilot_set_work_amount_limit(wl, max_wa);
-    pilot_set_workload_data(wl, func);
-    pilot_set_workload_func(wl, wrapper_func);
-    pilot_set_wps_analysis(wl, NULL, true, true);
-    pilot_set_short_round_detection_threshold(wl, short_round_threshold);
-    return pilot_run_workload(wl);
-}
-
-
 int _simple_runner(pilot_simple_workload_func_t func,
-                   const char* benchmark_name,
-                   size_t min_wa, size_t max_wa,
-                   nanosecond_type short_round_threshold) {
-    return
-    __simple_runner_worker((void*)func, benchmark_name, min_wa, max_wa,
-                           short_round_threshold,
-                           _simple_workload_func_runner);
+                   const char* benchmark_name) {
+    PILOT_LIB_SELF_CHECK;
+    pilot_set_log_level(lv_info);
+    shared_ptr<pilot_workload_t> wl(pilot_new_workload(benchmark_name), pilot_destroy_workload);
+    pilot_set_num_of_pi(wl.get(), 1);
+    pilot_set_pi_info(wl.get(), 0, "Duration", "second", NULL, NULL, false, true, ARITHMETIC_MEAN);
+    pilot_set_wps_analysis(wl.get(), NULL, false, false);
+    pilot_set_init_work_amount(wl.get(), 0);
+    pilot_set_work_amount_limit(wl.get(), ULONG_MAX);
+    pilot_set_workload_data(wl.get(), (void*)func);
+    pilot_set_workload_func(wl.get(), _simple_workload_func_runner);
+    pilot_set_short_round_detection_threshold(wl.get(), 1);
+    return pilot_run_workload(wl.get());
 }
 
 int _simple_runner_with_wa(pilot_simple_workload_with_wa_func_t func,
                            const char* benchmark_name,
                            size_t min_wa, size_t max_wa,
-                           nanosecond_type short_round_threshold) {
-    return
-    __simple_runner_worker((void*)func, benchmark_name, min_wa, max_wa,
-                           short_round_threshold,
-                           _simple_workload_func_with_wa_runner);
+                           size_t short_round_threshold) {
+    PILOT_LIB_SELF_CHECK;
+    pilot_set_log_level(lv_warning);
+    shared_ptr<pilot_workload_t> wl(pilot_new_workload(benchmark_name), pilot_destroy_workload);
+    pilot_set_num_of_pi(wl.get(), 0);                   // we use WPS analysis only
+    pilot_set_init_work_amount(wl.get(), min_wa);
+    pilot_set_work_amount_limit(wl.get(), max_wa);
+    pilot_set_workload_data(wl.get(), (void*)func);
+    pilot_set_workload_func(wl.get(), _simple_workload_func_with_wa_runner);
+    pilot_set_wps_analysis(wl.get(), NULL, true, true);
+    pilot_set_short_round_detection_threshold(wl.get(), short_round_threshold);
+    return pilot_run_workload(wl.get());
 }
 
 } // namespace pilot

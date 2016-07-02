@@ -40,7 +40,7 @@
 #include <boost/format.hpp>
 #include <boost/math/distributions/students_t.hpp>
 #include <cmath>
-#include "libpilot.h"
+#include "pilot/libpilot.h"
 #include <limits>
 #include <map>
 #include <memory>

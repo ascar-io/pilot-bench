@@ -35,7 +35,7 @@
 #include <cmath>
 #include <cstring>
 #include "gtest/gtest.h"
-#include "libpilot.h"
+#include "pilot/libpilot.h"
 #include <vector>
 
 using namespace pilot;

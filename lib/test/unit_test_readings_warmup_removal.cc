@@ -35,7 +35,7 @@
 #include "common.h"
 #include "gtest/gtest.h"
 #include <iomanip>
-#include "libpilot.h"
+#include "pilot/libpilot.h"
 #include <limits>
 #include <vector>
 

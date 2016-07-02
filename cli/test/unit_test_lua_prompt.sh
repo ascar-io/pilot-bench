@@ -31,4 +31,4 @@
 # OF THE POSSIBILITY OF SUCH DAMAGE.
 set -e -u
 
-echo 'print("Rytsas vys!")' | ./pilot | grep -q "Rytsas vys!"
+echo 'print("Rytsas vys!")' | ./bench | grep -q "Rytsas vys!"

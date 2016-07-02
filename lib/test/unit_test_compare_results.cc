@@ -32,7 +32,7 @@
  */
 
 #include "gtest/gtest.h"
-#include "libpilot.h"
+#include "pilot/libpilot.h"
 
 using namespace pilot;
 using namespace std;
