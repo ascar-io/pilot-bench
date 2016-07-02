@@ -33,6 +33,7 @@
  */
 
 #include "gtest/gtest.h"
+#include <memory>
 #include "pilot/libpilot.h"
 
 using namespace pilot;
