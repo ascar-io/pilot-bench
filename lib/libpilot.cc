@@ -325,7 +325,13 @@ int pilot_run_workload(pilot_workload_t *wl) {
             break;
         }
 
-        info_log << "Starting workload round " << wl->rounds_ << " with work_amount " << work_amount;
+        string infos = str(format("Starting workload round %1% with work_amount %2%")
+                           % wl->rounds_ % work_amount);
+        if (wl->adjusted_min_work_amount_ > 0) {
+            infos += str(format(", expected duration %1% seconds")
+                         % (wl->duration_to_work_amount_ratio() * work_amount));
+        }
+        info_log << infos;
 
         reported_round_duration = 0;
         round_timer.reset(new cpu_timer);
@@ -424,8 +430,9 @@ int pilot_run_workload(pilot_workload_t *wl) {
         }
 
         // check session duration limit
+        std::chrono::duration<double> diff = std::chrono::steady_clock::now() - session_start_time;
+        wl->analytical_result_.session_duration = diff.count();
         if (0 != wl->session_duration_limit_in_sec_) {
-            std::chrono::duration<double> diff = std::chrono::steady_clock::now() - session_start_time;
             if (diff.count() > wl->session_duration_limit_in_sec_) {
                 info_log << "reached session duration limit";
                 result = ERR_STOPPED_BY_DURATION_LIMIT;
@@ -434,9 +441,6 @@ int pilot_run_workload(pilot_workload_t *wl) {
         }
     }
 
-    // calculate and update the total duration
-    std::chrono::duration<double> diff = std::chrono::steady_clock::now() - session_start_time;
-    wl->analytical_result_.session_duration += diff.count();
     return result;
 }
 
@@ -1129,11 +1133,15 @@ int pilot_find_dominant_segment(const double *data, size_t n, size_t *begin,
         return ERR_NOT_ENOUGH_DATA;
     }
     vector<int> cps = EDM_percent(data, n, min_size, percent, degree);
-    stringstream ss;
-    ss << cps;
-    info_log << "changepoints detected: " << ss.str();
+    if (cps.size() > 0) {
+        stringstream ss;
+        ss << cps;
+        info_log << "Changepoints detected: " << ss.str();
+    } else {
+        info_log << "No changepoint detected.";
+    }
     // we always add the last point for easy of calculation below
-    cps.push_back(n - 1);
+    cps.push_back(n);
     struct segment_t {
         size_t begin;
         size_t end;
@@ -1303,7 +1311,7 @@ void pilot_import_benchmark_results(pilot_workload_t *wl, size_t round,
                 }
 
             } else {
-                info_log << __func__ << "Detected dominant segment in UR data ["
+                info_log << "Detected dominant segment in UR data ["
                           << dominant_begin << ", " << dominant_end << ")";
                 // FIXME: store dominant_end instead of chopping away the data
                 wl->unit_readings_[piid][round].resize(dominant_end);

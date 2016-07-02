@@ -179,6 +179,12 @@ bool pilot_workload_t::calc_next_round_work_amount(size_t * const needed_work_am
         more_rounds_needed = more_rounds_needed | rc;
     }
     *needed_work_amount = min(*needed_work_amount, max_work_amount_);
+    const size_t soft_limit = get_round_work_amount_soft_limit();
+    if (*needed_work_amount > soft_limit) {
+        info_log << str(format("Limiting next round's work amount to %1% (no more than %2% times of the average round work amount)")
+                % soft_limit % round_work_amount_to_avg_amount_limit_);
+        *needed_work_amount = soft_limit;
+    }
 
     if (0 == rounds_) {
         return true;
@@ -766,4 +772,18 @@ bool pilot_workload_t::wps_enabled(void) const {
     }
     // it is not even loaded
     return false;
+}
+
+double pilot_workload_t::duration_to_work_amount_ratio(void) const {
+    size_t sum_of_work_amount =
+            accumulate(round_work_amounts_.begin(), round_work_amounts_.end(), static_cast<size_t>(0));
+
+    return analytical_result_.session_duration / sum_of_work_amount;
+}
+
+size_t pilot_workload_t::get_round_work_amount_soft_limit(void) const {
+    if (0 == round_work_amounts_.size()) return max_work_amount_;
+    size_t sum_work_amount = std::accumulate(round_work_amounts_.begin(), round_work_amounts_.end(), 0);
+    size_t avg_work_amount = sum_work_amount / round_work_amounts_.size();
+    return min(round_work_amount_to_avg_amount_limit_ * avg_work_amount, max_work_amount_);
 }

@@ -148,6 +148,7 @@ public:  // FIXME: most of the following members should be private and controlle
     double required_ci_absolute_value_;
     size_t session_desired_duration_in_sec_;
     size_t session_duration_limit_in_sec_;
+    size_t round_work_amount_to_avg_amount_limit_;    //! The upper limit of next_round_work_amount/average_round_work_amount
     nanosecond_type short_round_detection_threshold_;
     double desired_p_value_;
 
@@ -206,6 +207,7 @@ public:  // FIXME: most of the following members should be private and controlle
                          required_ci_percent_of_mean_(0.1), required_ci_absolute_value_(-1),
                          session_desired_duration_in_sec_(60),
                          session_duration_limit_in_sec_(0),
+                         round_work_amount_to_avg_amount_limit_(5),
                          short_round_detection_threshold_(20 * pilot::ONE_SECOND),
                          desired_p_value_(0.05),
                          short_workload_check_(true),
@@ -390,6 +392,19 @@ public:  // FIXME: most of the following members should be private and controlle
      * @return true if WPS analysis is enabled
      */
     bool wps_enabled(void) const;
+
+    /**
+     * Calculate the average round duration to work amount ratio
+     * \details There must be at least one round duration data.
+     * @return the ratio
+     */
+    double duration_to_work_amount_ratio(void) const;
+
+    /**
+     * Get the current round_work_amount_soft_limit
+     * @return
+     */
+    size_t get_round_work_amount_soft_limit(void) const;
 };
 
 struct pilot_pi_unit_readings_iter_t {
