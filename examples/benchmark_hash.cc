@@ -52,9 +52,9 @@ int hash_func_one(void) {
     return 0;
 }
 
-int hash_func_two(size_t work_amount) {
+int hash_func_two(void) {
     hash2 = 1;
-    for (size_t i = 0; i + 3 < work_amount; i += 4) {
+    for (size_t i = 0; i + 3 < max_len; i += 4) {
         hash2 = 31 * 31 * 31 * 31 * hash2
               + 31 * 31 * 31 * buf[i]
               + 31 * 31 * buf[i + 1]
@@ -70,5 +70,5 @@ int main() {
         buf[i] = (char)(i * 42);
     }
     simple_runner(hash_func_one);
-    simple_runner_with_wa(hash_func_two, 1024, max_len);
+    simple_runner(hash_func_two);
 }
