@@ -394,7 +394,7 @@ int pilot_run_workload(pilot_workload_t *wl) {
                         ss << " c v ";
                     }
                 } else {
-                    ss << "R has no data, ";
+                    ss << "R has no summary, ";
                 }
                 if (4 < wl->analytical_result_.unit_readings_num[piid]) {
                     ss << "UR m" << setprecision(4) << wl->analytical_result_.unit_readings_mean_formatted[piid];
@@ -405,7 +405,7 @@ int pilot_run_workload(pilot_workload_t *wl) {
                         ss << " c v ";
                     }
                 } else {
-                    ss << "UR has no data";
+                    ss << "UR has no summary";
                 }
             }
             if (wl->wps_enabled()) {
@@ -799,7 +799,6 @@ void pilot_analytical_result_t::_free_all_field() {
     FREE_AND_NULL(readings_raw_optimal_subsession_ci_width_formatted);
     FREE_AND_NULL(readings_raw_required_sample_size);
 
-
     FREE_AND_NULL(unit_readings_num);
     FREE_AND_NULL(unit_readings_mean);
     FREE_AND_NULL(unit_readings_mean_formatted);
@@ -814,6 +813,7 @@ void pilot_analytical_result_t::_free_all_field() {
     FREE_AND_NULL(unit_readings_optimal_subsession_ci_width);
     FREE_AND_NULL(unit_readings_optimal_subsession_ci_width_formatted);
     FREE_AND_NULL(unit_readings_required_sample_size);
+    FREE_AND_NULL(unit_readings_required_sample_size_is_from_user);
 
 #undef FREE_AND_NULL
 }
@@ -868,6 +868,7 @@ void pilot_analytical_result_t::_copyfrom(const pilot_analytical_result_t &a) {
     COPY_ARRAY(unit_readings_optimal_subsession_ci_width);
     COPY_ARRAY(unit_readings_optimal_subsession_ci_width_formatted);
     COPY_ARRAY(unit_readings_required_sample_size);
+    COPY_ARRAY(unit_readings_required_sample_size_is_from_user);
 #undef COPY_ARRAY
 
 #define COPY_FIELD(field) field = a.field;
@@ -965,6 +966,7 @@ void pilot_analytical_result_t::set_num_of_pi(size_t new_num_of_pi) {
     INIT_FIELD(unit_readings_optimal_subsession_ci_width_formatted);
     INIT_FIELD(unit_readings_required_sample_size);
     SET_VAL(unit_readings_required_sample_size, -1);
+    INIT_FIELD(unit_readings_required_sample_size_is_from_user);
 #undef SET_VAL
 #undef INIT_FIELD
 }
@@ -1521,8 +1523,13 @@ bool calc_next_round_work_amount_from_unit_readings(const pilot_workload_t *wl, 
                                            % piid % (wl->analytical_result_.unit_readings_autocorrelation_coefficient[piid])
                                            % subsession_size);
                 }
-                info_log << str(format("[PI %1%] required unit readings sample size %2% (required sample size %3% x subsession size %4%)")
-                                % piid % req % (req / subsession_size) % subsession_size);
+                string tmps = str(format("[PI %1%] required unit readings sample size %2% ") % piid % req);
+                if (wl->analytical_result_.unit_readings_required_sample_size_is_from_user[piid]) {
+                    tmps += "(supplied by the calc_required_unit_readings_func)";
+                } else {
+                    tmps += str(format("(required sample size %1% x subsession size %2%)") % (req / subsession_size) % subsession_size);
+                }
+                info_log << tmps;
                 if (static_cast<size_t>(req) < wl->total_num_of_unit_readings_[piid]) {
                     debug_log << "[PI " << piid << "] already has enough samples";
                     continue;
@@ -1818,6 +1825,8 @@ int _simple_workload_func_with_wa_runner(const pilot_workload_t *wl,
 int _simple_runner(pilot_simple_workload_func_t func,
                    const char* benchmark_name) {
     PILOT_LIB_SELF_CHECK;
+    int res, wl_res;
+
     pilot_set_log_level(lv_info);
     shared_ptr<pilot_workload_t> wl(pilot_new_workload(benchmark_name), pilot_destroy_workload);
     pilot_set_num_of_pi(wl.get(), 1);
@@ -1828,7 +1837,22 @@ int _simple_runner(pilot_simple_workload_func_t func,
     pilot_set_workload_data(wl.get(), (void*)func);
     pilot_set_workload_func(wl.get(), _simple_workload_func_runner);
     pilot_set_short_round_detection_threshold(wl.get(), 1);
-    return pilot_run_workload(wl.get());
+
+    wl_res = pilot_run_workload(wl.get());
+    if (0 == wl_res) {
+        info_log << "Benchmark finished successfully";
+    } else {
+        error_log << "Benchmark finished with error code " << wl_res << " (" << pilot_strerror(wl_res) << ")";
+    }
+
+    res = pilot_export(wl.get(), benchmark_name);
+    if (0 == res) {
+        info_log << "Benchmark results are saved in directory " << benchmark_name;
+    } else {
+        error_log << "Error on saving benchmark results: " << pilot_strerror(res);
+    }
+
+    return wl_res;
 }
 
 int _simple_runner_with_wa(pilot_simple_workload_with_wa_func_t func,

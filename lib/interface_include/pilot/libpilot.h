@@ -654,6 +654,8 @@ struct pilot_analytical_result_t {
     double* unit_readings_optimal_subsession_ci_width; //! is undefined if unit_readings_optimal_subsession_size < 0
     double* unit_readings_optimal_subsession_ci_width_formatted; //! is undefined if unit_readings_optimal_subsession_size < 0
     ssize_t* unit_readings_required_sample_size; //! is -1 if not enough data
+    int*    unit_readings_required_sample_size_is_from_user; //! Whether unit_readings_required_sample_size is from the calc_required_unit_readings_func
+
     // Work amount-per-second analysis
     bool   wps_has_data;               //! whether the following fields have data
     size_t wps_subsession_sample_size; //! sample size after merging adjacent samples to reduce autocorrelation coefficient
