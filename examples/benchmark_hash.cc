@@ -37,7 +37,7 @@ using namespace pilot;
 
 // We set up a 1 GB buffer. Feel free to reduce the buffer size if you can't
 // allocate this much memory.
-const size_t max_len = 1000 * 1000 * 1000;
+const size_t max_len = 1024 * 1024 * 1024;
 char buf[max_len];
 // We use global variables to store the result so the compiler would not
 // optimize them away.
