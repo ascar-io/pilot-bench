@@ -129,10 +129,6 @@ ssize_t pilot_workload_t::required_num_of_unit_readings_for_comparison(int piid)
 }
 
 ssize_t pilot_workload_t::required_num_of_unit_readings(int piid) const {
-    if (calc_required_unit_readings_func_) {
-        return calc_required_unit_readings_func_(this, piid);
-    }
-
     refresh_analytical_result();
     return analytical_result_.unit_readings_required_sample_size[piid];
 }
@@ -345,6 +341,9 @@ void pilot_workload_t::refresh_analytical_result(void) const {
         analytical_result_.unit_readings_var_formatted[piid] = var_rt * analytical_result_.unit_readings_mean_formatted[piid];
         analytical_result_.unit_readings_autocorrelation_coefficient[piid] = unit_readings_autocorrelation_coefficient(piid, 1, ARITHMETIC_MEAN);
         size_t q;
+
+        // We already use our own _calc_required_num_of_readings() no matter if calc_required_unit_readings_func_ is set because
+        // the latter may use our calculation as an input.
         if ((analytical_result_.unit_readings_required_sample_size[piid] =
                 _calc_required_num_of_readings(this, pilot_pi_unit_readings_iter_t(this, piid),
                         total_num_of_unit_readings_[piid], &q, ARITHMETIC_MEAN)) < 0) {
@@ -361,6 +360,14 @@ void pilot_workload_t::refresh_analytical_result(void) const {
             double cif_low = format_unit_reading(piid, sm - ci / 2);
             double cif_high = format_unit_reading(piid, sm + ci / 2);
             analytical_result_.unit_readings_optimal_subsession_ci_width_formatted[piid] = abs(cif_high - cif_low);
+        }
+
+        // Let calc_required_unit_readings_func_ overwrite our own calculation if the hook has been set
+        if (calc_required_unit_readings_func_) {
+            analytical_result_.unit_readings_required_sample_size[piid] = calc_required_unit_readings_func_(this, piid);
+            analytical_result_.unit_readings_required_sample_size_is_from_user[piid] = 1;
+        } else {
+            analytical_result_.unit_readings_required_sample_size_is_from_user[piid] = 0;
         }
     }
     // WPS analysis data
