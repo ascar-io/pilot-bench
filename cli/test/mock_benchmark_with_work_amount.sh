@@ -1,7 +1,11 @@
 #!/bin/bash
-# Unit test for pilot cli tool opt parsing
+# Mock benchmark for testing Pilot CLI. This script accepts two options. The
+# first option is the work amount, which will be appended into a file set by the
+# second option. It always prints "0.001", which will be interpreted by Pilot
+# CLI as the round duration. This mock program is used by
+# unit_test_pilot_opt_parsing.sh.
 #
-# Copyright (c) 2015, 2016 University of California, Santa Cruz, CA, USA.
+# Copyright (c) 2016 University of California, Santa Cruz, CA, USA.
 # Created by Yan Li <yanli@ascar.io>,
 # Department of Computer Science, Baskin School of Engineering.
 #
@@ -31,29 +35,13 @@
 # OF THE POSSIBILITY OF SUCH DAMAGE.
 set -e -u
 
-run() {
-    eval "$@" || :
-    if which valgrind >/dev/null; then
-        # TODO: enable valgrind here
-        true
-    fi
-}
+if [ $# -ne 2 ]; then
+    echo "Wrong options. Exiting..."
+    exit 2
+fi
 
-BASENAME=`basename $0`
-
-run ./bench run_program 2>&1 | grep -q "Error: program_path is required"
-
-run ./bench run_program -- 2>&1 | grep -q "Error: program_path is required"
-
-run ./bench run_program -- true 2>&1 | grep -q "Error: no PI or duration column set, exiting..."
-
-run ./bench run_program -v --pi "throughput,MB/s,2,1,0.05" -- true 2>&1 | grep -q "PI\[0\] name: throughput, unit: MB/s, reading must satisfy: yes, mean method: harmonic"
-
-run ./bench run_program -v --pi "throughput,MB/s,2,1:throughput,MB/s,2,1:throughput,MB/s,2,1" -- true 2>&1 | grep -q "Please provide at least one reading's CI requirement"
-
-# Try to run a workload that accepts work amount from 100 to 200.
-# "-d 1" designates that the first column is the round duration.
-rm -f /tmp/work_amount_log.txt
-run ./bench run_program --no-tui -w "100,200" -d 1 -- ./mock_benchmark_with_work_amount.sh %WORK_AMOUNT% /tmp/work_amount_log.txt >/tmp/${BASENAME}.out 2>&1
-diff unit_test_pilot_opt_parsing_expected_work_amount.log /tmp/work_amount_log.txt
-
+echo $1 >>"$2"
+echo 0.001
+if [ $1 -eq 200 ]; then
+    exit 2
+fi

@@ -66,6 +66,12 @@ add_custom_command(TARGET bench POST_BUILD
 add_custom_command(TARGET bench POST_BUILD
                    COMMAND ${CMAKE_COMMAND} -E copy_if_different
                        ${CMAKE_CURRENT_LIST_DIR}/test/mock_benchmark.sh $<TARGET_FILE_DIR:bench>)
+add_custom_command(TARGET bench POST_BUILD
+                   COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                       ${CMAKE_CURRENT_LIST_DIR}/test/mock_benchmark_with_work_amount.sh $<TARGET_FILE_DIR:bench>)
+add_custom_command(TARGET bench POST_BUILD
+                   COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                       ${CMAKE_CURRENT_LIST_DIR}/test/unit_test_pilot_opt_parsing_expected_work_amount.log $<TARGET_FILE_DIR:bench>)
 
 # tests
 set (PILOT_TESTS_LIBRARIES pilot_sharedlib ${Boost_LIBRARIES} ${GTEST_BINARY_DIR}/libgtest.a ${GTEST_BINARY_DIR}/libgtest_main.a ${CMAKE_THREAD_LIBS_INIT} ${CDK_LIBRARIES})

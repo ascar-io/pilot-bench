@@ -34,11 +34,14 @@
 #ifndef CLI_PILOT_CLI_H_
 #define CLI_PILOT_CLI_H_
 
+#include <boost/algorithm/string.hpp>
 #include <boost/date_time/posix_time/posix_time.hpp>
+#include <boost/format.hpp>
 #include <common.h>
 #include <config.h>
 #include <pilot/libpilot.h>
 #include <sstream>
+#include <stdexcept>
 #include <vector>
 
 #define GREETING_MSG "Pilot " stringify(PILOT_VERSION_MAJOR) "." \
@@ -60,6 +63,22 @@ inline std::string get_timestamp(void) {
     return ss.str();
 }
 
-std::vector<double> extract_csv_fields(const std::string &str, const std::vector<int> &columns);
+template <typename ResultType>
+std::vector<ResultType> extract_csv_fields(const std::string &csvstr,
+                                           const std::vector<int> &columns) {
+    using namespace std;
+    using namespace boost;
+    vector<string> pidata_strs;
+    boost::split(pidata_strs, csvstr, boost::is_any_of(" \n\t,"));
+    vector<ResultType> r(pidata_strs.size());
+    for (int i = 0; i < (int)columns.size(); ++i) {
+        int col = columns[i];
+        if (col >= static_cast<int>(pidata_strs.size())) {
+            throw runtime_error(str(format("Error parsing column %1% from string: \"%2%\"") % col % csvstr));
+        }
+        r[i] = lexical_cast<ResultType>(pidata_strs[col]);
+    }
+    return r;
+}
 
 #endif /* CLI_PILOT_CLI_H_ */

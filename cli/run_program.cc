@@ -59,6 +59,7 @@ using namespace boost::filesystem;
 using namespace std;
 using namespace pilot;
 
+static size_t         g_duration_col = 0; // column of the round duration
 static int            g_num_of_pi = 0;
 static vector<int>    g_pi_col;          // column of each PI in client program's output
 static string         g_program_cmd;
@@ -72,20 +73,6 @@ static shared_ptr<pilot_workload_t> g_wl;
 void sigint_handler(int dummy) {
     if (g_wl)
         pilot_stop_workload(g_wl.get());
-}
-
-vector<double> extract_csv_fields(const string &csvstr, const vector<int> &columns) {
-    vector<string> pidata_strs;
-    boost::split(pidata_strs, csvstr, boost::is_any_of(" \n\t,"));
-    vector<double> r(pidata_strs.size());
-    for (int i = 0; i < (int)columns.size(); ++i) {
-        int col = columns[i];
-        if (col >= static_cast<int>(pidata_strs.size())) {
-            throw runtime_error(str(format("Error parsing client program's output: %1%; expected column: %2%") % csvstr % col));
-        }
-        r[i] = lexical_cast<double>(pidata_strs[col]);
-    }
-    return r;
 }
 
 /**
@@ -138,6 +125,7 @@ int workload_func(const pilot_workload_t *wl,
     create_directories(my_result_dir);
     string my_cmd(g_program_cmd);
     replace_all(my_cmd, "%RESULT_DIR%", my_result_dir);
+    replace_all(my_cmd, "%WORK_AMOUNT%", to_string(total_work_amount));
 
     string prog_stdout;
     debug_log << "Executing client program: " << my_cmd;
@@ -156,7 +144,7 @@ int workload_func(const pilot_workload_t *wl,
 
     // parse the result
     try {
-        vector<double> rs = extract_csv_fields(prog_stdout, g_pi_col);
+        vector<double> rs = extract_csv_fields<double>(prog_stdout, g_pi_col);
         assert(g_pi_col.size() == static_cast<size_t>(g_num_of_pi));
         for (int i = 0; i < g_num_of_pi; ++i) {
             debug_log << str(format("[PI %1%] new reading: %2%") % i % rs[i]);
@@ -177,11 +165,12 @@ int workload_func(const pilot_workload_t *wl,
 int handle_run_program(int argc, const char** argv) {
     po::options_description desc("Usage: " + string(argv[0]) + " [options] -- program_path [program_options]");
     desc.add_options()
+            ("duration-col,d", po::value<size_t>(), "set the column (0-based) of the round duration in seconds. Pilot can use this information for WPS analysis.")
             ("help", "help message for run_command")
             ("min-sample-size,m", po::value<size_t>(), "lower threshold for sample size (default to 100)")
             ("no-tui", "disable the text user interface")
             ("pi,p", po::value<string>(), "PI(s) to read from stdout of the program, which is expected to be csv\n"
-                    "Format:     name,column,type,ci_percent:...\n"
+                    "Format:     name,unit,column,type,ci_percent:...\n"
                     "name:       name of the PI, can be empty\n"
                     "unit:       unit of the PI, can be empty (the name and unit are used only for display purpose)\n"
                     "column:     the column of the PI in the csv output of the client program (0-based)\n"
@@ -194,6 +183,8 @@ int handle_run_program(int argc, const char** argv) {
             ("quiet,q", "quiet mode")
             ("result-dir,r", po::value<string>(), "set result directory name")
             ("verbose,v", "print debug information")
+            ("work-amount,w", po::value<string>(), "set the valid range of work amount [min,max]")
+            ("wps", "WPS must satisfy")
             ;
     // copy options into args and find program_path_start_loc
     vector<string> args;
@@ -276,14 +267,30 @@ int handle_run_program(int argc, const char** argv) {
         fatal_log << "Error: cannot create workload";
         return 3;
     }
-    // this workload doesn't need work amount
-    pilot_set_work_amount_limit(g_wl.get(), 0);
 
     size_t min_sample_size = 100;
-    if (vm.count("min-sample-size"))
+    if (vm.count("min-sample-size")) {
         min_sample_size = vm["min-sample-size"].as<size_t>();
+    }
     info_log << "Setting min-sample-size to " << min_sample_size;
     pilot_set_min_sample_size(g_wl.get(), min_sample_size);
+
+    if (vm.count("duration-col")) {
+        g_duration_col = vm["duration-col"].as<size_t>();
+        info_log << "Setting duration column to " << g_duration_col;
+    }
+
+    // parse work amount range
+    if (vm.count("work-amount")) {
+        vector<int> wa_cols{0, 1};
+        vector<size_t> wa = extract_csv_fields<size_t>(vm["work-amount"].as<string>(), wa_cols);
+        pilot_set_init_work_amount(g_wl.get(), wa[0]);
+        pilot_set_work_amount_limit(g_wl.get(), wa[1]);
+        info_log << str(format("Setting work amount range to [%1%, %2%]") % wa[0] % wa[1]);
+    } else {
+        // this workload doesn't need work amount
+        pilot_set_work_amount_limit(g_wl.get(), 0);
+    }
 
     // parse and set PI info
     g_num_of_pi = 0;
@@ -307,7 +314,7 @@ int handle_run_program(int argc, const char** argv) {
                 }
                 string pi_name = pidata[0];
                 string pi_unit = pidata[1];
-                g_pi_col.push_back(lexical_cast<double>(pidata[2]));
+                g_pi_col.push_back(lexical_cast<int>(pidata[2]));
                 int tmpi = lexical_cast<int>(pidata[3]);
                 if (tmpi > 1 || tmpi < 0) {
                     throw runtime_error("Error: invalid value for PI type");
@@ -337,14 +344,33 @@ int handle_run_program(int argc, const char** argv) {
                 pilot_set_required_confidence_interval(g_wl.get(), pi_ci_percent, -1);
             }
         } else {
-            throw runtime_error("Error: PI information missing");
+            if (g_duration_col) {
+                info_log << "No PI information, will do WPS analysis only";
+            } else {
+                throw runtime_error("Error: no PI or duration column set, exiting...");
+            }
         }
     } catch (const runtime_error &e) {
         cerr << e.what() << endl;
         return 2;
     }
 
-    pilot_set_wps_analysis(g_wl.get(), NULL, false, false);
+    if (vm.count("wps")) {
+        if (!g_duration_col) {
+            cerr << "Duration column must be set for WPS analysis";
+            return 2;
+        }
+        if (!vm.count("work-amount")) {
+            cerr << "Work amount must be set for WPS analysis";
+            return 2;
+        }
+        pilot_set_wps_analysis(g_wl.get(), NULL, true, true);
+        info_log << "WPS analysis enabled";
+    } else if (g_duration_col && vm.count("work-amount")) {
+        pilot_set_wps_analysis(g_wl.get(), NULL, true, false);
+    } else {
+        pilot_set_wps_analysis(g_wl.get(), NULL, false, false);
+    }
     pilot_set_workload_func(g_wl.get(), workload_func);
     pilot_set_autocorrelation_coefficient(g_wl.get(), 0.1);
     info_log << "Setting the limit of autocorrelation coefficient to 0.1";

@@ -153,7 +153,7 @@ int handle_detect_changepoint_edm(int argc, const char** argv) {
         debug_log << "ignoring line: " << line;
     }
     while (getline(*infile, line)) {
-        data.push_back(extract_csv_fields(line, fields)[0]);
+        data.push_back(extract_csv_fields<double>(line, fields)[0]);
         debug_log << "read " << data.back() << endl;
     }
     debug_log << "Finished loading CSV file";
