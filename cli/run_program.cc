@@ -59,7 +59,7 @@ using namespace boost::filesystem;
 using namespace std;
 using namespace pilot;
 
-static size_t         g_duration_col = 0; // column of the round duration
+static size_t         g_duration_col = UINT64_MAX; // column of the round duration
 static int            g_num_of_pi = 0;
 static vector<int>    g_pi_col;          // column of each PI in client program's output
 static string         g_program_cmd;
@@ -163,12 +163,12 @@ int workload_func(const pilot_workload_t *wl,
 }
 
 int handle_run_program(int argc, const char** argv) {
-    po::options_description desc("Usage: " + string(argv[0]) + " [options] -- program_path [program_options]");
+    po::options_description desc("Usage: " + string(argv[0]) + " [options] -- program_path [program_options]", 180, 120);
     desc.add_options()
             ("duration-col,d", po::value<size_t>(), "set the column (0-based) of the round duration in seconds. Pilot can use this information for WPS analysis.")
             ("help", "help message for run_command")
-            ("min-sample-size,m", po::value<size_t>(), "lower threshold for sample size (default to 100)")
-            ("no-tui", "disable the text user interface")
+            ("min-sample-size,m", po::value<size_t>(), "the required minimum subsession sample size (default to 30, also see Preset Modes below)")
+            ("tui", "enable the text user interface")
             ("pi,p", po::value<string>(), "PI(s) to read from stdout of the program, which is expected to be csv\n"
                     "Format:     name,unit,column,type,ci_percent:...\n"
                     "name:       name of the PI, can be empty\n"
@@ -179,7 +179,11 @@ int handle_run_program(int argc, const char** argv) {
                     "ci_percent: the desired width of CI as the percent of mean. You can leave it empty, and Pilot\n"
                     "            will still collect and do analysis, but won't take this PI as a stop requirement.\n"
                     "            (default to 0.05)\n"
-                    "more than one PI's info. can be separated by :")
+                    "more than one PI's information can be separated by :")
+            ("preset", po::value<string>(), "preset modes control the statistical requirements for the results to be satisfactory\n"
+                    "quick:      (default) autocorrelation limit: 0.8, confidence interval: 20% of mean, min. subsession sample size: 30, workload round duration threshold: 3 seconds\n"
+                    "normal:     autocorrelation limit: 0.2, confidence interval: 10% of mean, min. subsession sample size: 5, workload round duration threshold: 10 seconds\n"
+                    "strict:     autocorrelation limit: 0.1, confidence interval: 10% of mean, min. subsession sample size: 200, workload round duration threshold: 20 seconds")
             ("quiet,q", "quiet mode")
             ("result-dir,r", po::value<string>(), "set result directory name")
             ("verbose,v", "print debug information")
@@ -229,9 +233,9 @@ int handle_run_program(int argc, const char** argv) {
         pilot_set_log_level(lv_warning);
     }
 
-    bool use_tui = true;
-    if (vm.count("no-tui"))
-        use_tui = false;
+    bool use_tui = false;
+    if (vm.count("tui"))
+        use_tui = true;
 
     if (vm.count("result-dir")) {
         g_result_dir = vm["result-dir"].as<string>();
@@ -268,7 +272,7 @@ int handle_run_program(int argc, const char** argv) {
         return 3;
     }
 
-    size_t min_sample_size = 100;
+    size_t min_sample_size = 30;
     if (vm.count("min-sample-size")) {
         min_sample_size = vm["min-sample-size"].as<size_t>();
     }
@@ -344,7 +348,7 @@ int handle_run_program(int argc, const char** argv) {
                 pilot_set_required_confidence_interval(g_wl.get(), pi_ci_percent, -1);
             }
         } else {
-            if (g_duration_col) {
+            if (UINT64_MAX != g_duration_col) {
                 info_log << "No PI information, will do WPS analysis only";
             } else {
                 throw runtime_error("Error: no PI or duration column set, exiting...");
@@ -356,7 +360,7 @@ int handle_run_program(int argc, const char** argv) {
     }
 
     if (vm.count("wps")) {
-        if (!g_duration_col) {
+        if (UINT64_MAX == g_duration_col) {
             cerr << "Duration column must be set for WPS analysis";
             return 2;
         }
@@ -366,14 +370,45 @@ int handle_run_program(int argc, const char** argv) {
         }
         pilot_set_wps_analysis(g_wl.get(), NULL, true, true);
         info_log << "WPS analysis enabled";
-    } else if (g_duration_col && vm.count("work-amount")) {
+    } else if (UINT64_MAX != g_duration_col && vm.count("work-amount")) {
         pilot_set_wps_analysis(g_wl.get(), NULL, true, false);
     } else {
         pilot_set_wps_analysis(g_wl.get(), NULL, false, false);
     }
     pilot_set_workload_func(g_wl.get(), workload_func);
-    pilot_set_autocorrelation_coefficient(g_wl.get(), 0.1);
-    info_log << "Setting the limit of autocorrelation coefficient to 0.1";
+
+    string preset_mode = "quick";
+    if (vm.count("preset")) {
+        preset_mode = vm["preset"].as<string>();
+    }
+    {
+        double ac;  // autocorrelation coefficient threshold
+        double ci;  // CI
+        size_t ms;  // min. subsession sample size
+        size_t sr;  // short round threshold
+        string msg = "Preset mode activated: ";
+        if ("quick" == preset_mode) {
+            msg += "quick";
+            ac = 0.8; ci = 0.2; ms = 30; sr = 3;
+        } else if ("normal" == preset_mode) {
+            msg += "normal";
+            ac = 0.2; ci = 0.1; ms = 50; sr = 10;
+        } else if ("strict" == preset_mode) {
+            msg += "strict";
+            ac = 0.1; ci = 0.1; ms = 200; sr = 20;
+        } else {
+            cerr << str(format("Unknown preset mode \"%1%\", exiting...") % preset_mode);
+            return 2;
+        }
+        pilot_set_autocorrelation_coefficient(g_wl.get(), ac);
+        info_log << "Setting the limit of autocorrelation coefficient to " << ac;
+        pilot_set_required_confidence_interval(g_wl.get(), ci, -1);
+        info_log << str(format("Setting the required width of confidence interval to %1%%% of mean") % (ac * 100));
+        pilot_set_min_sample_size(g_wl.get(), ms);
+        info_log << "Setting the required minimum subsession sample size to " << ms;
+        pilot_set_short_round_detection_threshold(g_wl.get(), sr);
+        info_log << "Setting the short round threshold to " << sr;
+    }
     int wl_res;
     if (use_tui)
         pilot_run_workload_tui(g_wl.get());

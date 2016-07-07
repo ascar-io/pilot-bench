@@ -745,13 +745,6 @@ pilot_log_level_t pilot_get_log_level(void) {
     return g_log_level;
 }
 
-double pilot_set_confidence_interval(pilot_workload_t *wl, double ci) {
-    ASSERT_VALID_POINTER(wl);
-    double old_ci = wl->confidence_interval_;
-    wl->confidence_interval_ = ci;
-    return old_ci;
-}
-
 pilot_round_info_t* pilot_round_info(const pilot_workload_t *wl, size_t round, pilot_round_info_t *info) {
     ASSERT_VALID_POINTER(wl);
     return wl->round_info(round, info);

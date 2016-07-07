@@ -495,14 +495,6 @@ void pilot_set_log_level(pilot_log_level_t log_level);
  */
 pilot_log_level_t pilot_get_log_level(void);
 
-/**
- * \brief Set the confidence interval for workload
- * @param[in] wl pointer to the workload struct
- * @param ci the new confidence interval
- * @return the old confidence interval
- */
-double pilot_set_confidence_interval(pilot_workload_t *wl, double ci);
-
 double pilot_subsession_mean_p(const double *data, size_t n, pilot_mean_method_t mean_method);
 
 /**
