@@ -163,27 +163,35 @@ int workload_func(const pilot_workload_t *wl,
 }
 
 int handle_run_program(int argc, const char** argv) {
-    po::options_description desc("Usage: " + string(argv[0]) + " [options] -- program_path [program_options]", 180, 120);
+    po::options_description desc("Usage: " + string(argv[0]) + " [options] -- program_path [program_options]", 120, 120);
     desc.add_options()
             ("duration-col,d", po::value<size_t>(), "set the column (0-based) of the round duration in seconds. Pilot can use this information for WPS analysis.")
             ("help", "help message for run_command")
             ("min-sample-size,m", po::value<size_t>(), "the required minimum subsession sample size (default to 30, also see Preset Modes below)")
             ("tui", "enable the text user interface")
             ("pi,p", po::value<string>(), "PI(s) to read from stdout of the program, which is expected to be csv\n"
-                    "Format:     name,unit,column,type,ci_percent:...\n"
-                    "name:       name of the PI, can be empty\n"
-                    "unit:       unit of the PI, can be empty (the name and unit are used only for display purpose)\n"
-                    "column:     the column of the PI in the csv output of the client program (0-based)\n"
-                    "type:       0 - ordinary value (like time, bytes, etc.), 1 - ratio (like throughput, speed)\n"
-                    "            setting the correct type ensures Pilot uses the correct mean calculation method\n"
-                    "ci_percent: the desired width of CI as the percent of mean. You can leave it empty, and Pilot\n"
-                    "            will still collect and do analysis, but won't take this PI as a stop requirement.\n"
-                    "            (default to 0.05)\n"
-                    "more than one PI's information can be separated by :")
+                    "Format:     \tname,unit,column,type,ci_percent:...\n"
+                    "name:       \tname of the PI, can be empty\n"
+                    "unit:       \tunit of the PI, can be empty (the name and unit are used only for display purpose)\n"
+                    "column:     \tthe column of the PI in the csv output of the client program (0-based)\n"
+                    "type:       \t0 - ordinary value (like time, bytes, etc.), 1 - ratio (like throughput, speed). "
+                    "Setting the correct type ensures Pilot uses the correct mean calculation method.\n"
+                    "ci_percent: \tthe desired width of CI as the percent of mean. You can leave it empty, and Pilot "
+                    "will still collect and do analysis, but won't take this PI as a stop requirement (default to 0.05).\n"
+                    "more than one PI's information can be separated by colon (:)")
             ("preset", po::value<string>(), "preset modes control the statistical requirements for the results to be satisfactory\n"
-                    "quick:      (default) autocorrelation limit: 0.8, confidence interval: 20% of mean, min. subsession sample size: 30, workload round duration threshold: 3 seconds\n"
-                    "normal:     autocorrelation limit: 0.2, confidence interval: 10% of mean, min. subsession sample size: 5, workload round duration threshold: 10 seconds\n"
-                    "strict:     autocorrelation limit: 0.1, confidence interval: 10% of mean, min. subsession sample size: 200, workload round duration threshold: 20 seconds")
+                    "quick:      \t(default) autocorrelation limit: 0.8,\n"
+                    "            \tconfidence interval: 20% of mean,\n"
+                    "            \tmin. subsession sample size: 30,\n"
+                    "            \tworkload round duration threshold: 3 seconds\n"
+                    "normal:     \tautocorrelation limit: 0.2,\n"
+                    "            \tconfidence interval: 10% of mean,\n"
+                    "            \tmin. subsession sample size: 5,\n"
+                    "            \tworkload round duration threshold: 10 seconds\n"
+                    "strict:     \tautocorrelation limit: 0.1,\n"
+                    "            \tconfidence interval: 10% of mean,\n"
+                    "            \tmin. subsession sample size: 200,\n"
+                    "            \tworkload round duration threshold: 20 seconds")
             ("quiet,q", "quiet mode")
             ("result-dir,r", po::value<string>(), "set result directory name")
             ("verbose,v", "print debug information")
