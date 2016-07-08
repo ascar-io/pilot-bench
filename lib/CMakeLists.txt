@@ -42,6 +42,7 @@ set_target_properties(pilot_sharedlib PROPERTIES OUTPUT_NAME pilot)
 set_target_properties(pilot_sharedlib PROPERTIES SOVERSION ${PILOT_VERSION_MAJOR})
 set_target_properties(pilot_sharedlib PROPERTIES VERSION
                       ${PILOT_VERSION_MAJOR}.${PILOT_VERSION_MINOR})
+set_target_properties(pilot_sharedlib PROPERTIES MACOSX_RPATH true)
 target_link_libraries (pilot_sharedlib ${CDK_STATIC_LIBRARIES} ${Boost_LIBRARIES}
              ${CMAKE_THREAD_LIBS_INIT} ${CDK_LIBRARIES})
 add_dependencies (pilot_sharedlib cdk twitter_breakoutdetection)
@@ -56,7 +57,7 @@ install (TARGETS pilot_sharedlib pilot_staticlib
          ARCHIVE DESTINATION lib
          LIBRARY DESTINATION lib
          RUNTIME DESTINATION bin)
-file(GLOB HEADER_FILES "interface_include/*.h*")
+file(GLOB HEADER_FILES "interface_include/pilot/*.h*")
 file(GLOB COMMON_HEADER_FILES "${CMAKE_SOURCE_DIR}/include/*.h")
 install (FILES ${HEADER_FILES} DESTINATION include/pilot)
 install (FILES ${COMMON_HEADER_FILES} DESTINATION include/pilot)
@@ -71,6 +72,8 @@ set (PILOT_TESTS_LIBRARIES pilot_sharedlib ${Boost_LIBRARIES} ${GTEST_BINARY_DIR
 
 add_executable (func_test_seq_write test/func_test_seq_write.cc)
 target_link_libraries (func_test_seq_write ${PILOT_TESTS_LIBRARIES})
+install (FILES test/func_test_seq_write.cc DESTINATION share/pilot/examples/using_api)
+install (TARGETS func_test_seq_write DESTINATION share/pilot/examples/using_api)
 
 add_executable (unit_test_run_workload test/unit_test_run_workload.cc)
 target_link_libraries (unit_test_run_workload ${PILOT_TESTS_LIBRARIES})

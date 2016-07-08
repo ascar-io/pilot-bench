@@ -31,8 +31,6 @@ add_library(libluaprompt ${LUAPROMPT_SOURCE_DIR}/prompt.c)
 set_target_properties (libluaprompt PROPERTIES COMPILE_FLAGS
                        "-DHAVE_LIBREADLINE -DHAVE_READLINE_HISTORY -DHAVE_IOCTL -D_GNU_SOURCE")
 
-set (LIBPILOT_LIBRARIES pilot_sharedlib)
-
 include_directories (SYSTEM ${CMAKE_CURRENT_BINARY_DIR}/../gtest/src/gtest/include)
 include_directories (${CDK_INCLUDE_DIR})
 include_directories (${LUA_INCLUDE_DIR})
@@ -44,7 +42,7 @@ add_executable (bench pilot.cc run_program.cc detect_changepoint_edm.cc)
 add_dependencies (bench cdk luaprompt)
 set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=gnu++11")
 
-target_link_libraries (bench ${LIBPILOT_LIBRARIES} libluaprompt ${CDK_STATIC_LIBRARIES}
+target_link_libraries (bench pilot_staticlib libluaprompt ${CDK_STATIC_LIBRARIES}
                        ${CDK_LIBRARIES} ${Boost_LIBRARIES} ${READLINE_LIBRARY}
                        ${LUA_LIBRARY} ${CMAKE_THREAD_LIBS_INIT})
 
@@ -89,4 +87,4 @@ add_test (NAME unit_test_cli
 		  COMMAND unit_test_cli)
 
 install (TARGETS bench DESTINATION bin)
-install (PROGRAMS pilot DESTINATION bin)
+install (PROGRAMS $<TARGET_FILE_DIR:bench>/pilot DESTINATION bin)

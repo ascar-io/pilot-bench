@@ -111,6 +111,13 @@ add_subdirectory (cli)
 # documentation
 add_subdirectory (doc)
 
+install (FILES examples/README.md examples/benchmark_hash.cc
+         DESTINATION share/pilot/examples)
+install (FILES examples/benchmark_dd/run_dd.sh
+         DESTINATION share/pilot/examples/benchmark_dd)
+install (PROGRAMS examples/make.sh
+         DESTINATION share/pilot/examples)
+
 set (CPACK_PACKAGE_NAME pilot-bench)
 set (CPACK_PACKAGE_VENDOR "Project ASCAR")
 set (CPACK_PACKAGE_CONTACT "yanli@ascar.io")

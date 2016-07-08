@@ -34,25 +34,43 @@ set -e -u
 cd `dirname $0`
 
 LIB_ARG=()
-HEADER_ARG=()
-# Check if libpilot is installed
+# Search for libpilot
 if ld -lpilot 2>&1 | grep -q "library not found"; then
-    echo "libpilot is not installed, checking if we can find it in the source tree..."
-    if ld -L../build/lib -lpilot 2>&1 | grep -q "library not found"; then
-        echo "Cannot find libpilot in the source tree. Please install a Pilot package or compile Pilot first."
+    echo "libpilot not in default search path, searching for other locations"
+    LIB_SEARCH_PATHS=(../build/lib ../../../lib)
+    for SEARCH_PATH in ${LIB_SEARCH_PATHS[@]}; do
+        if ld -L${SEARCH_PATH} -lpilot 2>&1 | grep -q "library not found"; then
+            continue
+        else
+            echo "libpilot found in $SEARCH_PATH"
+            LIB_ARG+=(-L${SEARCH_PATH})
+            break
+        fi
+    done
+    if [ ${#LIB_ARG[@]} -eq 0 ]; then
+        echo "Cannot find libpilot. Please install a Pilot package or compile Pilot from source."
         exit 3
-    else
-        LIB_ARG+=(-L../build/lib)
-        HEADER_ARG+=(-I../include -I../lib/interface_include -I../build)
     fi
+else
+    echo "Found libpilot in default search path"
 fi
 
-# Check if the header files can be found
-if echo "#include <pilot/libpilot.h>"  | cc -E ${HEADER_ARG[@]} - 2>&1 | grep "file not found"; then
-    echo "One or more header file cannot be found. Please install a Pilot package or compile Pilot first."
-    exit 3
+HEADER_ARG=()
+# Search for header files
+if echo "#include <pilot/libpilot.h>" | cc -E - 2>&1 | grep -q "file not found"; then
+    echo "Pilot header files not in default search path, searching for other locations"
+    HEADER_ARG=(-I../include -I../lib/interface_include -I../build)
+    if echo "#include <pilot/libpilot.h>" | cc -E ${HEADER_ARG[@]} - 2>&1 | grep -q "file not found"; then
+        HEADER_ARG=(-I../../../include)
+        if echo "#include <pilot/libpilot.h>" | cc -E ${HEADER_ARG[@]} - 2>&1 | grep -q "file not found"; then
+            echo "Cannot find Pilot header files. Please install a Pilot package or compile Pilot from source."
+            exit 3
+        fi
+    fi
+    echo "Found Pilot header files using compiling option ${HEADER_ARG[@]}"
+else
+    echo "Found Pilot header in default search path"
 fi
-echo "Passed header files and library check."
 
 c++ ${HEADER_ARG[@]} ${LIB_ARG[@]} -g -O2 -o benchmark_hash benchmark_hash.cc -lpilot
 
