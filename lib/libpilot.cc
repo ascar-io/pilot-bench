@@ -394,7 +394,7 @@ int pilot_run_workload(pilot_workload_t *wl) {
                         ss << " c v ";
                     }
                 } else {
-                    ss << "R has no summary, ";
+                    // No need to print anything when there is no readings data
                 }
                 if (4 < wl->analytical_result_.unit_readings_num[piid]) {
                     ss << "UR m" << setprecision(4) << wl->analytical_result_.unit_readings_mean_formatted[piid];
@@ -405,11 +405,11 @@ int pilot_run_workload(pilot_workload_t *wl) {
                         ss << " c v ";
                     }
                 } else {
-                    ss << "UR has no summary";
+                    // No need to print anything when there is no unit readings data
                 }
             }
             if (wl->wps_enabled()) {
-                ss << "; WPS: ";
+                ss << " WPS ";
                 if (wi->wps_has_data) {
                     ss << str(format("a %1%, v %2%, v_ci %3% (%4%%%)")
                               % wi->wps_alpha % wi->wps_v_formatted

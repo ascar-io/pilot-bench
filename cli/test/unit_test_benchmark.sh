@@ -33,7 +33,7 @@ set -e -u
 
 TMPFILE=`mktemp`
 rm -f /tmp/pilot_mock_benchmark_round.txt
-./bench run_program --min-sample-size 10 --no-tui --pi "response time,ms,0,0,0.3" \
+./bench run_program --min-sample-size 10 --pi "response time,ms,0,0,0.3" \
     -- ./mock_benchmark.sh >"$TMPFILE" 2>&1
 
 grep -q "response time: R m1.725 c0.2839 v0.04466" "$TMPFILE"
@@ -44,6 +44,10 @@ grep -q "\[PI 0\] Reading optimal subsession size: 4" "$TMPFILE"
 
 # test quiet mode
 rm -f /tmp/pilot_mock_benchmark_round.txt
-./bench run_program --min-sample-size 10 --no-tui --pi "response time,ms,0,0,0.3:delay time,ms,1,0" \
+./bench run_program --min-sample-size 10 --pi "response time,ms,0,0,0.3:delay time,ms,1,0" \
     --quiet \
-    -- ./mock_benchmark.sh 2>&1 | grep -q "0,1.72477,0.283944,0.0446593,0,1.72933,0.284016,0.0446822,1,2.72477,0.283944,0.0446593,0,2.72933,0.284016,0.0446822,"
+    -- ./mock_benchmark.sh >"$TMPFILE" 2>&1
+# we don't directly compare the output with an expected file, because the
+# session_duration on the first line will always be different
+grep "0,1.72477,0.283944,0.0446593,0,1.72477,0.283944,0.0446593," "$TMPFILE"
+grep "1,2.72477,0.283944,0.0446593,0,2.72477,0.283944,0.0446593"  "$TMPFILE"

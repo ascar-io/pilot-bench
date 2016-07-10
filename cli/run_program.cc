@@ -280,13 +280,6 @@ int handle_run_program(int argc, const char** argv) {
         return 3;
     }
 
-    size_t min_sample_size = 30;
-    if (vm.count("min-sample-size")) {
-        min_sample_size = vm["min-sample-size"].as<size_t>();
-    }
-    info_log << "Setting min-sample-size to " << min_sample_size;
-    pilot_set_min_sample_size(g_wl.get(), min_sample_size);
-
     if (vm.count("duration-col")) {
         g_duration_col = vm["duration-col"].as<size_t>();
         info_log << "Setting duration column to " << g_duration_col;
@@ -412,8 +405,15 @@ int handle_run_program(int argc, const char** argv) {
         info_log << "Setting the limit of autocorrelation coefficient to " << ac;
         pilot_set_required_confidence_interval(g_wl.get(), ci, -1);
         info_log << str(format("Setting the required width of confidence interval to %1%%% of mean") % (ac * 100));
+
+        if (vm.count("min-sample-size")) {
+            ms = vm["min-sample-size"].as<size_t>();
+            info_log << "Overriding preset's required minimum subsession sample size with " << ms;
+        } else {
+            info_log << "Setting the required minimum subsession sample size to " << ms;
+        }
         pilot_set_min_sample_size(g_wl.get(), ms);
-        info_log << "Setting the required minimum subsession sample size to " << ms;
+
         pilot_set_short_round_detection_threshold(g_wl.get(), sr);
         info_log << "Setting the short round threshold to " << sr;
     }
@@ -432,23 +432,32 @@ int handle_run_program(int argc, const char** argv) {
         }
     }
     shared_ptr<pilot_analytical_result_t> r(pilot_analytical_result(g_wl.get(), NULL), pilot_free_analytical_result);
+
+    // print summary header
+    cout << "piid,readings_mean_formatted,readings_optimal_subsession_ci_width_formatted,readings_optimal_subsession_variance_formatted,"
+            "readings_dominant_segment_begin,readings_raw_mean_formatted,readings_raw_optimal_subsession_ci_width_formatted,"
+            "readings_raw_optimal_subsession_variance_formatted,session_duration" << endl;
+    // print summary data
     for (size_t piid = 0; piid < r->num_of_pi; ++piid) {
         // format: piid,mean,ci,var,ds_begin,raw_mean,raw_ci,raw_var,...
         cout << format("%1%,") % piid;
         if (0 != r->readings_num) {
-            cout << format("%1%,%2%,%3%,%4%,%5%,%6%,%7%,")
+            cout << format("%1%,%2%,%3%,%4%,%5%,%6%,%7%")
                             % r->readings_mean_formatted[piid]
                             % r->readings_optimal_subsession_ci_width_formatted[piid]
-                            % r->readings_optimal_subsession_var[piid]
+                            % r->readings_optimal_subsession_var_formatted[piid]
                             % r->readings_dominant_segment_begin[piid]
                             % r->readings_raw_mean_formatted[piid]
                             % r->readings_raw_optimal_subsession_ci_width_formatted[piid]
                             % r->readings_raw_optimal_subsession_var_formatted[piid];
         } else {
-            cout << ",,,,,,,";
+            cout << ",,,,,,";
         }
+        if (0 == piid) {
+            cout << "," << r->session_duration;
+        }
+        cout << endl;
     }
-    cout << r->session_duration << endl;
 
     int res = pilot_export(g_wl.get(), g_result_dir.c_str());
     if (res != 0) {

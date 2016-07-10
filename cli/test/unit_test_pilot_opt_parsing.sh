@@ -54,6 +54,6 @@ run ./bench run_program -v --pi "throughput,MB/s,2,1:throughput,MB/s,2,1:through
 # Try to run a workload that accepts work amount from 100 to 200.
 # "-d 1" designates that the first column is the round duration.
 rm -f /tmp/work_amount_log.txt
-run ./bench run_program --no-tui -w "100,200" -d 1 -- ./mock_benchmark_with_work_amount.sh %WORK_AMOUNT% /tmp/work_amount_log.txt >/tmp/${BASENAME}.out 2>&1
+run ./bench run_program -w "100,200" -d 1 -- ./mock_benchmark_with_work_amount.sh %WORK_AMOUNT% /tmp/work_amount_log.txt >/tmp/${BASENAME}.out 2>&1
 diff unit_test_pilot_opt_parsing_expected_work_amount.log /tmp/work_amount_log.txt
 
