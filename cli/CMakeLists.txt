@@ -52,22 +52,17 @@ add_custom_command(TARGET bench POST_BUILD
                    COMMAND if [ ! -e pilot ]\; then ln -s bench pilot\; fi)
 
 # tests
-add_custom_command(TARGET bench POST_BUILD
+add_custom_target(copy_test_files ALL
                    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-                       ${CMAKE_CURRENT_LIST_DIR}/test/unit_test_lua_prompt.sh $<TARGET_FILE_DIR:bench>)
-add_custom_command(TARGET bench POST_BUILD
+                       ${CMAKE_CURRENT_LIST_DIR}/test/unit_test_lua_prompt.sh $<TARGET_FILE_DIR:bench>
                    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-                       ${CMAKE_CURRENT_LIST_DIR}/test/unit_test_pilot_opt_parsing.sh $<TARGET_FILE_DIR:bench>)
-add_custom_command(TARGET bench POST_BUILD
+                       ${CMAKE_CURRENT_LIST_DIR}/test/unit_test_pilot_opt_parsing.sh $<TARGET_FILE_DIR:bench>
                    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-                       ${CMAKE_CURRENT_LIST_DIR}/test/unit_test_benchmark.sh $<TARGET_FILE_DIR:bench>)
-add_custom_command(TARGET bench POST_BUILD
+                       ${CMAKE_CURRENT_LIST_DIR}/test/unit_test_benchmark.sh $<TARGET_FILE_DIR:bench>
                    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-                       ${CMAKE_CURRENT_LIST_DIR}/test/mock_benchmark.sh $<TARGET_FILE_DIR:bench>)
-add_custom_command(TARGET bench POST_BUILD
+                       ${CMAKE_CURRENT_LIST_DIR}/test/mock_benchmark.sh $<TARGET_FILE_DIR:bench>
                    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-                       ${CMAKE_CURRENT_LIST_DIR}/test/mock_benchmark_with_work_amount.sh $<TARGET_FILE_DIR:bench>)
-add_custom_command(TARGET bench POST_BUILD
+                       ${CMAKE_CURRENT_LIST_DIR}/test/mock_benchmark_with_work_amount.sh $<TARGET_FILE_DIR:bench>
                    COMMAND ${CMAKE_COMMAND} -E copy_if_different
                        ${CMAKE_CURRENT_LIST_DIR}/test/unit_test_pilot_opt_parsing_expected_work_amount.log $<TARGET_FILE_DIR:bench>)
 
