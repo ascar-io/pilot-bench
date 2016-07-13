@@ -681,8 +681,8 @@ int pilot_export(const pilot_workload_t *wl, const char *dirname) {
         of.exceptions(ofstream::failbit | ofstream::badbit);
         of.open(filename.str().c_str());
         of << "piid,readings_num,readings_mean,readings_mean_formatted,"
-              "readings_var,readings_var_formatted,unit_readings_num,"
-              "unit_readings_mean,unit_readings_mean_formatted,"
+              "readings_var,readings_var_formatted,readings_subsession_ci,readings_subsession_ci_formatted,"
+              "unit_readings_num,unit_readings_mean,unit_readings_mean_formatted,"
               "unit_readings_var,unit_readings_var_formatted,"
               "unit_readings_subsession_var,unit_readings_subsession_var_formatted,"
               "unit_readings_ci_width,unit_readings_ci_width_formatted,"
@@ -693,9 +693,11 @@ int pilot_export(const pilot_workload_t *wl, const char *dirname) {
                 of << wl->analytical_result_.readings_mean[piid] << ","
                    << wl->analytical_result_.readings_mean_formatted[piid] << ","
                    << wl->analytical_result_.readings_var[piid] << ","
-                   << wl->analytical_result_.readings_var_formatted[piid] << ",";
+                   << wl->analytical_result_.readings_var_formatted[piid] << ","
+                   << wl->analytical_result_.readings_optimal_subsession_ci_width << ","
+                   << wl->analytical_result_.readings_optimal_subsession_ci_width_formatted << ",";
             } else {
-                of << ",,,,";
+                of << ",,,,,,";
             }
 
             of << wl->analytical_result_.unit_readings_num[piid] << ",";
