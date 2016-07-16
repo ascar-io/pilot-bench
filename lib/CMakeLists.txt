@@ -49,7 +49,11 @@ set (PILOT_LIBSRC libpilot.cc workload.cc
 # without PIC for static lib.
 #
 # python_binding.cc is only needed for the shared library.
-add_library (pilot_sharedlib SHARED ${PILOT_LIBSRC} python_binding.cc)
+if (WITH_PYTHON)
+  add_library (pilot_sharedlib SHARED ${PILOT_LIBSRC} python_binding.cc)
+else (WITH_PYTHON)
+  add_library (pilot_sharedlib SHARED ${PILOT_LIBSRC})
+endif (WITH_PYTHON)
 set_target_properties(pilot_sharedlib PROPERTIES OUTPUT_NAME pilot)
 set_target_properties(pilot_sharedlib PROPERTIES SOVERSION ${PILOT_VERSION_MAJOR})
 set_target_properties(pilot_sharedlib PROPERTIES VERSION
