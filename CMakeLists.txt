@@ -7,6 +7,11 @@ project (pilot)
 set (PILOT_VERSION_MAJOR 0)
 set (PILOT_VERSION_MINOR 1)
 
+###############################################################################
+## OPTIONS
+option (WITH_PYTHON "Build Python binding" OFF)
+
+###############################################################################
 # configure a header file to pass some of the CMake settings
 # to the source code
 configure_file (
@@ -93,13 +98,19 @@ if (BOOST_USE_STATIC)
 endif ()
 
 set (Boost_USE_MULTITHREADED      ON)
-find_package (Boost COMPONENTS filesystem log program_options system timer chrono thread REQUIRED)
+set (BOOST_COMPONENTS_NEEDED filesystem log program_options system timer chrono)
+if (WITH_PYTHON)
+  set (BOOST_COMPONENTS_NEEDED ${BOOST_COMPONENTS_NEEDED} python3)
+endif (WITH_PYTHON)
+
+find_package (Boost COMPONENTS ${BOOST_COMPONENTS_NEEDED} thread REQUIRED)
 if (Boost_FOUND)
     add_definitions ("-DHAS_BOOST")
     if (NOT Boost_USE_STATIC_LIBS)
 		add_definitions ("-DBOOST_ALL_DYN_LINK")
     endif ()
-    include_directories (${Boost_INCLUDE_DIRS})
+    # Make Boost headers SYSTEM so compiler ignores warnings in them
+    include_directories (SYSTEM ${Boost_INCLUDE_DIRS})
     link_directories (${Boost_LIBRARY_DIRS})
 endif ()
 

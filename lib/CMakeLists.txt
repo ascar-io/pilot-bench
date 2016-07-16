@@ -1,5 +1,9 @@
 find_package (Threads)
 
+if (WITH_PYTHON)
+  find_package (PythonLibs REQUIRED)
+endif (WITH_PYTHON)
+
 ###############################################################################
 ## Twitter BreakoutDetection LIBRARY
 
@@ -30,14 +34,22 @@ include_directories (${CMAKE_SOURCE_DIR}/include)
 include_directories (interface_include)
 include_directories (priv_include)
 include_directories (SYSTEM ${CDK_INCLUDE_DIR})
+if (WITH_PYTHON)
+  include_directories (SYSTEM ${PYTHON_INCLUDE_PATH})
+endif (WITH_PYTHON)
 
 # object library for libpilot
 set (PILOT_LIBSRC libpilot.cc workload.cc
              ${TWITTER_BREAKOUTDETECTION_INCLUDE_DIR}/src/edm-per.cpp
              ${TWITTER_BREAKOUTDETECTION_INCLUDE_DIR}/src/helper.cpp)
-# Object files need to be compiled twice. With PIC for shared lib, without PIC
-# for static lib.
-add_library (pilot_sharedlib SHARED ${PILOT_LIBSRC})
+
+# Everytime we call add_library with .cc files they are compiled once. We call
+# add_library twice, once for the shared lib here once for the static lib
+# below. Object files need to be compiled twice. With PIC for shared lib,
+# without PIC for static lib.
+#
+# python_binding.cc is only needed for the shared library.
+add_library (pilot_sharedlib SHARED ${PILOT_LIBSRC} python_binding.cc)
 set_target_properties(pilot_sharedlib PROPERTIES OUTPUT_NAME pilot)
 set_target_properties(pilot_sharedlib PROPERTIES SOVERSION ${PILOT_VERSION_MAJOR})
 set_target_properties(pilot_sharedlib PROPERTIES VERSION
@@ -45,6 +57,13 @@ set_target_properties(pilot_sharedlib PROPERTIES VERSION
 set_target_properties(pilot_sharedlib PROPERTIES MACOSX_RPATH true)
 target_link_libraries (pilot_sharedlib ${CDK_STATIC_LIBRARIES} ${Boost_LIBRARIES}
              ${CMAKE_THREAD_LIBS_INIT} ${CDK_LIBRARIES})
+if (WITH_PYTHON)
+  target_link_libraries (pilot_sharedlib ${PYTHON_LIBRARIES})
+  add_custom_target(create_python_module_symlink ALL
+                    COMMAND ${CMAKE_COMMAND} -E create_symlink
+                    $<TARGET_FILE_NAME:pilot_sharedlib> $<TARGET_FILE_DIR:pilot_sharedlib>/pilot_bench.so)
+endif (WITH_PYTHON)
+
 add_dependencies (pilot_sharedlib cdk twitter_breakoutdetection)
 
 # static library
@@ -62,6 +81,10 @@ file(GLOB COMMON_HEADER_FILES "${CMAKE_SOURCE_DIR}/include/*.h")
 install (FILES ${HEADER_FILES} DESTINATION include/pilot)
 install (FILES ${COMMON_HEADER_FILES} DESTINATION include/pilot)
 install (FILES ${CMAKE_CURRENT_BINARY_DIR}/../config.h DESTINATION include/pilot)
+if (WITH_PYTHON)
+  install (FILES $<TARGET_FILE_DIR:pilot_sharedlib>/pilot_bench.so
+           DESTINATION lib)
+endif(WITH_PYTHON)
 
 # needed by boost 1.59+
 add_definitions ("-std=gnu++11")
@@ -116,6 +139,10 @@ add_test (NAME unit_test_compare_results
           COMMAND unit_test_compare_results ${CMAKE_CURRENT_LIST_DIR}/test/unit_test_compare_results_input.csv)
 add_test (NAME unit_test_wps
           COMMAND unit_test_wps)
+if (WITH_PYTHON)
+  add_test (NAME unit_test_python_statistics
+            COMMAND bash -c "PYTHONPATH=$<TARGET_FILE_DIR:pilot_sharedlib> python ${CMAKE_CURRENT_LIST_DIR}/test/unit_test_python_statistics.py")
+endif(WITH_PYTHON)
 # Disabled this test because it is too long.
 # add_test (NAME unit_test_macros
 #		  COMMAND unit_test_macros)

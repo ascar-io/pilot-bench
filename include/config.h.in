@@ -1,3 +1,5 @@
 // the configured options and settings for Pilot
 #define PILOT_VERSION_MAJOR @PILOT_VERSION_MAJOR@
 #define PILOT_VERSION_MINOR @PILOT_VERSION_MINOR@
+
+#cmakedefine WITH_PYTHON
