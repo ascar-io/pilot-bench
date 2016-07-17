@@ -49,7 +49,7 @@ endif ()
 ## TEST RELATED
 
 find_program( MEMORYCHECK_COMMAND valgrind )
-set( MEMORYCHECK_COMMAND_OPTIONS "--trace-children=yes --leak-check=full" )
+set( MEMORYCHECK_COMMAND_OPTIONS "--trace-children=yes --leak-check=full --track-origins=yes" )
 include( CTest )
 
 include (ExternalProject)
