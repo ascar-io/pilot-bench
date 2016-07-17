@@ -146,6 +146,8 @@ add_test (NAME unit_test_wps
 if (WITH_PYTHON)
   add_test (NAME unit_test_python_statistics
             COMMAND bash -c "PYTHONPATH=$<TARGET_FILE_DIR:pilot_sharedlib> python ${CMAKE_CURRENT_LIST_DIR}/test/unit_test_python_statistics.py")
+  # We don't want to valgrind the python interpreter
+  list (APPEND CTEST_CUSTOM_MEMCHECK_IGNORE unit_test_python_statistics)
 endif(WITH_PYTHON)
 # Disabled this test because it is too long.
 # add_test (NAME unit_test_macros
