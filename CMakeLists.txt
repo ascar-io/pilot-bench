@@ -125,6 +125,12 @@ add_subdirectory (cli)
 # documentation
 add_subdirectory (doc)
 
+
+# This CTestCustom file is used to exclude tests, such as unit_test_python_statistics,
+# from memchecker. We have to do this because ctest_read_custom_files() doesn't work.
+configure_file (${PROJECT_SOURCE_DIR}/CTestCustom.cmake ${PROJECT_BINARY_DIR})
+
+
 install (FILES examples/README.md examples/benchmark_hash.cc
          DESTINATION share/pilot/examples)
 install (FILES examples/benchmark_dd/run_dd.sh
