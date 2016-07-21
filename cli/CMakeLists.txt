@@ -1,9 +1,10 @@
 set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake/modules")
 
 find_package (Readline REQUIRED)
-find_package (Lua REQUIRED)
 
 if (WITH_LUA)
+find_package (Lua REQUIRED)
+
 ###############################################################################
 ## luaprompt LIBRARY
 
