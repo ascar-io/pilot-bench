@@ -9,7 +9,8 @@ set (PILOT_VERSION_MINOR 1)
 
 ###############################################################################
 ## OPTIONS
-option (WITH_PYTHON "Build Python binding" OFF)
+option (WITH_LUA    "Build with Lua support" OFF)
+option (WITH_PYTHON "Build Python binding"   OFF)
 
 ###############################################################################
 # configure a header file to pass some of the CMake settings

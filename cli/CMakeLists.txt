@@ -3,6 +3,7 @@ set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake/modules")
 find_package (Readline REQUIRED)
 find_package (Lua REQUIRED)
 
+if (WITH_LUA)
 ###############################################################################
 ## luaprompt LIBRARY
 
@@ -30,21 +31,27 @@ add_custom_command(OUTPUT ${LUAPROMPT_SOURCE_DIR}/prompt.c
 add_library(libluaprompt ${LUAPROMPT_SOURCE_DIR}/prompt.c)
 set_target_properties (libluaprompt PROPERTIES COMPILE_FLAGS
                        "-DHAVE_LIBREADLINE -DHAVE_READLINE_HISTORY -DHAVE_IOCTL -D_GNU_SOURCE")
+include_directories (${LUA_INCLUDE_DIR})
+include_directories (${LUAPROMPT_INCLUDE_DIR})
+endif (WITH_LUA)
 
 include_directories (SYSTEM ${CMAKE_CURRENT_BINARY_DIR}/../gtest/src/gtest/include)
 include_directories (${CDK_INCLUDE_DIR})
-include_directories (${LUA_INCLUDE_DIR})
 include_directories (${CMAKE_SOURCE_DIR}/include)
 include_directories (${CMAKE_SOURCE_DIR}/lib/interface_include)
-include_directories (${LUAPROMPT_INCLUDE_DIR})
 
 add_executable (bench pilot.cc run_program.cc detect_changepoint_edm.cc)
-add_dependencies (bench cdk luaprompt)
+if (WITH_LUA)
+  add_dependencies (bench cdk luaprompt)
+endif (WITH_LUA)
 set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=gnu++11")
 
-target_link_libraries (bench pilot_staticlib libluaprompt ${CDK_STATIC_LIBRARIES}
+target_link_libraries (bench pilot_staticlib ${CDK_STATIC_LIBRARIES}
                        ${CDK_LIBRARIES} ${Boost_LIBRARIES} ${READLINE_LIBRARY}
                        ${LUA_LIBRARY} ${CMAKE_THREAD_LIBS_INIT})
+if (WITH_LUA)
+  target_link_libraries (bench libluaprompt)
+endif (WITH_LUA)
 
 # "pilot" is an optional alias for the "bench" command
 add_custom_command(TARGET bench POST_BUILD
@@ -72,8 +79,10 @@ set (PILOT_TESTS_LIBRARIES pilot_sharedlib ${Boost_LIBRARIES} ${GTEST_BINARY_DIR
 add_executable (unit_test_cli test/unit_test_cli.cc run_program.cc)
 target_link_libraries (unit_test_cli ${PILOT_TESTS_LIBRARIES})
 
-add_test (NAME unit_test_lua_prompt
-          COMMAND unit_test_lua_prompt.sh)
+if (WITH_LUA)
+  add_test (NAME unit_test_lua_prompt
+            COMMAND unit_test_lua_prompt.sh)
+endif (WITH_LUA)
 add_test (NAME unit_test_pilot_opt_parsing
           COMMAND unit_test_pilot_opt_parsing.sh)
 add_test (NAME unit_test_benchmark

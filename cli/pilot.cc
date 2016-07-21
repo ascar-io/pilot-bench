@@ -34,12 +34,14 @@
 #include <iostream>
 #include "pilot-cli.h"
 #include <string>
+#ifdef WITH_LUA
 extern "C" {
   #include <lua.h>
   #include <lauxlib.h>
   #include <lualib.h>
   #include <prompt.h>
 }
+#endif
 
 using namespace std;
 
@@ -58,12 +60,17 @@ int main(int argc, const char** argv) {
 
     // Parsing the command line arguments. First we check if a command is available.
     if (1 >= argc) {
+#ifdef WITH_LUA
         // entering Lua mode if no command
         cerr << GREETING_MSG << endl;
         lua_State *L = luaL_newstate();
         luaL_openlibs(L);               /* opens Lua basic library */
         luap_enter(L);
         return 0;
+#else
+        print_help_msg(argv[0]);
+        return 2;
+#endif
     }
     const string cmd(argv[1]);
     if ("--help" == cmd || "help" == cmd) {
