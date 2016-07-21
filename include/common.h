@@ -34,6 +34,10 @@
 #ifndef PILOT_TOOL_INCLUDE_COMMON_H_
 #define PILOT_TOOL_INCLUDE_COMMON_H_
 
+#ifdef __arm__
+  #pragma pack(4)
+#endif
+
 #include <boost/log/trivial.hpp>
 #include <boost/timer/timer.hpp>
 #include <iostream>

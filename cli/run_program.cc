@@ -59,7 +59,7 @@ using namespace boost::filesystem;
 using namespace std;
 using namespace pilot;
 
-static size_t         g_duration_col = UINT64_MAX; // column of the round duration
+static size_t         g_duration_col = (size_t)-1; // column of the round duration
 static int            g_num_of_pi = 0;
 static vector<int>    g_pi_col;          // column of each PI in client program's output
 static string         g_program_cmd;
@@ -349,7 +349,7 @@ int handle_run_program(int argc, const char** argv) {
                 pilot_set_required_confidence_interval(g_wl.get(), pi_ci_percent, -1);
             }
         } else {
-            if (UINT64_MAX != g_duration_col) {
+            if ((size_t)-1 != g_duration_col) {
                 info_log << "No PI information, will do WPS analysis only";
             } else {
                 throw runtime_error("Error: no PI or duration column set, exiting...");
@@ -361,7 +361,7 @@ int handle_run_program(int argc, const char** argv) {
     }
 
     if (vm.count("wps")) {
-        if (UINT64_MAX == g_duration_col) {
+        if ((size_t)-1 == g_duration_col) {
             cerr << "Duration column must be set for WPS analysis";
             return 2;
         }
@@ -371,7 +371,7 @@ int handle_run_program(int argc, const char** argv) {
         }
         pilot_set_wps_analysis(g_wl.get(), NULL, true, true);
         info_log << "WPS analysis enabled";
-    } else if (UINT64_MAX != g_duration_col && vm.count("work-amount")) {
+    } else if ((size_t)-1 != g_duration_col && vm.count("work-amount")) {
         pilot_set_wps_analysis(g_wl.get(), NULL, true, false);
     } else {
         pilot_set_wps_analysis(g_wl.get(), NULL, false, false);

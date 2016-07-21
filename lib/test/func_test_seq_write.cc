@@ -226,7 +226,7 @@ int main(int argc, char **argv) {
             ("edm,e", "use the EDM method for warm-up detection (default)")
             ("fsync,f", "call fsync() after each I/O request")
             ("io-size,s", po::value<size_t>(), "the size of I/O operations (default to 1 MB)")
-            ("length-limit,l", po::value<size_t>(), "the max. length of the workload in bytes (default to 2048*1024*1024); "
+            ("length-limit,l", po::value<size_t>(), "the max. length of the workload in bytes (default to 1024*1024*1024); "
                     "the workload will not write beyond this limit")
             ("min-round-duration", po::value<size_t>(), "the min. acceptable length of a round (in seconds, default to 1 second)")
             ("init-length,i", po::value<size_t>(), "the initial length of workload in bytes (default to 1/10 of limitsize); "
@@ -280,7 +280,7 @@ int main(int argc, char **argv) {
         g_fsync = true;
     }
 
-    size_t io_limit = 2048*1024*1024L;
+    size_t io_limit = 1024 * 1024 * 1024L;
     if (vm.count("output")) {
         g_output_file_name = vm["output"].as<string>();
         if (!g_quiet_mode) {
