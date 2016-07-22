@@ -539,31 +539,6 @@ int pilot_wps_warmup_removal_lr_method_p(size_t rounds, const size_t *round_work
         size_t *subsession_sample_size = NULL);
 
 /**
- * \brief Calculate the mean and confidence interval of WPS with warm-up
- * removal using the deprecated dw method (you should use the linear
- * regression method instead)
- * \details This function is useful for test cases that cannot provide unit
- * reading. Note that we encourage using CI instead of just a mean because
- * you should not guarantee that the CI is symmetrical. If you really just
- * need one number as a mean, you can use (ci_right - ci_left)/2 + ci_left
- * as the mean if the CI is not too wide.
- * @param rounds total number of rounds
- * @param[in] round_work_amounts the work amounts of each round
- * @param[in] round_durations the duration of each round
- * @param confidence_level the desired confidence level (usually 0.95)
- * @param autocorrelation_coefficient_limit the limit for autocorrelation
- * coefficient (usually 0.1)
- * @param[out] v the calculated performance
- * @param[out] ci_width the calculated width of the confidence interval
- * @return 0 on success; ERR_NOT_ENOUGH_DATA when there is not enough sample
- * for calculate v; ERR_NOT_ENOUGH_DATA_FOR_CI when there is enough data for
- * calculating v but not enough for calculating confidence interval.
- */
-int pilot_wps_warmup_removal_dw_method_p(size_t rounds, const size_t *round_work_amounts,
-        const nanosecond_type *round_durations, float confidence_level,
-        float autocorrelation_coefficient_limit, double *v, double *ci_width);
-
-/**
  * \brief Basic and statistics information of a workload round
  */
 #pragma pack(push, 1)
@@ -663,8 +638,6 @@ struct pilot_analytical_result_t {
     double wps_err_percent;
     double wps_v_ci;                   //! the width of the confidence interval of v
     double wps_v_ci_formatted;
-    double wps_v_dw_method;            //! readings after warm-up removal using the deprecated dw_method
-    double wps_v_ci_dw_method;         //! the width of confidence interval using the deprecated dw_method
 
 #ifdef __cplusplus
     inline void _free_all_field();

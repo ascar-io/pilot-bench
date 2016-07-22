@@ -212,13 +212,7 @@ static ssize_t _calc_required_num_of_readings(const pilot_workload_t *wl,
         return -1;
     }
 
-    double ci_width;
-    if (wl->required_ci_percent_of_mean_ > 0) {
-        double sm = pilot_subsession_mean(data, n, mean_method);
-        ci_width = sm * wl->required_ci_percent_of_mean_;
-    } else {
-        ci_width = wl->required_ci_absolute_value_;
-    }
+    double ci_width = wl->get_required_ci(pilot_subsession_mean(data, n, mean_method));
 
     size_t opt_sample_size;
     if (!pilot_optimal_sample_size(data, n, ci_width, mean_method, q, &opt_sample_size)) {
@@ -460,7 +454,7 @@ char* pilot_workload_t::text_workload_summary(void) const {
             s << prefix << "no data" << endl;
         } else {
             s << prefix << "sample size: " << cur_ur << endl;
-            s << prefix << "sample mean: " << analytical_result_.unit_readings_mean_formatted[piid] << " " << pi_info_[piid].unit << endl;
+            s << prefix << "sample mean: " << smf << " " << pi_info_[piid].unit << endl;
             double var_rt = var / sm;
             s << prefix << "sample variance: " << analytical_result_.unit_readings_var_formatted[piid] << " " << pi_info_[piid].unit << endl;
             s << prefix << "sample variance to sample mean ratio: " << var_rt * 100 << "%" << endl;
@@ -478,7 +472,7 @@ char* pilot_workload_t::text_workload_summary(void) const {
                 if (cur_ur / q < min_sample_size_) {
                     s << prefix << "sample size is smaller than the sample size threshold (" << min_sample_size_ << ")" << endl;
                 } else if (cur_ur < min_ur) {
-                    s << prefix << "sample size is not yet large enough to achieve a confidence interval width of " << required_ci_percent_of_mean_ << " * sample_mean." << endl;
+                    s << prefix << "sample size is not yet large enough to achieve the desired width of confidence interval " << get_required_ci(sm) << endl;
                 }
             }
             double ci = analytical_result_.unit_readings_optimal_subsession_ci_width_formatted[piid];
@@ -502,14 +496,6 @@ char* pilot_workload_t::text_workload_summary(void) const {
         s << "WPS err: " << analytical_result_.wps_err << " (" << analytical_result_.wps_err_percent << "%)" << endl;
     } else {
         s << "Not enough data for WPS analysis" << endl;
-    }
-
-    /* wi_.wps_v_dw_method = -1 if not enough data */
-    if (analytical_result_.wps_v_dw_method > 0 && analytical_result_.wps_v_ci_dw_method > 0) {
-        s << "warm-up removed v (dw mtd): " << analytical_result_.wps_v_dw_method << endl;
-        s << "v CI width (dw mth): " << analytical_result_.wps_v_ci_dw_method << endl;
-    } else {
-        s << "Not enough data for dw method analysis" << endl;
     }
 
     size_t len = s.str().size() + 1;
@@ -559,15 +545,7 @@ void pilot_workload_t::refresh_wps_analysis_results(void) const {
     }
     analytical_result_.wps_naive_v_err_percent = sqrt(analytical_result_.wps_naive_v_err) / sum_of_round_durations;
 
-    // the obsoleted dw method
-    pilot_wps_warmup_removal_dw_method(round_work_amounts_.size(),
-            round_work_amounts_.begin(),
-            round_durations_.begin(), confidence_interval_,
-            autocorrelation_coefficient_limit_,
-            &analytical_result_.wps_v_dw_method,
-            &analytical_result_.wps_v_ci_dw_method);
-
-    // the linear regression method
+    // the WPS linear regression method
     nanosecond_type duration_threshold;
     int r = 0;
     do {

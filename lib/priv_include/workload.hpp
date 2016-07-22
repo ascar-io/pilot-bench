@@ -122,6 +122,9 @@ enum pilot_workload_status_t {
 };
 
 struct pilot_workload_t {
+private:
+    double required_ci_percent_of_mean_;
+    double required_ci_absolute_value_;
 public:  // FIXME: most of the following members should be private and controlled
          // by getters and setters
     // Essential workload information
@@ -141,11 +144,8 @@ public:  // FIXME: most of the following members should be private and controlle
     bool wps_must_satisfy_;                          //! if the result of WPS analysis must satisfy
     size_t min_sample_size_;                         //! the lower threshold of sample size. Do not change it directly, use set_min_sample_size().
 
-    double confidence_interval_;
     double confidence_level_;
     double autocorrelation_coefficient_limit_;
-    double required_ci_percent_of_mean_;
-    double required_ci_absolute_value_;
     size_t session_desired_duration_in_sec_;
     size_t session_duration_limit_in_sec_;
     size_t round_work_amount_to_avg_amount_limit_;    //! The upper limit of next_round_work_amount/average_round_work_amount
@@ -196,15 +196,15 @@ public:  // FIXME: most of the following members should be private and controlle
     PilotTUI *tui_;
 
     pilot_workload_t(const char *wl_name) :
+                         required_ci_percent_of_mean_(0.1), required_ci_absolute_value_(-1),
                          status_(WL_NOT_RUNNING),
                          num_of_pi_(0), rounds_(0), init_work_amount_(0),
                          max_work_amount_(0), min_work_amount_(0),
                          adjusted_min_work_amount_(-1),
                          workload_func_(nullptr), workload_data_(NULL),
                          wps_must_satisfy_(false), min_sample_size_(200),
-                         confidence_interval_(0.05), confidence_level_(.95),
+                         confidence_level_(.95),
                          autocorrelation_coefficient_limit_(0.1),
-                         required_ci_percent_of_mean_(0.1), required_ci_absolute_value_(-1),
                          session_desired_duration_in_sec_(60),
                          session_duration_limit_in_sec_(0),
                          round_work_amount_to_avg_amount_limit_(5),
@@ -405,6 +405,36 @@ public:  // FIXME: most of the following members should be private and controlle
      * @return
      */
     size_t get_round_work_amount_soft_limit(void) const;
+
+    inline void set_required_ci_percent_of_mean(double percent_of_mean) {
+        required_ci_percent_of_mean_ = percent_of_mean;
+    }
+
+    inline void set_required_ci_absolute_value(double absolute_value) {
+        required_ci_absolute_value_ = absolute_value;
+    }
+
+    /**
+     * Get the desired width of CI, taking both CI_perc and CI absolute value into account
+     * @param the mean
+     * @return the desired width of CI
+     */
+    inline double get_required_ci(double mean) const {
+        refresh_analytical_result();
+        double result = std::numeric_limits<double>::infinity();
+
+        if (required_ci_percent_of_mean_ < 0 && required_ci_absolute_value_ < 0) {
+            fatal_log << "Fatal: neither required CI (percent of mean) or required CI (absolute value) is set.";
+            abort();
+        }
+        if (required_ci_percent_of_mean_ > 0) {
+            result = required_ci_percent_of_mean_ * mean;
+        }
+        if (required_ci_absolute_value_ > 0) {
+            result = std::min(result, required_ci_absolute_value_);
+        }
+        return result;
+    }
 };
 
 struct pilot_pi_unit_readings_iter_t {

@@ -595,7 +595,7 @@ int pilot_export(const pilot_workload_t *wl, const char *dirname) {
         filename << dirname << "/" << "wps_analysis.csv";
         of.exceptions(ofstream::failbit | ofstream::badbit);
         of.open(filename.str().c_str());
-        of << "wps_naive_v,wps_naive_v_formatted,wps_naive_v_err,wps_naive_v_err_percent,wps_alpha,wps_alpha_formatted,wps_v,wps_v_formatted,wps_v_ci,wps_v_ci_formatted,wps_err,wps_err_percent,wps_v_dw_method,wps_v_ci_dw_method" << endl;
+        of << "wps_naive_v,wps_naive_v_formatted,wps_naive_v_err,wps_naive_v_err_percent,wps_alpha,wps_alpha_formatted,wps_v,wps_v_formatted,wps_v_ci,wps_v_ci_formatted,wps_err,wps_err_percent" << endl;
         of << wl->analytical_result_.wps_harmonic_mean << ","
            << wl->analytical_result_.wps_harmonic_mean_formatted << ","
            << wl->analytical_result_.wps_naive_v_err << ","
@@ -607,11 +607,9 @@ int pilot_export(const pilot_workload_t *wl, const char *dirname) {
                << wl->analytical_result_.wps_v_ci << ","
                << wl->analytical_result_.wps_v_ci_formatted << ","
                << wl->analytical_result_.wps_err << ","
-               << wl->analytical_result_.wps_err_percent << ","
-               << wl->analytical_result_.wps_v_dw_method << ","
-               << wl->analytical_result_.wps_v_ci_dw_method << endl;
+               << wl->analytical_result_.wps_err_percent << endl;
         } else {
-            of << ",,,,,,,,,," << endl;
+            of << ",,,,,,,," << endl;
         }
         of.close();
 
@@ -883,16 +881,12 @@ void pilot_analytical_result_t::_copyfrom(const pilot_analytical_result_t &a) {
         COPY_FIELD(wps_err);
         COPY_FIELD(wps_err_percent);
     }
-    COPY_FIELD(wps_v_dw_method);
-    COPY_FIELD(wps_v_ci_dw_method);
     COPY_FIELD(session_duration);
 #undef COPY_FIELD
 }
 
 pilot_analytical_result_t::pilot_analytical_result_t() {
     memset(this, 0, sizeof(*this));
-    wps_v_dw_method = -1;
-    wps_v_ci_dw_method = -1;
 }
 
 pilot_analytical_result_t::pilot_analytical_result_t(const pilot_analytical_result_t &a) {
@@ -1175,15 +1169,6 @@ int pilot_wps_warmup_removal_lr_method_p(size_t rounds, const size_t *round_work
                                               subsession_sample_size);
 }
 
-int pilot_wps_warmup_removal_dw_method_p(size_t rounds, const size_t *round_work_amounts,
-        const nanosecond_type *round_durations, float confidence_level,
-        float autocorrelation_coefficient_limit, double *v, double *ci_width) {
-    return pilot_wps_warmup_removal_dw_method(rounds, round_work_amounts,
-                                              round_durations, confidence_level,
-                                              autocorrelation_coefficient_limit,
-                                              v, ci_width);
-}
-
 int pilot_warm_up_removal_detect(const pilot_workload_t *wl,
                                  const double *data,
                                  size_t n,
@@ -1382,8 +1367,8 @@ void pilot_set_short_round_detection_threshold(pilot_workload_t *wl, size_t thre
 
 void pilot_set_required_confidence_interval(pilot_workload_t *wl, double percent_of_mean, double absolute_value) {
     ASSERT_VALID_POINTER(wl);
-    wl->required_ci_percent_of_mean_ = percent_of_mean;
-    wl->required_ci_absolute_value_ = absolute_value;
+    wl->set_required_ci_percent_of_mean(percent_of_mean);
+    wl->set_required_ci_absolute_value(absolute_value);
 }
 
 bool calc_next_round_work_amount_meet_lower_bound(const pilot_workload_t *wl, size_t *needed_work_amount) {
@@ -1605,7 +1590,7 @@ bool calc_next_round_work_amount_from_wps(const pilot_workload_t *wl, size_t *ne
             const size_t kWPSSubsessionSampleSizeThreshold = 20;
             if (wl->analytical_result_.wps_subsession_sample_size > kWPSSubsessionSampleSizeThreshold) {
                 if (wl->analytical_result_.wps_v > 0 && wl->analytical_result_.wps_v_ci > 0 &&
-                    wl->analytical_result_.wps_v_ci < wl->required_ci_percent_of_mean_ * wl->analytical_result_.wps_v) {
+                    wl->analytical_result_.wps_v_ci < wl->get_required_ci(wl->analytical_result_.wps_v)) {
                     info_log << "WPS confidence interval small enough";
                     return false;
                 } else {

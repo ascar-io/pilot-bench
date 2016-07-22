@@ -436,14 +436,6 @@ private:
                 draw_buf_ << "Not enough data for WPS analysis";
                 flush_buf_new_line();
             }
-            /* wi_.wps_v_dw_method = -1 if not enough data */
-            if (wi_.wps_v_dw_method > 0 && wi_.wps_v_ci_dw_method > 0) {
-                draw_data_line("warm-up removed v (dw mtd): ", format_wps_(NULL, wi_.wps_v_dw_method), "");
-                draw_data_line("v CI width (dw mtd): ", format_wps_(NULL, wi_.wps_v_ci_dw_method), "");
-            } else {
-                draw_buf_ << "Not enough data for dw method analysis";
-                flush_buf_new_line();
-            }
 
             // if this refresh cycle has fewer lines than previous cycle,
             // we need to clear the rest of the lines from previous cycle

@@ -165,19 +165,20 @@ int workload_func(const pilot_workload_t *wl,
 int handle_run_program(int argc, const char** argv) {
     po::options_description desc("Usage: " + string(argv[0]) + " [options] -- program_path [program_options]", 120, 120);
     desc.add_options()
-            ("duration-col,d", po::value<size_t>(), "set the column (0-based) of the round duration in seconds. Pilot can use this information for WPS analysis.")
-            ("help", "help message for run_command")
+            ("duration-col,d", po::value<size_t>(), "Set the column (0-based) of the round duration in seconds. Pilot can use this information for WPS analysis.")
+            ("help", "Print help message for run_command.")
+            ("ci,c", po::value<double>(), "The required width of confidence interval (absolute value). Setting it to -1 to disable CI (absolute value) check.")
+            ("ci-perc", po::value<double>(), "The required width of confidence interval (as the percentage of mean). Setting it to -1 disables CI (percent of mean) check. If both ci and ci-perc are set, the narrower one will be used. See preset below for the default value.")
             ("min-sample-size,m", po::value<size_t>(), "the required minimum subsession sample size (default to 30, also see Preset Modes below)")
             ("tui", "enable the text user interface")
             ("pi,p", po::value<string>(), "PI(s) to read from stdout of the program, which is expected to be csv\n"
-                    "Format:     \tname,unit,column,type,ci_percent:...\n"
+                    "Format:     \tname,unit,column,type,must_satisfy:...\n"
                     "name:       \tname of the PI, can be empty\n"
                     "unit:       \tunit of the PI, can be empty (the name and unit are used only for display purpose)\n"
                     "column:     \tthe column of the PI in the csv output of the client program (0-based)\n"
                     "type:       \t0 - ordinary value (like time, bytes, etc.), 1 - ratio (like throughput, speed). "
                     "Setting the correct type ensures Pilot uses the correct mean calculation method.\n"
-                    "ci_percent: \tthe desired width of CI as the percent of mean. You can leave it empty, and Pilot "
-                    "will still collect and do analysis, but won't take this PI as a stop requirement (default to 0.05).\n"
+                    "must_satisfy: \t1 - if this PI's CI must satisfy the requirement of CI width; 0 (or missing) - record data only, no need to satisfy\n"
                     "more than one PI's information can be separated by colon (:)")
             ("preset", po::value<string>(), "preset modes control the statistical requirements for the results to be satisfactory\n"
                     "quick:      \t(default) autocorrelation limit: 0.8,\n"
@@ -186,7 +187,7 @@ int handle_run_program(int argc, const char** argv) {
                     "            \tworkload round duration threshold: 3 seconds\n"
                     "normal:     \tautocorrelation limit: 0.2,\n"
                     "            \tconfidence interval: 10% of mean,\n"
-                    "            \tmin. subsession sample size: 5,\n"
+                    "            \tmin. subsession sample size: 50,\n"
                     "            \tworkload round duration threshold: 10 seconds\n"
                     "strict:     \tautocorrelation limit: 0.1,\n"
                     "            \tconfidence interval: 10% of mean,\n"
@@ -310,7 +311,7 @@ int handle_run_program(int argc, const char** argv) {
             debug_log << "Total number of PIs: " << g_num_of_pi;
             pilot_set_num_of_pi(g_wl.get(), g_num_of_pi);
 
-            double pi_ci_percent = 0;
+            int num_of_PIs_must_satisfy = 0;
             for (auto &pistr : pi_info_strs) {
                 vector<string> pidata;
                 boost::split(pidata, pistr, boost::is_any_of(","));
@@ -328,8 +329,9 @@ int handle_run_program(int argc, const char** argv) {
 
                 bool reading_must_satisfy = false;
                 if (pidata.size() > 4) {
-                    reading_must_satisfy = true;
-                    pi_ci_percent = lexical_cast<double>(pidata[4]);
+                    reading_must_satisfy = lexical_cast<bool>(pidata[4]);
+                    if (reading_must_satisfy)
+                        ++num_of_PIs_must_satisfy;
                 }
                 debug_log << "PI[" << g_pi_col.size() - 1 << "] name: " << pi_name << ", "
                           << "unit: " << pi_unit << ", "
@@ -343,10 +345,8 @@ int handle_run_program(int argc, const char** argv) {
                                   false,                          /* unit readings no need to satisfy */
                                   pi_mean_method);
             }
-            if (0 == pi_ci_percent) {
-                throw runtime_error("Please provide at least one reading's CI requirement");
-            } else {
-                pilot_set_required_confidence_interval(g_wl.get(), pi_ci_percent, -1);
+            if (0 == num_of_PIs_must_satisfy) {
+                throw runtime_error("Error: at least one PI needs to have must_satisfy set.");
             }
         } else {
             if ((size_t)-1 != g_duration_col) {
@@ -383,28 +383,48 @@ int handle_run_program(int argc, const char** argv) {
         preset_mode = vm["preset"].as<string>();
     }
     {
-        double ac;  // autocorrelation coefficient threshold
-        double ci;  // CI
-        size_t ms;  // min. subsession sample size
-        size_t sr;  // short round threshold
+        double ac;       // autocorrelation coefficient threshold
+        double ci = -1;  // CI as absolute value
+        double ci_perc;  // CI as percent of mean
+        size_t ms;       // min. subsession sample size
+        size_t sr;       // short round threshold
         string msg = "Preset mode activated: ";
         if ("quick" == preset_mode) {
             msg += "quick";
-            ac = 0.8; ci = 0.2; ms = 30; sr = 3;
+            ac = 0.8; ci_perc = 0.2; ms = 30; sr = 3;
         } else if ("normal" == preset_mode) {
             msg += "normal";
-            ac = 0.2; ci = 0.1; ms = 50; sr = 10;
+            ac = 0.2; ci_perc = 0.1; ms = 50; sr = 10;
         } else if ("strict" == preset_mode) {
             msg += "strict";
-            ac = 0.1; ci = 0.1; ms = 200; sr = 20;
+            ac = 0.1; ci_perc = 0.1; ms = 200; sr = 20;
         } else {
             cerr << str(format("Unknown preset mode \"%1%\", exiting...") % preset_mode);
             return 2;
         }
+        info_log << msg;
+
+        // read individual values that may override our preset
+        if (vm.count("ci-perc")) {
+            ci_perc = vm["ci-perc"].as<double>();
+        }
+        if (vm.count("ci")) {
+            ci = vm["ci"].as<double>();
+        }
+        if (ci < 0 && ci_perc < 0) {
+            fatal_log << "Error: CI (percent of mean) and CI (absolute value) cannot be both disabled. At least one must be set.";
+            return 2;
+        }
+
         pilot_set_autocorrelation_coefficient(g_wl.get(), ac);
         info_log << "Setting the limit of autocorrelation coefficient to " << ac;
-        pilot_set_required_confidence_interval(g_wl.get(), ci, -1);
-        info_log << str(format("Setting the required width of confidence interval to %1%%% of mean") % (ac * 100));
+        pilot_set_required_confidence_interval(g_wl.get(), ci_perc, ci);
+        if (ci_perc > 0) {
+            info_log << str(format("Setting the required width of confidence interval to %1%%% of mean") % (ci_perc * 100));
+        }
+        if (ci > 0) {
+            info_log << str(format("Setting the required width of confidence interval to %1%") % ci);
+        }
 
         if (vm.count("min-sample-size")) {
             ms = vm["min-sample-size"].as<size_t>();
@@ -415,7 +435,7 @@ int handle_run_program(int argc, const char** argv) {
         pilot_set_min_sample_size(g_wl.get(), ms);
 
         pilot_set_short_round_detection_threshold(g_wl.get(), sr);
-        info_log << "Setting the short round threshold to " << sr;
+        info_log << "Setting the short round threshold to " << sr << " second(s)";
     }
     int wl_res;
     if (use_tui)

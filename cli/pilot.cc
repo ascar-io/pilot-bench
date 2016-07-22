@@ -48,7 +48,9 @@ using namespace std;
 void print_help_msg(const char* argv0) {
     cerr << GREETING_MSG << endl;
     cerr << "Usage: " << argv0 << " [command]" << endl;
+#ifdef WITH_LUA
     cerr << "Pilot enters Lua mode if no command is given." << endl;
+#endif
     cerr << "Available commands:" << endl;
     cerr << "  run_program             run a benchmark program" << endl;
     cerr << "  detect_changepoint_edm  use EDM method to detect changepoints from an input file" << endl;
