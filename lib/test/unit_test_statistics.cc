@@ -89,6 +89,8 @@ TEST(StatisticsUnitTest, HarmonicMean) {
     ASSERT_DOUBLE_EQ(1.6568334130160711, hm);
 }
 
+// There are more WPS linear regression test cases in unit_test_readings_warmup_removal.cc
+
 TEST(StatisticsUnitTest, OrdinaryLeastSquareLinearRegression1) {
     const double exp_alpha = 42;
     const double exp_v = 0.5;       // 0.5 work amount per second
