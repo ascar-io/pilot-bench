@@ -5,7 +5,7 @@ project (pilot)
 ## VERSION
 
 set (PILOT_VERSION_MAJOR 0)
-set (PILOT_VERSION_MINOR 1)
+set (PILOT_VERSION_MINOR 3)
 
 ###############################################################################
 ## OPTIONS
@@ -142,8 +142,11 @@ install (PROGRAMS examples/make.sh
          DESTINATION share/pilot/examples)
 
 set (CPACK_PACKAGE_NAME pilot-bench)
+set (CPACK_PACKAGE_VERSION ${PILOT_VERSION_MAJOR}.${PILOT_VERSION_MINOR})
 set (CPACK_PACKAGE_VENDOR "Project ASCAR")
 set (CPACK_PACKAGE_CONTACT "yanli@ascar.io")
+set (CPACK_PACKAGE_DESCRIPTION_SUMMARY "Pilot is a tool and a library (libpilot) that help you run benchmarks to get scientifically accurate and meaningful results fast.")
+
 set (CPACK_RPM_POST_INSTALL_SCRIPT_FILE "${CMAKE_SOURCE_DIR}/packaging/post-install.sh")
 set (CPACK_RPM_POST_UNINSTALL_SCRIPT_FILE "${CMAKE_SOURCE_DIR}/packaging/post-install.sh")
 set (CPACK_RPM_PACKAGE_SUMMARY "Pilot Benchmark Framework")
@@ -152,6 +155,9 @@ set (CPACK_RPM_PACKAGE_RELEASE 1.el7)
 set (CPACK_RPM_PACKAGE_GROUP "Development")
 set (CPACK_RPM_PACKAGE_VENDOR "Project ASCAR")
 set (CPACK_RPM_PACKAGE_URL "https://ascar.io/pilot")
-set (CPACK_RPM_PACKAGE_DESCRIPTION "Pilot is a tool and a library (libpilot) that help you run benchmarks to get scientifically accurate and meaningful results fast.")
+set (CPACK_RPM_PACKAGE_DESCRIPTION ${CPACK_PACKAGE_DESCRIPTION_SUMMARY})
 set (CPACK_RPM_CHANGELOG_FILE "${CMAKE_SOURCE_DIR}/packaging/rpm_changelog.txt")
+
+set (CPACK_DEBIAN_PACKAGE_DEPENDS "libc6 (>= 2.3.1-6), libgcc1 (>= 1:3.4.2-12)")
+
 include (CPack)
