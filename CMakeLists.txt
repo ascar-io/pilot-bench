@@ -136,6 +136,8 @@ install (FILES examples/README.md examples/benchmark_hash.cc
          DESTINATION share/pilot/examples)
 install (FILES examples/benchmark_dd/run_dd.sh
          DESTINATION share/pilot/examples/benchmark_dd)
+install (FILES examples/benchmark_dd_no_wps/run_dd_extract_tp.sh
+         DESTINATION share/pilot/examples/benchmark_dd_no_wps)
 install (PROGRAMS examples/make.sh
          DESTINATION share/pilot/examples)
 
