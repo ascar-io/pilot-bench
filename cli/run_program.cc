@@ -64,7 +64,7 @@ static int            g_num_of_pi = 0;
 static vector<int>    g_pi_col;          // column of each PI in client program's output
 static string         g_program_cmd;
 static string         g_program_name;
-static string         g_result_dir;
+static string         g_output_dir;
 static string         g_round_results_dir;
 static bool           g_quiet = false;
 static bool           g_verbose = false;
@@ -171,6 +171,7 @@ int handle_run_program(int argc, const char** argv) {
             ("ci-perc", po::value<double>(), "The required width of confidence interval (as the percentage of mean). Setting it to -1 disables CI (percent of mean) check. If both ci and ci-perc are set, the narrower one will be used. See preset below for the default value.")
             ("min-sample-size,m", po::value<size_t>(), "the required minimum subsession sample size (default to 30, also see Preset Modes below)")
             ("tui", "enable the text user interface")
+            ("output-dir,o", po::value<string>(), "set output directory name to arg")
             ("pi,p", po::value<string>(), "PI(s) to read from stdout of the program, which is expected to be csv\n"
                     "Format:     \tname,unit,column,type,must_satisfy:...\n"
                     "name:       \tname of the PI, can be empty\n"
@@ -194,7 +195,6 @@ int handle_run_program(int argc, const char** argv) {
                     "            \tmin. subsession sample size: 200,\n"
                     "            \tworkload round duration threshold: 20 seconds")
             ("quiet,q", "quiet mode")
-            ("result-dir,r", po::value<string>(), "set result directory name")
             ("verbose,v", "print debug information")
             ("work-amount,w", po::value<string>(), "set the valid range of work amount [min,max]")
             ("wps", "WPS must satisfy")
@@ -246,13 +246,13 @@ int handle_run_program(int argc, const char** argv) {
     if (vm.count("tui"))
         use_tui = true;
 
-    if (vm.count("result-dir")) {
-        g_result_dir = vm["result-dir"].as<string>();
+    if (vm.count("output-dir")) {
+        g_output_dir = vm["output-dir"].as<string>();
     } else {
-        g_result_dir = "pilot_result_" + get_timestamp();
+        g_output_dir = "pilot_result_" + get_timestamp();
     }
-    info_log << "Saving results to directory " << g_result_dir;
-    g_round_results_dir = g_result_dir + "/round_results";
+    info_log << "Saving results to directory " << g_output_dir;
+    g_round_results_dir = g_output_dir + "/round_results";
     create_directories(g_round_results_dir);
 
     // parse program_cmd
@@ -479,12 +479,12 @@ int handle_run_program(int argc, const char** argv) {
         cout << endl;
     }
 
-    int res = pilot_export(g_wl.get(), g_result_dir.c_str());
+    int res = pilot_export(g_wl.get(), g_output_dir.c_str());
     if (res != 0) {
         cout << pilot_strerror(res) << endl;
         return res;
     }
-    info_log << "Results saved in " << g_result_dir;
+    info_log << "Results saved in " << g_output_dir;
 
     return wl_res;
 }
