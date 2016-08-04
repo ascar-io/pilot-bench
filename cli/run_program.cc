@@ -449,34 +449,35 @@ int handle_run_program(int argc, const char** argv) {
         if (!g_quiet) {
             shared_ptr<char> psummary(pilot_text_workload_summary(g_wl.get()), pilot_free_text_dump);
             cout << psummary;
-        }
-    }
-    shared_ptr<pilot_analytical_result_t> r(pilot_analytical_result(g_wl.get(), NULL), pilot_free_analytical_result);
-
-    // print summary header
-    cout << "piid,readings_mean_formatted,readings_optimal_subsession_ci_width_formatted,readings_optimal_subsession_variance_formatted,"
-            "readings_dominant_segment_begin,readings_raw_mean_formatted,readings_raw_optimal_subsession_ci_width_formatted,"
-            "readings_raw_optimal_subsession_variance_formatted,session_duration" << endl;
-    // print summary data
-    for (size_t piid = 0; piid < r->num_of_pi; ++piid) {
-        // format: piid,mean,ci,var,ds_begin,raw_mean,raw_ci,raw_var,...
-        cout << format("%1%,") % piid;
-        if (0 != r->readings_num) {
-            cout << format("%1%,%2%,%3%,%4%,%5%,%6%,%7%")
-                            % r->readings_mean_formatted[piid]
-                            % r->readings_optimal_subsession_ci_width_formatted[piid]
-                            % r->readings_optimal_subsession_var_formatted[piid]
-                            % r->readings_dominant_segment_begin[piid]
-                            % r->readings_raw_mean_formatted[piid]
-                            % r->readings_raw_optimal_subsession_ci_width_formatted[piid]
-                            % r->readings_raw_optimal_subsession_var_formatted[piid];
         } else {
-            cout << ",,,,,,";
-        }
-        if (0 == piid) {
-            cout << "," << r->session_duration;
-        }
-        cout << endl;
+            shared_ptr<pilot_analytical_result_t> r(pilot_analytical_result(g_wl.get(), NULL), pilot_free_analytical_result);
+
+            // print summary header
+            cout << "piid,readings_mean_formatted,readings_optimal_subsession_ci_width_formatted,readings_optimal_subsession_variance_formatted,"
+                    "readings_dominant_segment_begin,readings_raw_mean_formatted,readings_raw_optimal_subsession_ci_width_formatted,"
+                    "readings_raw_optimal_subsession_variance_formatted,session_duration" << endl;
+            // print summary data
+            for (size_t piid = 0; piid < r->num_of_pi; ++piid) {
+                // format: piid,mean,ci,var,ds_begin,raw_mean,raw_ci,raw_var,...
+                cout << format("%1%,") % piid;
+                if (0 != r->readings_num) {
+                    cout << format("%1%,%2%,%3%,%4%,%5%,%6%,%7%")
+                                    % r->readings_mean_formatted[piid]
+                                    % r->readings_optimal_subsession_ci_width_formatted[piid]
+                                    % r->readings_optimal_subsession_var_formatted[piid]
+                                    % r->readings_dominant_segment_begin[piid]
+                                    % r->readings_raw_mean_formatted[piid]
+                                    % r->readings_raw_optimal_subsession_ci_width_formatted[piid]
+                                    % r->readings_raw_optimal_subsession_var_formatted[piid];
+                } else {
+                    cout << ",,,,,,";
+                }
+                if (0 == piid) {
+                    cout << "," << r->session_duration;
+                }
+                cout << endl;
+            }
+        } /* if in quiet output mode */
     }
 
     int res = pilot_export(g_wl.get(), g_output_dir.c_str());
