@@ -165,13 +165,13 @@ int workload_func(const pilot_workload_t *wl,
 int handle_run_program(int argc, const char** argv) {
     po::options_description desc("Usage: " + string(argv[0]) + " [options] -- program_path [program_options]", 120, 120);
     desc.add_options()
-            ("duration-col,d", po::value<size_t>(), "Set the column (0-based) of the round duration in seconds. Pilot can use this information for WPS analysis.")
+            ("duration-col,d", po::value<size_t>(), "Set the column (0-based) of the round duration in seconds for WPS analysis.")
             ("help", "Print help message for run_command.")
             ("ci,c", po::value<double>(), "The required width of confidence interval (absolute value). Setting it to -1 to disable CI (absolute value) check.")
             ("ci-perc", po::value<double>(), "The required width of confidence interval (as the percentage of mean). Setting it to -1 disables CI (percent of mean) check. If both ci and ci-perc are set, the narrower one will be used. See preset below for the default value.")
-            ("min-sample-size,m", po::value<size_t>(), "the required minimum subsession sample size (default to 30, also see Preset Modes below)")
-            ("tui", "enable the text user interface")
-            ("output-dir,o", po::value<string>(), "set output directory name to arg")
+            ("min-sample-size,m", po::value<size_t>(), "The required minimum subsession sample size (default to 30, also see Preset Modes below)")
+            ("tui", "Enable the text user interface")
+            ("output-dir,o", po::value<string>(), "Set output directory name to arg")
             ("pi,p", po::value<string>(), "PI(s) to read from stdout of the program, which is expected to be csv\n"
                     "Format:     \tname,unit,column,type,must_satisfy:...\n"
                     "name:       \tname of the PI, can be empty\n"
@@ -194,9 +194,9 @@ int handle_run_program(int argc, const char** argv) {
                     "            \tconfidence interval: 10% of mean,\n"
                     "            \tmin. subsession sample size: 200,\n"
                     "            \tworkload round duration threshold: 20 seconds")
-            ("quiet,q", "quiet mode")
-            ("verbose,v", "print debug information")
-            ("work-amount,w", po::value<string>(), "set the valid range of work amount [min,max]")
+            ("quiet,q", "Enable quiet mode")
+            ("verbose,v", "Print debug information")
+            ("work-amount,w", po::value<string>(), "Set the valid range of work amount [min,max]")
             ("wps", "WPS must satisfy")
             ;
     // copy options into args and find program_path_start_loc
@@ -434,8 +434,14 @@ int handle_run_program(int argc, const char** argv) {
         }
         pilot_set_min_sample_size(g_wl.get(), ms);
 
-        pilot_set_short_round_detection_threshold(g_wl.get(), sr);
-        info_log << "Setting the short round threshold to " << sr << " second(s)";
+        if (vm.count("work-amount")) {
+            pilot_set_short_round_detection_threshold(g_wl.get(), sr);
+            info_log << "Setting the short round threshold to " << sr << " second(s)";
+        } else {
+            pilot_set_short_round_detection_threshold(g_wl.get(), 0);
+            info_log << "Disabled short round detection because work amount information is not set.";
+        }
+
     }
     int wl_res;
     if (use_tui)
