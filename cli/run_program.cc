@@ -167,6 +167,7 @@ int handle_run_program(int argc, const char** argv) {
     desc.add_options()
             ("duration-col,d", po::value<size_t>(), "Set the column (0-based) of the round duration in seconds for WPS analysis.")
             ("help", "Print help message for run_command.")
+            ("ac,a", po::value<double>(), "Set the required range of autocorrelation coefficient. arg should be a value within (0, 1], and the range will be set to [-arg,arg]")
             ("ci,c", po::value<double>(), "The required width of confidence interval (absolute value). Setting it to -1 to disable CI (absolute value) check.")
             ("ci-perc", po::value<double>(), "The required width of confidence interval (as the percentage of mean). Setting it to -1 disables CI (percent of mean) check. If both ci and ci-perc are set, the narrower one will be used. See preset below for the default value.")
             ("min-sample-size,m", po::value<size_t>(), "The required minimum subsession sample size (default to 30, also see Preset Modes below)")
@@ -415,9 +416,6 @@ int handle_run_program(int argc, const char** argv) {
             fatal_log << "Error: CI (percent of mean) and CI (absolute value) cannot be both disabled. At least one must be set.";
             return 2;
         }
-
-        pilot_set_autocorrelation_coefficient(g_wl.get(), ac);
-        info_log << "Setting the limit of autocorrelation coefficient to " << ac;
         pilot_set_required_confidence_interval(g_wl.get(), ci_perc, ci);
         if (ci_perc > 0) {
             info_log << str(format("Setting the required width of confidence interval to %1%%% of mean") % (ci_perc * 100));
@@ -425,6 +423,16 @@ int handle_run_program(int argc, const char** argv) {
         if (ci > 0) {
             info_log << str(format("Setting the required width of confidence interval to %1%") % ci);
         }
+
+        if (vm.count("ac")) {
+            ac = vm["ac"].as<double>();
+            if (ac <= 0 || ac > 1) {
+                fatal_log << "Valid range for the autocorrelation coefficient arg is (0,1], exiting...";
+                return 2;
+            }
+        }
+        pilot_set_autocorrelation_coefficient(g_wl.get(), ac);
+        info_log << "Setting the limit of autocorrelation coefficient to " << ac;
 
         if (vm.count("min-sample-size")) {
             ms = vm["min-sample-size"].as<size_t>();
