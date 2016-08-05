@@ -255,11 +255,11 @@ void pilot_workload_t::refresh_analytical_result(void) const {
             int res = pilot_find_dominant_segment(readings_[piid].data(), readings_[piid].size(),
                             &dominant_seg_begin, &dominant_seg_end);
             if (0 != res) {
-                debug_log << __func__ << "(): readings have no dominant segment yet";
+                info_log << __func__ << "(): readings have no dominant segment yet";
                 dominant_seg_begin = 0;
                 dominant_seg_end = readings_[piid].size();
             } else {
-                debug_log << __func__ << "() found dominant segment in readings: ["
+                info_log << __func__ << "() found dominant segment in readings: ["
                         << dominant_seg_begin << ", " << dominant_seg_end << ")";
             }
             analytical_result_.readings_dominant_segment_begin[piid] = dominant_seg_begin;
