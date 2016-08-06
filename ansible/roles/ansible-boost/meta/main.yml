@@ -1,0 +1,17 @@
+---
+galaxy_info:
+  author: Toshiya Kawasaki
+  description: Install Boost C++ libraries from source.
+  license: BSD
+  min_ansible_version: 1.4
+  platforms:
+    - name: Ubuntu
+      versions:
+        - precise
+    - name: EL
+      versions:
+        - 5
+        - 6
+  categories:
+    - development
+dependencies: []

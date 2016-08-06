@@ -1,0 +1,5 @@
+---
+boost_work_dir: '/tmp/boost'
+boost_version: '1.55.0'
+boost_build_dir: 'boost_{{ boost_version.replace(".", "_") }}'
+boost_tar_name: '{{ boost_build_dir }}.tar.bz2'

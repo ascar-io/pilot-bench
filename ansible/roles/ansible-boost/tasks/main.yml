@@ -1,0 +1,60 @@
+---
+
+- name: Install dependencies
+  apt: name={{ item }} state=installed update_cache=yes
+  become: yes
+  become_user: root
+  with_items:
+    - build-essential
+    - python-dev
+    - libbz2-dev
+  when: ansible_os_family == "Debian"
+
+- name: Install dependencies
+  yum: name={{ item }} state=latest
+  become: yes
+  become_user: root
+  with_items:
+    - bzip2
+    - python-devel
+    - gcc
+    - gcc-c++
+    - kernel-devel
+    - bzip2-devel
+  when: ansible_os_family == "RedHat"
+
+- name: Create work directory
+  file: path={{ boost_work_dir }} state=directory
+
+- name: Create install directory
+  become: yes
+  become_user: root
+  file: path={{ boost_prefix }} state=directory
+  when: boost_prefix is defined
+
+- name: Get boost source
+  get_url: url='http://downloads.sourceforge.net/project/boost/boost/{{ boost_version }}/{{ boost_tar_name }}' dest='{{ boost_work_dir }}/{{ boost_tar_name }}'
+
+- name: Unpack tarball
+  unarchive: src='{{ boost_work_dir }}/{{ boost_tar_name }}' dest='{{ boost_work_dir }}' copy=no
+
+- name: Bootstrap Boost
+  command: chdir={{ boost_work_dir }}/{{ boost_build_dir }} ./bootstrap.sh
+  when: boost_prefix is not defined
+
+- name: Bootstrap Boost
+  command: chdir={{ boost_work_dir }}/{{ boost_build_dir }} ./bootstrap.sh --prefix={{ boost_prefix }}
+  when: boost_prefix is defined
+
+- name: Make Boost
+  command: chdir={{ boost_work_dir }}/{{ boost_build_dir }} ./b2 variant=release
+  when: boost_fpic is not defined or boost_fpic != True
+
+- name: Make Boost with fPIC
+  command: chdir={{ boost_work_dir }}/{{ boost_build_dir }} ./b2 cxxflags=-fPIC cflags=-fPIC variant=release
+  when: boost_fpic == True
+
+- name: Insall Boost
+  become: yes
+  become_user: root
+  command: chdir={{ boost_work_dir }}/{{ boost_build_dir }} ./b2 install
