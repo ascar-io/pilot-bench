@@ -32,29 +32,33 @@
   file: path={{ boost_prefix }} state=directory
   when: boost_prefix is defined
 
+# Boost's official release was hosted on sourceforge, which is very unstable. So
+# we clone it directly from github.
 - name: Get boost source
-  get_url: url='http://downloads.sourceforge.net/project/boost/boost/{{ boost_version }}/{{ boost_tar_name }}' dest='{{ boost_work_dir }}/{{ boost_tar_name }}'
-
-- name: Unpack tarball
-  unarchive: src='{{ boost_work_dir }}/{{ boost_tar_name }}' dest='{{ boost_work_dir }}' copy=no
+  git: repo=https://github.com/boostorg/boost.git
+       dest='{{ boost_work_dir }}'
+       version='boost-{{ boost_version }}'
 
 - name: Bootstrap Boost
-  command: chdir={{ boost_work_dir }}/{{ boost_build_dir }} ./bootstrap.sh
+  command: chdir={{ boost_work_dir }} {{ cc_prefix }} ./bootstrap.sh
   when: boost_prefix is not defined
 
 - name: Bootstrap Boost
-  command: chdir={{ boost_work_dir }}/{{ boost_build_dir }} ./bootstrap.sh --prefix={{ boost_prefix }}
+  command: chdir={{ boost_work_dir }} {{ cc_prefix }} "./bootstrap.sh --prefix={{ boost_prefix }}"
   when: boost_prefix is defined
 
+- name: Make Headers
+  command: chdir={{ boost_work_dir }} {{ cc_prefix }} "./b2 headers"
+
 - name: Make Boost
-  command: chdir={{ boost_work_dir }}/{{ boost_build_dir }} ./b2 variant=release
+  command: chdir={{ boost_work_dir }} {{ cc_prefix }} "./b2 variant=release -j6"
   when: boost_fpic is not defined or boost_fpic != True
 
 - name: Make Boost with fPIC
-  command: chdir={{ boost_work_dir }}/{{ boost_build_dir }} ./b2 cxxflags=-fPIC cflags=-fPIC variant=release
+  command: chdir={{ boost_work_dir }} {{ cc_prefix }} "./b2 cxxflags=-fPIC cflags=-fPIC variant=release -j6"
   when: boost_fpic == True
 
 - name: Insall Boost
   become: yes
   become_user: root
-  command: chdir={{ boost_work_dir }}/{{ boost_build_dir }} ./b2 install
+  command: chdir={{ boost_work_dir }} ./b2 install
