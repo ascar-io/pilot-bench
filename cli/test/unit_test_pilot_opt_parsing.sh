@@ -51,7 +51,8 @@ run ./bench run_program --ci -1 --ci-perc -1 --pi "throughput,MB/s,2,1,1" -- tru
 
 # Check the default quick preset
 TMPFILE=`mktemp`
-run ./bench run_program --pi "throughput,MB/s,2,1,1" -- true >$TMPFILE 2>&1
+# We need to put in some workload amount to enable short round detection
+run ./bench run_program --pi "throughput,MB/s,2,1,1" -w 10,20 -- true >$TMPFILE 2>&1
 grep -q "Preset mode activated: quick" $TMPFILE
 grep -q "Setting the limit of autocorrelation coefficient to 0.8" $TMPFILE
 grep -q "Setting the required width of confidence interval to 20% of mean" $TMPFILE
@@ -59,7 +60,7 @@ grep -q "Setting the required minimum subsession sample size to 30" $TMPFILE
 grep -q "Setting the short round threshold to 3 second(s)" $TMPFILE
 
 # Check the normal preset
-run ./bench run_program --preset normal --pi "throughput,MB/s,2,1,1" -- true >$TMPFILE 2>&1
+run ./bench run_program --preset normal --pi "throughput,MB/s,2,1,1" -w 10,20 -- true >$TMPFILE 2>&1
 grep -q "Preset mode activated: normal" $TMPFILE
 grep -q "Setting the limit of autocorrelation coefficient to 0.2" $TMPFILE
 grep -q "Setting the required width of confidence interval to 10% of mean" $TMPFILE
@@ -67,7 +68,7 @@ grep -q "Setting the required minimum subsession sample size to 50" $TMPFILE
 grep -q "Setting the short round threshold to 10 second(s)" $TMPFILE
 
 # Check the strict preset
-run ./bench run_program --pi "throughput,MB/s,2,1,1" --preset strict -- true >$TMPFILE 2>&1
+run ./bench run_program --pi "throughput,MB/s,2,1,1" --preset strict -w 10,20 -- true >$TMPFILE 2>&1
 grep -q "Preset mode activated: strict" $TMPFILE
 grep -q "Setting the limit of autocorrelation coefficient to 0.1" $TMPFILE
 grep -q "Setting the required width of confidence interval to 10% of mean" $TMPFILE
@@ -75,7 +76,7 @@ grep -q "Setting the required minimum subsession sample size to 200" $TMPFILE
 grep -q "Setting the short round threshold to 20 second(s)" $TMPFILE
 
 # Test setting CI absolute value
-run ./bench run_program --ci 42 --pi "throughput,MB/s,2,1,1" --preset strict -- true >$TMPFILE 2>&1
+run ./bench run_program --ci 42 --pi "throughput,MB/s,2,1,1" --preset strict -w 10,20 -- true >$TMPFILE 2>&1
 grep -q "Preset mode activated: strict" $TMPFILE
 grep -q "Setting the limit of autocorrelation coefficient to 0.1" $TMPFILE
 grep -q "Setting the required width of confidence interval to 10% of mean" $TMPFILE
@@ -83,10 +84,34 @@ grep -q "Setting the required width of confidence interval to 42" $TMPFILE
 grep -q "Setting the required minimum subsession sample size to 200" $TMPFILE
 grep -q "Setting the short round threshold to 20 second(s)" $TMPFILE
 
-# Test overriding a preset value
-run ./bench run_program --ci-perc 0.12 --pi "throughput,MB/s,2,1,1" --preset strict -- true >$TMPFILE 2>&1
+# Short round detection should be disabled when no work amount is set
+run ./bench run_program --pi "throughput,MB/s,2,1,1" -- true >$TMPFILE 2>&1
+grep -q "Preset mode activated: quick" $TMPFILE
+grep -q "Setting the limit of autocorrelation coefficient to 0.8" $TMPFILE
+grep -q "Setting the required width of confidence interval to 20% of mean" $TMPFILE
+grep -q "Setting the required minimum subsession sample size to 30" $TMPFILE
+grep -q "Disabled short round detection because work amount information is not set." $TMPFILE
+
+# Test overriding CI
+run ./bench run_program --ci-perc 0.12 --pi "throughput,MB/s,2,1,1" --preset strict -w 10,20 -- true >$TMPFILE 2>&1
 grep -q "Preset mode activated: strict" $TMPFILE
 grep -q "Setting the limit of autocorrelation coefficient to 0.1" $TMPFILE
+grep -q "Setting the required width of confidence interval to 12% of mean" $TMPFILE
+grep -q "Setting the required minimum subsession sample size to 200" $TMPFILE
+grep -q "Setting the short round threshold to 20 second(s)" $TMPFILE
+
+# Test overriding autocorrelation coefficient range (AC)
+run ./bench run_program --ac .3 --pi "throughput,MB/s,2,1,1" --preset strict -w 10,20 -- true >$TMPFILE 2>&1
+grep -q "Preset mode activated: strict" $TMPFILE
+grep -q "Setting the limit of autocorrelation coefficient to 0.3" $TMPFILE
+grep -q "Setting the required width of confidence interval to 10% of mean" $TMPFILE
+grep -q "Setting the required minimum subsession sample size to 200" $TMPFILE
+grep -q "Setting the short round threshold to 20 second(s)" $TMPFILE
+
+# Test overriding both AC and CI
+run ./bench run_program --ci-perc 0.12 -a 0.4 --pi "throughput,MB/s,2,1,1" --preset strict -w 10,20 -- true >$TMPFILE 2>&1
+grep -q "Preset mode activated: strict" $TMPFILE
+grep -q "Setting the limit of autocorrelation coefficient to 0.4" $TMPFILE
 grep -q "Setting the required width of confidence interval to 12% of mean" $TMPFILE
 grep -q "Setting the required minimum subsession sample size to 200" $TMPFILE
 grep -q "Setting the short round threshold to 20 second(s)" $TMPFILE
