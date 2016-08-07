@@ -38,6 +38,7 @@
   git: repo=https://github.com/boostorg/boost.git
        dest='{{ boost_work_dir }}'
        version='boost-{{ boost_version }}'
+       force=yes
 
 - name: Bootstrap Boost
   command: chdir={{ boost_work_dir }} {{ cc_prefix }} ./bootstrap.sh
@@ -47,15 +48,23 @@
   command: chdir={{ boost_work_dir }} {{ cc_prefix }} "./bootstrap.sh --prefix={{ boost_prefix }}"
   when: boost_prefix is defined
 
+- name: enable devtoolset-4 toolchainn
+  lineinfile:
+    dest:   "{{ boost_work_dir }}/project-config.jam"
+    regexp: "{{ item.regexp }}"
+    line:   "{{ item.line }}"
+  with_items:
+    - { regexp: 'using.*gcc', line: 'using gcc : : /opt/rh/devtoolset-4/root/usr/bin/g++ ;' }
+
 - name: Make Headers
   command: chdir={{ boost_work_dir }} {{ cc_prefix }} "./b2 headers"
 
 - name: Make Boost
-  command: chdir={{ boost_work_dir }} {{ cc_prefix }} "./b2 variant=release -j6"
+  command: chdir={{ boost_work_dir }} {{ cc_prefix }} "./b2 -j8 -q -d+2 variant=release"
   when: boost_fpic is not defined or boost_fpic != True
 
 - name: Make Boost with fPIC
-  command: chdir={{ boost_work_dir }} {{ cc_prefix }} "./b2 cxxflags=-fPIC cflags=-fPIC variant=release -j6"
+  command: chdir={{ boost_work_dir }} {{ cc_prefix }} "./b2 -j8 -q -d+2 cxxflags=-fPIC cflags=-fPIC variant=release"
   when: boost_fpic == True
 
 - name: Insall Boost
