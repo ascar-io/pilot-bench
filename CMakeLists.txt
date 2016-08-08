@@ -5,7 +5,7 @@ project (pilot)
 ## VERSION
 
 set (PILOT_VERSION_MAJOR 0)
-set (PILOT_VERSION_MINOR 5)
+set (PILOT_VERSION_MINOR 6)
 
 ###############################################################################
 ## OPTIONS
@@ -145,8 +145,9 @@ install (FILES examples/benchmark_dd_no_wps/run_dd_extract_tp.sh
 install (PROGRAMS examples/make.sh
          DESTINATION share/pilot/examples)
 
+string(TIMESTAMP RPM_RELEASE "%Y%m%dT%H%M%S")
 set (CPACK_PACKAGE_NAME pilot-bench)
-set (CPACK_PACKAGE_VERSION ${PILOT_VERSION_MAJOR}.${PILOT_VERSION_MINOR})
+set (CPACK_PACKAGE_VERSION ${PILOT_VERSION_MAJOR}.${PILOT_VERSION_MINOR}.${RPM_RELEASE})
 set (CPACK_PACKAGE_VENDOR "Project ASCAR")
 set (CPACK_PACKAGE_CONTACT "yanli@ascar.io")
 set (CPACK_PACKAGE_DESCRIPTION_SUMMARY "Pilot is a tool and a library (libpilot) that help you run benchmarks to get scientifically accurate and meaningful results fast.")
@@ -155,7 +156,7 @@ set (CPACK_RPM_POST_INSTALL_SCRIPT_FILE "${CMAKE_SOURCE_DIR}/packaging/post-inst
 set (CPACK_RPM_POST_UNINSTALL_SCRIPT_FILE "${CMAKE_SOURCE_DIR}/packaging/post-install.sh")
 set (CPACK_RPM_PACKAGE_SUMMARY "Pilot Benchmark Framework")
 set (CPACK_RPM_PACKAGE_LICENSE GPL)
-set (CPACK_RPM_PACKAGE_RELEASE 1.el7)
+set (CPACK_RPM_PACKAGE_RELEASE ${RPM_RELEASE})
 set (CPACK_RPM_PACKAGE_GROUP "Development")
 set (CPACK_RPM_PACKAGE_VENDOR "Project ASCAR")
 set (CPACK_RPM_PACKAGE_URL "https://ascar.io/pilot")
