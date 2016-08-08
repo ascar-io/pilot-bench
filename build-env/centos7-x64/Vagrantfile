@@ -69,6 +69,8 @@ Vagrant.configure("2") do |config|
   #   apt-get install -y apache2
   # SHELL
 
+  # insert_key can be flaky occasionally. We disabled it for stability. Make sure
+  # you replace it with a secure private key for production.
   config.ssh.insert_key = false
 
   config.vm.provider "virtualbox" do |v|

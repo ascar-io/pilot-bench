@@ -1,10 +1,13 @@
+# Pilot's Ansible Playbook for Set Up Build Environment on CentOS 7 x64
+# Created by Yan Li <yanli@ascar.io>. See LICENSE file in source
+# root for detail.
+
 ---
 - hosts: all
   become: true
   become_user: root
   become_method: sudo
   vars:
-    cmake_version: cmake-3.5.2-Linux-x86_64
     boost_version: 1.61.0
     boost_prefix: '/opt/boost_{{ boost_version.replace(".", "_") }}'
     boost_fpic: True
