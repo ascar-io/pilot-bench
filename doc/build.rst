@@ -1,12 +1,18 @@
-.. role:: bash(code)
-   :language: bash
-.. role:: c++(code)
-   :language: c++
-
 Building ASCAR Pilot
-====================
+####################
 
-## Configuration Options
+.. note:: This section is intended for developers or those users who
+          have a need to compile Pilot from source code. Most regular
+          users just need to install our official Pilot binary, see
+          :doc:`install`.
+
+.. include:: supported-os.rst
+
+.. include:: Requirements-and-Installation-Instructions.rest
+
+
+Build Options
+*************
 
 The following are configuration options that are supported by Pilot's
 CMake builder. To set an option, use: `-DOPT=VAL`. For example:
@@ -60,11 +66,13 @@ BOOST_PYTHON_MODULE The name of the Boost.Python module [#f3]_                  
          `python3` if you are using Python 3.* and a vanilla Boost
          library.
 
-## FAQ
+FAQ
+****
 
-### Error: `undefined reference to `boost::python::detail::init_module()'`
+Error: undefined reference to boost::python::detail::init_module()
+==================================================================
 
-Python 2 and 3 use different :C++:`init_module()`. If you see a link error
-message like this, it is likely that your Boost library is compiled to
-use a different version of Python than the libpython Pilot is trying
-to link to.
+Python 2 and 3 use different ``init_module()``. If you see a link
+error message like this, it is likely that your Boost library is
+compiled to use a different version of Python than the libpython Pilot
+is trying to link to.
