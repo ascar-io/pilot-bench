@@ -1,3 +1,3 @@
-.. _Slack: https://pilot-tool.slack.com/signup
+.. _Slack: http://ascar-slack-signup.stamplayapp.com/
 
 .. _users mailing list: https://groups.google.com/forum/#!forum/pilot-users

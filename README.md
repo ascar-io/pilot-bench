@@ -33,8 +33,8 @@ Pilot is written in C++ for doing fast in place analysis. It is
 released in dual BSD 3-clause and GPLv2+ license.
 
 Our recommended channel for support is Slack:
-https://pilot-tool.slack.com/signup. You can also use the following
-mailing lists:
+http://ascar-slack-signup.stamplayapp.com/. You can also use the
+following mailing lists:
 
 * pilot-news for announcements: https://groups.google.com/forum/#!forum/pilot-news
 * pilot-users for discussion: https://groups.google.com/forum/#!forum/pilot-users

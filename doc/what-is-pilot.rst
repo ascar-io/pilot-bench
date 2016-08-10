@@ -1,3 +1,5 @@
+.. include:: global-ref.rst
+
 What is Pilot?
 ==============
 
@@ -27,15 +29,19 @@ To achieve these goals Pilot has the following functions:
 *  Save the test results in a standard format for sharing and comparing results.
 *  And much more...
 
-To learn how to use Pilot, read the tutorials on the wiki:
-https://github.com/ascar-io/pilot-tool/wiki
+To learn how to use Pilot, please head to the :doc:`tutorial-list`.
 
 Pilot is written in C++ for doing fast in place analysis. It is
 released in dual BSD 3-clause and GPLv2+ license. Currently it
 compiles on major Linux distros and Mac OS X.
 
-Join our Slack to give feedback and dicsuss your ideas:
-https://pilot-tool.slack.com/signup
+Our recommended channel for support is Slack:
+http://ascar-slack-signup.stamplayapp.com/. You can also use the
+following mailing lists:
+
+* pilot-news for announcements: https://groups.google.com/forum/#!forum/pilot-news
+* pilot-users for discussion: https://groups.google.com/forum/#!forum/pilot-users
+
 
 Why Should I Try Pilot?
 -----------------------
