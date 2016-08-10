@@ -1,3 +1,5 @@
+.. include:: global-ref.rst
+
 Supported OSes
 **************
 
@@ -21,6 +23,5 @@ Fedora.  Please feel free to send an email to the `users mailing
 list`_ to share your experience if you have tested Pilot on other
 systems.
 
-.. _users mailing list: https://groups.google.com/forum/#!forum/pilot-users
 .. _devtoolset-4: https://www.softwarecollections.org/en/scls/rhscl/devtoolset-4/
 

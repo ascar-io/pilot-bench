@@ -26,44 +26,26 @@ To achieve these goals Pilot has the following functions:
 *  Save the test results in a standard format for sharing and comparing results.
 *  And much more...
 
-To learn how to use Pilot, read the tutorials on the wiki:
-https://github.com/ascar-io/pilot-tool/wiki
+To learn how to use Pilot or if you want to refresh the statistics,
+please read the documentation: https://docs.ascar.io/
 
 Pilot is written in C++ for doing fast in place analysis. It is
-released in dual BSD 3-clause and GPLv2+ license. Currently it should
-compile on major Linux distros and Mac OS X.
+released in dual BSD 3-clause and GPLv2+ license.
 
-Join our Slack to give feedback and dicsuss your ideas:
-https://pilot-tool.slack.com/signup
+Our recommended channel for support is Slack:
+https://pilot-tool.slack.com/signup. You can also use the following
+mailing lists:
+
+* pilot-news for announcements: https://groups.google.com/forum/#!forum/pilot-news
+* pilot-users for discussion: https://groups.google.com/forum/#!forum/pilot-users
 
 # INSTALL
 
-Pilot is currently in the alpha test stage. Binary packages can be
-found at the [Releases
-page](https://github.com/ascar-io/pilot-bench/releases). You can also
-[compile from
-source](https://github.com/ascar-io/pilot-tool/wiki/Requirements-and-Installation-Instructions).
+Plese see: https://docs.ascar.io/install.html
 
 # RUN IT
 
-We are working on the documentation, but at the same time, take a look
-at the [wiki](https://github.com/ascar-io/pilot-tool/wiki) and feel
-free to edit or write a new tutorial if you find Pilot useful for your
-project.
-
-Measuring the performance of a C function is [super
-easy](https://github.com/ascar-io/pilot-bench/wiki/Performance-measurement-of-a-C-function). The
-C macro interface is simple to use, but if you want to learn about all
-the analytical power of Pilot, take a look at the sample program
-[build/lib/func_test_seq_write](https://github.com/ascar-io/pilot-bench/blob/master/lib/test/func_test_seq_write.cc). It
-is a sample workload that does sequential I/O to an output file you
-specify.  It uses libpilot to scientifically measure the sequential
-write I/O throughput. Run "func_test_seq_write" (you can find it in
-build/lib when you build from source; we will include it in our next
-binary release) without an option to get the help. You can plot its
-result csv to a line graph by using
-"lib/test/plot_seq_write_throughput.py". Make sure you have Python 2.*
-and matplotlib installed correctly.
+Please see the tutorials: https://docs.ascar.io/tutorial-list.html
 
 # DEVELOPMENT
 
@@ -78,10 +60,16 @@ This is a research project from the [Storage Systems Research
 Center](http://www.ssrc.ucsc.edu/) in [UC Santa
 Cruz](http://ucsc.edu).  This research was supported in part by the
 National Science Foundation under awards IIP-1266400, CCF-1219163,
-CNS-1018928, CNS-1528179, by the Department of Energy under award
-DE-FC02-10ER26017/DESC0005417, by a Symantec Graduate Fellowship, by a
-grant from Intel Corporation, and by industrial members of the Center
-for Research in Storage Systems.
+CNS-1018928, CNS-1528179, the Department of Energy under award
+DE-FC02-10ER26017/DESC0005417, Symantec Graduate Fellowship, and
+industrial members of the Center for Research in Storage Systems. We
+would like to thank the sponsors of the Storage Systems Research
+Center (SSRC), including Avago Technologies, Center for Information
+Technology Research in the Interest of Society (CITRIS of UC Santa
+Cruz), Department of Energy/Office of Science, EMC, Hewlett Packard
+Laboratories, Intel Corporation, National Science Foundation, NetApp,
+Sandisk, Seagate Technology, Symantec, and Toshiba for their generous
+support.
 
 This project does not reflect the opinon or endorsement of the sponsors
 listed above.

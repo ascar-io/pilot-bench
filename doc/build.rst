@@ -1,6 +1,8 @@
 Building ASCAR Pilot
 ####################
 
+.. include:: warning-of-unstable.rst
+
 .. note:: This section is intended for developers or those users who
           have a need to compile Pilot from source code. Most regular
           users just need to install our official Pilot binary, see
