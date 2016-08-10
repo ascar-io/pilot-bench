@@ -29,6 +29,7 @@
   - name: install packages second batch
     yum: name={{ item }} state=latest
     with_items:
+      - bc
       - cmake3
       - devtoolset-4-toolchain
       - devtoolset-4-valgrind
