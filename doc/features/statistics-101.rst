@@ -1,3 +1,5 @@
+.. include:: ../global-ref.rst
+
 Statistics 101
 ==============
 
@@ -16,7 +18,7 @@ Performance measurement and benchmarking
 ----------------------------------------
 
 **Performance measurement** is concerned with how to measure the
-performance of a running program or system, while \emph{benchmarking}
+performance of a running program or system, while *benchmarking*
 is more about issuing a certain workload on the system in order to
 measure the performance. High quality performance measurement and
 benchmarking are very important for almost everyone who uses an
@@ -52,9 +54,9 @@ People usually use these terms, especially accuracy and precision, to
 mean many different things. Here we give our definition of these
 terms. It is assumed that the readers have basic statistics knowledge
 and understand basic concepts such as mean, variance, and sample
-size. \citeauthor{boudec:performance10} wrote a good reference book
+size. Domenic Ferrari wrote a good reference book
 for readers who want to know more about these statistical
-concepts~\cite{boudec:performance10}.
+concepts [boudec:performance10]_.
 
 **Accuracy** reflects whether the results actually measure what the
 user wants to measure. A benchmark usually involves many components of
@@ -73,14 +75,13 @@ precision is the difference between a sample parameter and its
 corresponding population parameter. Precision can be described by
 confidence interval (CI). The CI of a sample parameter describes the
 range of possible population parameter at certain likelihood. For
-instance, if the CI of a throughput mean ($\mu$) is $C$ at the 95\%
-confidence level, we know that there is a 95\% chance that the real
-system's throughput is within interval $[\mu - \frac{C}{2}, \mu +
-\frac{C}{2}]$. In practice, CIs are typically stated at the 90\% or
-95\% confidence level. We can see that the common practice of
-presenting a certain performance parameter using only one number, such
-as saying the write performance of a disk drive is 100\,MB/s, is
-misleading.
+instance, if the CI of a throughput mean (:math:`\mu`) is :math:`C` at
+the 95% confidence level, we know that there is a 95% chance that the
+real system's throughput is within interval :math:`[\mu - \frac{C}{2},
+\mu + \frac{C}{2}]`. In practice, CIs are typically stated at the 95%
+confidence level. We can see that the common practice of presenting a
+certain performance parameter using only one number, such as saying
+the write performance of a disk drive is 100 MB/s, is misleading.
 
 **Repeatability** is critical to a valid performance measurement
 because the goal of most performance benchmark is to predict the
@@ -94,10 +95,9 @@ benchmarking is wrong or the system has some hidden bottleneck that
 prevents the property to be measured from reaching its maximum
 value. In these cases, even though the results may look correct, it
 may well be not repeatable in another environment. Random errors are
-affected by ``noise'' outside our control, and can result in
+affected by "noise" outside our control, and can result in
 non-repeatable measurements if the sample size is not large enough or
-samples are not independent and identically distributed
-(\emph{i.i.d.}).
+samples are not independent and identically distributed (`i.i.d.`_).
 
 We will discuss how to achieve these properties in the following
 sections, and one can see that scientifically performing a benchmark
@@ -108,7 +108,7 @@ and statistics. It is not news that many vendors publish misleading,
 if not utterly wrong, benchmark results to promote their
 products. Many peer-reviewed research publications also suffer from
 poor understanding or execution of performance
-measurement~\cite{hoefler:sc15}.
+measurement [hoefler:sc15]_.
 
 Getting results fast
 --------------------
@@ -117,24 +117,23 @@ The old wisdom for running benchmark is to run it for as long as one
 can tolerate and hope the law of large numbers can win over all
 errors. This method is no longer suitable for today's fast changing
 world, where we simply no longer have a lot of time to run
-benchmark. We have heard field support engineers
-complaining\footnote{Private conversation with an engineer from a
-major HPC provider.} that they are usually only given one or two days
-after the installation of a new computer cluster or distributed
-storage system to prove that the system can deliver whatever
-performance promised by the salesperson, very often using the
-customer's own benchmark programs. Modern distributed systems can have
-hundreds, if not thousands, of parameters to tune, and the performance
-engineer needs to run an unfamiliar benchmark repeatedly and try
-different parameters. Apparently the shorter the benchmark is the more
-parameters can be tested, thus resulting in better system tuning
-results.
+benchmark. We have heard field support engineers complaining (private
+conversation with an engineer from a major HPC provider) that they are
+usually only given one or two days after the installation of a new
+computer cluster or distributed storage system to prove that the
+system can deliver whatever performance promised by the salesperson,
+very often using the customer's own benchmark programs. Modern
+distributed systems can have hundreds, if not thousands, of parameters
+to tune, and the performance engineer needs to run an unfamiliar
+benchmark repeatedly and try different parameters. Apparently the
+shorter the benchmark is the more parameters can be tested, thus
+resulting in better system tuning results.
 
-Existing analytical software packages, such as R~\cite{Rlang:13}, are
-either too big or slow for run-time analysis, are hard to integrate
-with applications (for instance, R is a large GPL-licensed software
-package), or require the user to write complex scripts to use all its
-functions.
+Existing analytical software packages, such as `R
+<https://www.r-project.org/>`_, are either too big or slow for
+run-time analysis, are hard to integrate with applications (for
+instance, R is a large GPL-licensed software package), or require the
+user to write complex scripts to use all its functions.
 
 In all, we realize that we need an easy-to-use software tool that can
 guide the user and help to automate most of the analytical tasks of
@@ -144,3 +143,11 @@ finding the most suitable and practical methods for computer
 performance evaluation, and design heuristics methods to automate and
 accelerate them.
 
+.. [boudec:performance10] Domenic Ferrari. Computer Systems
+                          Performance Evaluation. Prentice-Hall, 1978.
+
+.. [hoefler:sc15] Torsten Hoefle and Roberto Belli. Scientific
+                  benchmarking of parallel computing systems. In
+                  *Proceedings of the 2015 International Conference
+                  for High Performance Computing, Networking, Storage
+                  and Analysis (SC15)*, 2015.

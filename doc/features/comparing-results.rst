@@ -31,7 +31,7 @@ results. The first case is when their CIs are not overlapped. In this
 case we can be sure that one is greater than the other at the
 confidence level used to calculate the CIs. The second is when the CIs
 overlap. In this case we use the Welch's unequal variance *t*-test
-[welch:biometrika47] (an adaptation of Student's *t*-test) to compare
+[welch:biometrika47]_ (an adaptation of Student's *t*-test) to compare
 the benchmark results, A and B. Welch's *t*-test is more reliable when
 the two samples have unequal variance and unequal sample sizes, which
 are true for most system benchmarks. This test can effectively tell us
