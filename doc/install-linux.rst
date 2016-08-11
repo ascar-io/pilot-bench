@@ -19,7 +19,7 @@ the pilot-bench package:
 
 .. code-block:: bash
 
-   rpm -ihv https://download.ascar.io/pub/repo/ascar-repo-nightly.rpm
+   rpm -ihv https://download.ascar.io/pub/repo/ascar-repo-el-nightly.rpm
    yum install pilot-bench
 
 In the future you can always update to the latest nightly build by
@@ -36,13 +36,16 @@ Ubuntu 16.04 LTS x86-64
 Native build coming soon. For now please use the generic Linux package
 as shown below.
 
+
 Other x86-64 Linux
 ==================
 
 This generic Linux build should work on most 64-bit Linux systems:
 
-* Latest nightly build: https://download.ascar.io/pub/repo/linux-generic/nightly/pilot-bench-nightly-latest.tar.gz
+* Latest nightly build: https://download.ascar.io/pub/repo/linux-generic-x64/nightly/pilot-bench-nightly-latest-linux-x64.tar.gz
 
-* GPG Signature: https://download.ascar.io/pub/repo/linux-generic/nightly/pilot-bench-nightly-latest.tar.gz.asc
+* GPG Signature: https://download.ascar.io/pub/repo/linux-generic-x64/nightly/pilot-bench-nightly-latest-linux-x64.tar.gz.asc
 
 Older versions can be found at: https://download.ascar.io/pub/repo/linux-generic/nightly/
+
+.. include:: signing-keys.rst
