@@ -46,6 +46,6 @@ This generic Linux build should work on most 64-bit Linux systems:
 
 * GPG Signature: https://download.ascar.io/pub/repo/linux-generic-x64/nightly/pilot-bench-nightly-latest-linux-x64.tar.gz.asc
 
-Older versions can be found at: https://download.ascar.io/pub/repo/linux-generic/nightly/
+Older versions can be found at: https://download.ascar.io/pub/repo/linux-generic-x64/nightly/
 
 .. include:: signing-keys.rst
