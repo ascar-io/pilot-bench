@@ -1,5 +1,5 @@
 Install Pilot
-=============
+#############
 
 .. include:: warning-of-unstable.rst
 
