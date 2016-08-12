@@ -89,5 +89,4 @@ a Symantec Graduate Fellowship, by a grant from Intel Corporation, and
 by industrial members of the `Center for Research in Storage Systems
 <http://www.crss.ucsc.edu/>`_.  Any opinions, findings, and
 conclusions or recommendations expressed in this material are those of
-the author(s) and do not necessarily reflect the views of the sponsors
-listed above.
+the author(s) and do not necessarily reflect the views of the sponsors.
