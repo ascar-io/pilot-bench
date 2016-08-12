@@ -79,3 +79,15 @@ that Understands How to Do Performance Benchmarks the Right Way. In
 *Proceedings of IEEE 24th International Symposium on Modeling,
 Analysis, and Simulation of Computer and Telecommunication Systems
 (MASCOTS'16)*, 2016.
+
+This is a research project from the `Storage Systems Research Center
+<http://www.ssrc.ucsc.edu/>`_ in `UC Santa Cruz <http://ucsc.edu>`_.
+This research was supported in part by the National Science Foundation
+under awards IIP-1266400, CCF-1219163, CNS-1018928, CNS-1528179, by
+the Department of Energy under award DE-FC02-10ER26017/DESC0005417, by
+a Symantec Graduate Fellowship, by a grant from Intel Corporation, and
+by industrial members of the `Center for Research in Storage Systems
+<http://www.crss.ucsc.edu/>`_.  Any opinions, findings, and
+conclusions or recommendations expressed in this material are those of
+the author(s) and do not necessarily reflect the views of the sponsors
+listed above.

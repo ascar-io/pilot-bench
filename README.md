@@ -60,16 +60,10 @@ This is a research project from the [Storage Systems Research
 Center](http://www.ssrc.ucsc.edu/) in [UC Santa
 Cruz](http://ucsc.edu).  This research was supported in part by the
 National Science Foundation under awards IIP-1266400, CCF-1219163,
-CNS-1018928, CNS-1528179, the Department of Energy under award
-DE-FC02-10ER26017/DESC0005417, Symantec Graduate Fellowship, and
-industrial members of the Center for Research in Storage Systems. We
-would like to thank the sponsors of the Storage Systems Research
-Center (SSRC), including Avago Technologies, Center for Information
-Technology Research in the Interest of Society (CITRIS of UC Santa
-Cruz), Department of Energy/Office of Science, EMC, Hewlett Packard
-Laboratories, Intel Corporation, National Science Foundation, NetApp,
-Sandisk, Seagate Technology, Symantec, and Toshiba for their generous
-support.
-
-This project does not reflect the opinon or endorsement of the sponsors
-listed above.
+CNS-1018928, CNS-1528179, by the Department of Energy under award
+DE-FC02-10ER26017/DESC0005417, by a Symantec Graduate Fellowship, by a
+grant from Intel Corporation, and by industrial members of the [Center
+for Research in Storage Systems](http://www.crss.ucsc.edu/).  Any
+opinions, findings, and conclusions or recommendations expressed in
+this material are those of the author(s) and do not necessarily
+reflect the views of the sponsors listed above.
