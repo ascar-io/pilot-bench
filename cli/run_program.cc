@@ -225,6 +225,8 @@ int handle_run_program(int argc, const char** argv) {
 
     if (vm.count("help")) {
         cerr << desc << endl;
+        print_read_the_doc_info();
+        cerr << endl;
         return 2;
     }
     if (vm.count("verbose")) {

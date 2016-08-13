@@ -55,6 +55,8 @@ void print_help_msg(const char* argv0) {
     cerr << "  run_program             run a benchmark program" << endl;
     cerr << "  detect_changepoint_edm  use EDM method to detect changepoints from an input file" << endl;
     cerr << "Add --help after any command to see command specific help." << endl << endl;
+    print_read_the_doc_info();
+    cerr << endl;
 }
 
 int main(int argc, const char** argv) {

@@ -39,6 +39,7 @@
 #include <boost/format.hpp>
 #include <common.h>
 #include <config.h>
+#include <iostream>
 #include <pilot/libpilot.h>
 #include <sstream>
 #include <stdexcept>
@@ -79,6 +80,11 @@ std::vector<ResultType> extract_csv_fields(const std::string &csvstr,
         r[i] = lexical_cast<ResultType>(pidata_strs[col]);
     }
     return r;
+}
+
+inline void print_read_the_doc_info(void) {
+    std::cerr << "To understand the math behind Pilot or read tutorials, please read the" << std::endl;
+    std::cerr << "documentation at https://docs.ascar.io/" << std::endl;
 }
 
 #endif /* CLI_PILOT_CLI_H_ */
