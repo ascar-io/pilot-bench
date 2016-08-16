@@ -52,6 +52,10 @@ egrep -q "the argument \('0.*'\) for option '--ac' is invalid" "$TMPFILE"
 #./bench analyze -f -1 unit_test_analyze_input.csv - &>$TMPFILE
 #grep -q "Invalid options." "$TMPFILE"
 
+# Non-existing input file
+./bench analyze NONEXISTING_FILE -f 1 &>$TMPFILE || :
+grep -q 'I/O error (2): No such file or directory' "$TMPFILE"
+
 check_file ()
 {
     grep -q "sample_size 48" "$TMPFILE"
@@ -69,9 +73,7 @@ check_file
 
 # Test wrong field
 ./bench analyze -f 3 unit_test_analyze_input_2col.csv &>$TMPFILE || :
-# Don't write "1.21" here, because the last quotation mark will
-# be eaten by the \r from the CSV file's Windows line ending.
-grep -q 'Error parsing column 3 from string: "1,1.21' "$TMPFILE"
+grep -q '<fatal> Failed to extract a float number from from field 3 in line 1, malformed data? Aborting. Line data: "1,1.21"' "$TMPFILE"
 
 cat unit_test_analyze_input.csv | ./bench analyze --preset strict - >$TMPFILE
 grep -q "sample_size 48" "$TMPFILE"
@@ -88,3 +90,13 @@ grep -q "CI 0.159384" "$TMPFILE"
 grep -q "variance 0.075323" "$TMPFILE"
 grep -q "optimal_subsession_size 1" "$TMPFILE"
 grep -q "subsession_autocorrelation_coefficient 0.646682" "$TMPFILE"
+
+# Test auto header skipping
+./bench analyze unit_test_analyze_input_3col_with_malformed_header.csv -f 1 >$TMPFILE || :
+grep -q '<fatal> Failed to extract a float number from from field 1 in line 2, malformed data? Aborting. Line data: "ID,Data,Some other data"' $TMPFILE
+./bench analyze unit_test_analyze_input_3col_with_header.csv -f 1 >$TMPFILE
+grep -q '<warning> Ignoring first line in input. It might be a header. Use `-i 1` to suppress this warning. Line data: "ID,Data,Some other data"' $TMPFILE
+check_file
+./bench analyze unit_test_analyze_input_3col_with_header.csv -f 1 -i 1 >$TMPFILE
+grep -q '<warning> Ignoring first line in input. It might be a header. Use `-i 1` to suppress this warning. Line data: "ID,Data,Some other data"' $TMPFILE && false
+check_file
