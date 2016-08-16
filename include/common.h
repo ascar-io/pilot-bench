@@ -41,6 +41,7 @@
 #include <boost/log/trivial.hpp>
 #include <boost/timer/timer.hpp>
 #include <iostream>
+#include <sstream>
 #include <string>
 #include <vector>
 
@@ -129,6 +130,38 @@ std::ostream& operator<<(std::ostream &o, const std::vector<T> &a) {
     }
     o << "]";
     return o;
+}
+
+inline const char* sstream_get_last_lines(const std::stringstream& ss, size_t n = 1) {
+    const std::string &s = ss.str();
+    if (0 == s.size()) {
+        return "";
+    }
+    if (1 == s.size()) {
+        return s.data();
+    }
+    size_t loc;
+    if ('\n' != s.back()) {
+        loc = s.size() - 1;
+    } else {
+        loc = s.size() - 2;
+    }
+    for (; n != 0; --n) {
+        // TOOD: need to handle \r here too for Windows later
+        loc = s.rfind('\n', loc);
+        if (std::string::npos == loc) {
+            return s.data();
+        }
+        if (0 == loc) {
+            if (1 == n) {
+                return s.data() + 1;
+            } else {
+                return s.data();
+            }
+        }
+        --loc;
+    }
+    return s.data() + loc + 2;
 }
 
 } /* namespace pilot */

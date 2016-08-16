@@ -102,6 +102,9 @@ target_link_libraries (func_test_seq_write ${PILOT_TESTS_LIBRARIES})
 install (FILES test/func_test_seq_write.cc DESTINATION share/pilot/examples/using_api)
 install (TARGETS func_test_seq_write DESTINATION share/pilot/examples/using_api)
 
+add_executable (unit_test_misc test/unit_test_misc.cc)
+target_link_libraries (unit_test_misc ${PILOT_TESTS_LIBRARIES})
+
 add_executable (unit_test_run_workload test/unit_test_run_workload.cc)
 target_link_libraries (unit_test_run_workload ${PILOT_TESTS_LIBRARIES})
 
@@ -127,6 +130,8 @@ add_executable (unit_test_macros test/unit_test_macros.cc)
 target_link_libraries (unit_test_macros ${PILOT_TESTS_LIBRARIES})
 
 
+add_test (NAME unit_test_misc
+		  COMMAND unit_test_misc)
 add_test (NAME unit_test_statistics
 		  COMMAND unit_test_statistics)
 add_test (NAME unit_test_run_workload

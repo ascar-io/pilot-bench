@@ -66,7 +66,7 @@ extern vector<int> EDM_percent(const double *Z, int n, int min_size, double perc
 namespace pilot {
 
 stringstream g_in_mem_log_buffer;
-boost::shared_ptr< boost::log::sinks::sink > g_console_log_sink;
+boost::shared_ptr< boost::log::sinks::synchronous_sink< boost::log::sinks::text_ostream_backend> > g_console_log_sink;
 pilot_log_level_t g_log_level = lv_info;
 
 // We store the log in memory to prevent generating I/O, which may interfere
@@ -734,11 +734,18 @@ int pilot_destroy_workload(pilot_workload_t *wl) {
 }
 
 void pilot_set_log_level(pilot_log_level_t log_level) {
+    ASSERT_VALID_POINTER(g_console_log_sink);
     g_log_level = log_level;
-    boost::log::core::get()->set_filter
+    // We only change the verbose level on the console log sink. The backend always stores
+    // every piece of log.
+    g_console_log_sink->set_filter
     (
         boost::log::trivial::severity >= (boost::log::trivial::severity_level)log_level
     );
+}
+
+const char* pilot_get_last_log_lines(size_t n) {
+    return sstream_get_last_lines(g_in_mem_log_buffer, n);
 }
 
 pilot_log_level_t pilot_get_log_level(void) {

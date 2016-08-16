@@ -77,7 +77,7 @@ std::vector<ResultType> extract_csv_fields(const std::string &csvstr,
     for (int i = 0; i < (int)columns.size(); ++i) {
         int col = columns[i];
         if (col >= static_cast<int>(pidata_strs.size())) {
-            throw runtime_error(str(format("Error parsing column %1% from string: \"%2%\"") % col % csvstr));
+            throw runtime_error("Malformed line");
         }
         r[i] = lexical_cast<ResultType>(pidata_strs[col]);
     }
