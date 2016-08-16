@@ -42,7 +42,7 @@ include_directories (${CDK_INCLUDE_DIR})
 include_directories (${CMAKE_SOURCE_DIR}/include)
 include_directories (${CMAKE_SOURCE_DIR}/lib/interface_include)
 
-add_executable (bench pilot.cc run_program.cc detect_changepoint_edm.cc)
+add_executable (bench pilot.cc run_program.cc detect_changepoint_edm.cc analyze.cc)
 if (WITH_LUA)
   add_dependencies (bench cdk luaprompt)
 endif (WITH_LUA)
@@ -66,6 +66,14 @@ add_custom_target(copy_test_files ALL
                        ${CMAKE_CURRENT_LIST_DIR}/test/unit_test_lua_prompt.sh $<TARGET_FILE_DIR:bench>
                    COMMAND ${CMAKE_COMMAND} -E copy_if_different
                        ${CMAKE_CURRENT_LIST_DIR}/test/unit_test_pilot_opt_parsing.sh $<TARGET_FILE_DIR:bench>
+                   COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                       ${CMAKE_CURRENT_LIST_DIR}/test/unit_test_analyze.sh $<TARGET_FILE_DIR:bench>
+                   COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                       ${CMAKE_CURRENT_LIST_DIR}/test/unit_test_analyze_input.csv $<TARGET_FILE_DIR:bench>
+                   COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                       ${CMAKE_CURRENT_LIST_DIR}/test/unit_test_analyze_input_2col.csv $<TARGET_FILE_DIR:bench>
+                   COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                       ${CMAKE_CURRENT_LIST_DIR}/test/unit_test_analyze_input_3col.csv $<TARGET_FILE_DIR:bench>
                    COMMAND ${CMAKE_COMMAND} -E copy_if_different
                        ${CMAKE_CURRENT_LIST_DIR}/test/unit_test_benchmark.sh $<TARGET_FILE_DIR:bench>
                    COMMAND ${CMAKE_COMMAND} -E copy_if_different

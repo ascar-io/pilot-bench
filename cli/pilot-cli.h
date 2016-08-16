@@ -48,6 +48,7 @@
 #define GREETING_MSG "Pilot " stringify(PILOT_VERSION_MAJOR) "." \
     stringify(PILOT_VERSION_MINOR) " (compiled by " CC_VERSION " on " __DATE__ ")"
 
+int handle_analyze(int argc, const char** argv);
 int handle_run_program(int argc, const char** argv);
 int handle_detect_changepoint_edm(int argc, const char** argv);
 
@@ -70,7 +71,8 @@ std::vector<ResultType> extract_csv_fields(const std::string &csvstr,
     using namespace std;
     using namespace boost;
     vector<string> pidata_strs;
-    boost::split(pidata_strs, csvstr, boost::is_any_of(" \n\t,"));
+    // must have \r here to support files generated on Windows
+    boost::split(pidata_strs, csvstr, boost::is_any_of(" \r\n\t,"));
     vector<ResultType> r(pidata_strs.size());
     for (int i = 0; i < (int)columns.size(); ++i) {
         int col = columns[i];

@@ -52,6 +52,7 @@ void print_help_msg(const char* argv0) {
     cerr << "Pilot enters Lua mode if no command is given." << endl;
 #endif
     cerr << "Available commands:" << endl;
+    cerr << "  analyze                 analyze existing data" << endl;
     cerr << "  run_program             run a benchmark program" << endl;
     cerr << "  detect_changepoint_edm  use EDM method to detect changepoints from an input file" << endl;
     cerr << "Add --help after any command to see command specific help." << endl << endl;
@@ -80,6 +81,8 @@ int main(int argc, const char** argv) {
     if ("--help" == cmd || "help" == cmd) {
         print_help_msg(argv[0]);
         return 2;
+    } else if ("analyze" == cmd) {
+        return handle_analyze(argc, argv);
     } else if ("run_program" == cmd) {
         return handle_run_program(argc, argv);
     } else if ("detect_changepoint_edm" == cmd) {
