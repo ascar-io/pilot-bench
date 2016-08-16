@@ -162,7 +162,7 @@ int handle_analyze(int argc, const char** argv) {
             return 2;
         }
     }
-    int ignore_lines = 0;
+    int ignore_lines = -1;
     if (vm.count("ignore-lines")) {
         ignore_lines = vm["ignore-lines"].as<int>();
         if (ignore_lines < 0) {
@@ -206,36 +206,73 @@ int handle_analyze(int argc, const char** argv) {
     }
 
     // From now on we use fatal_log for errors.
-    debug_log << "Loading CSV file";
     vector<double> data;
     shared_ptr<istream> infile;
     string line;
     const vector<int> fields{field};
 
-    if ("-" == input_csv) {
-        infile.reset(&cin, [](istream* a) {});
-    } else {
-        infile.reset(new ifstream);
-        infile->exceptions(ifstream::badbit);
-        dynamic_cast<ifstream*>(infile.get())->open(input_csv);
-    }
-    for (int i = 0; i != ignore_lines; ++i) {
-        if (!getline(*infile, line)) {
-            cerr << format("Error: input file doesn't have %1% lines to ignore") % ignore_lines << endl;
-            return 3;
-        }
-        debug_log << "ignoring line: " << line;
-    }
     try {
-        while (getline(*infile, line)) {
-            data.push_back(extract_csv_fields<double>(line, fields)[0]);
-            debug_log << "read " << data.back() << endl;
+        if ("-" == input_csv) {
+            // Disable deleting cin
+            infile.reset(&cin, [](istream* a) {});
+            debug_log << "Reading data from stdin";
+        } else {
+            infile.reset(new ifstream);
+            infile->exceptions(ifstream::badbit | ifstream::failbit);
+            debug_log << "Reading data from " << input_csv;
+            dynamic_cast<ifstream*>(infile.get())->open(input_csv);
         }
-    } catch (const runtime_error& e) {
-        fatal_log << e.what();
-        return 6;
+        // ignore_lines may be -1, in which case we will ignore errors on line 1 later
+        size_t lineno = 1;
+        for (int i = 0; i < ignore_lines; ++i) {
+            if (!getline(*infile, line)) {
+                cerr << format("Error: input file doesn't have %1% lines to ignore") % ignore_lines << endl;
+                return 3;
+            }
+            ++lineno;
+            debug_log << "ignoring line: " << line;
+        }
+        // Import the actual data
+        while (getline(*infile, line)) {
+            // Remove the last '\r' to prevent from messing with log
+            if (line.size() >= 1 && line.back() == '\r') {
+                line.resize(line.size()-1);
+            }
+            try {
+                try {
+                    data.push_back(extract_csv_fields<double>(line, fields)[0]);
+                    debug_log << format("Read line %1%. Data: \"%2%\"") % lineno % data.back();
+                    ++lineno;
+                } catch (const boost::bad_lexical_cast &e) {
+                    if (1 == lineno && -1 == ignore_lines) {
+                        warning_log << "Ignoring first line in input. It might be a header. Use `-i 1` to suppress this warning. Line data: \"" << line << '"';
+                        ++lineno;
+                        continue;
+                    } else {
+                        throw runtime_error("Malformed data");
+                    }
+                }
+            } catch (const runtime_error& e) {
+                fatal_log << format("Failed to extract a float number from from field %1% in line %2%, malformed data? Aborting. Line data: \"%3%\"") % field % lineno % line;
+                return 6;
+            }
+        }
+
+        debug_log << "Finished loading CSV file";
+    } catch (const ios::failure& e) {
+        // EOF also triggers failbit
+        if (!infile->eof()) {
+            // There is no standard way to know what error has just happened.
+            // See https://codereview.stackexchange.com/questions/57829/better-option-than-errno-for-file-io-error-handling
+            // e.code().message() doesn't contain any meaningful information on Mac
+            cerr << "==========================================" << endl;
+            cerr << "Error. Log before the error:" << endl << "..." << endl;
+            cerr << pilot_get_last_log_lines(3);
+            cerr.flush();
+            fatal_log << format("I/O error (%1%): %2%") % errno % strerror(errno);
+            return errno;
+        }
     }
-    debug_log << "Finished loading CSV file";
 
     double sample_mean = pilot_subsession_mean_p(data.data(), data.size(), pi_mean_method);
     printf("sample_size %zu\n", data.size());
