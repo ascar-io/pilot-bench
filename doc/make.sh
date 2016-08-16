@@ -20,4 +20,5 @@ cp ${PILOT_WIKI_DIR}/Requirements-and-Installation-Instructions.rest .
 mkdir -p tutorials
 cp ${PILOT_WIKI_DIR}/Measuring-the-duration-of-running-CPP-functions.md tutorials
 cp ${PILOT_WIKI_DIR}/Using-Pilot-to-run-a-command-line-benchmark-job.md tutorials
+cp ${PILOT_WIKI_DIR}/Using-Pilot-to-analyze-existing-data.rest tutorials/Using-Pilot-to-analyze-existing-data.rst
 make html
