@@ -93,16 +93,18 @@ set (PILOT_TESTS_LIBRARIES pilot_sharedlib ${Boost_LIBRARIES} ${GTEST_BINARY_DIR
 add_executable (unit_test_cli test/unit_test_cli.cc run_program.cc)
 target_link_libraries (unit_test_cli ${PILOT_TESTS_LIBRARIES})
 
+add_test (NAME unit_test_analyze
+		  COMMAND unit_test_analyze.sh)
+add_test (NAME unit_test_benchmark
+          COMMAND unit_test_benchmark.sh)
+add_test (NAME unit_test_cli
+		  COMMAND unit_test_cli)
 if (WITH_LUA)
   add_test (NAME unit_test_lua_prompt
             COMMAND unit_test_lua_prompt.sh)
 endif (WITH_LUA)
 add_test (NAME unit_test_pilot_opt_parsing
           COMMAND unit_test_pilot_opt_parsing.sh)
-add_test (NAME unit_test_benchmark
-          COMMAND unit_test_benchmark.sh)
-add_test (NAME unit_test_cli
-		  COMMAND unit_test_cli)
 
 install (TARGETS bench DESTINATION bin)
 install (PROGRAMS $<TARGET_FILE_DIR:bench>/pilot DESTINATION bin)
