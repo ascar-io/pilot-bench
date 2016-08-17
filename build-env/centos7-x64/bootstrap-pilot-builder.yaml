@@ -1,6 +1,5 @@
-# Pilot's Ansible Playbook for Set Up Build Environment on CentOS 7 x64
-# Created by Yan Li <yanli@ascar.io>. See LICENSE file in source
-# root for detail.
+# Pilot's Ansible Playbook for Setup Build Environment on CentOS 7 x64
+# Created by Yan Li <yanli@ascar.io>. See LICENSE file.
 
 ---
 - hosts: all
@@ -14,7 +13,7 @@
     cc_prefix: scl enable devtoolset-4
 
   pre_tasks:
-  # epel-release and centos-release-scl has to be installed first
+  # epel-release and centos-release-scl have to be installed first
   - name: install packages first batch
     yum: name={{ item }} state=latest
     with_items:
