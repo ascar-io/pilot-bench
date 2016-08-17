@@ -491,7 +491,7 @@ void pilot_set_log_level(pilot_log_level_t log_level);
 
 /**
  * \brief Get last n log lines
- * @return A pointer to the static log lines. No need to free it.
+ * @return A pointer to the static log lines. Need to be freed using pilot_free()
  * @param n lines of log to get
  */
 const char* pilot_get_last_log_lines(size_t n = 1);

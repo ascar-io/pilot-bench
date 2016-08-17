@@ -11,6 +11,8 @@ set (PILOT_VERSION_MINOR 8)
 ## OPTIONS
 option (WITH_LUA    "Build with Lua support" OFF)
 option (WITH_PYTHON "Build Python binding"   OFF)
+option (ENABLE_ASAN_DEBUG "Enable AddressSanitizer and UBSan for Debug Build" ON)
+option (ENABLE_TSAN_DEBUG "Enable ThreadSanitizer for Debug Build, can't be used with ENABLE_ASAN_DEBUG" OFF)
 
 ###############################################################################
 # configure a header file to pass some of the CMake settings
@@ -38,6 +40,24 @@ endif (NOT CMAKE_BUILD_TYPE)
 # would give you back CMake's default -O2. 
 string(REPLACE "-O2" "-O3" CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO}")
 string(REPLACE "-O2" "-O3" CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE}")
+
+if (ENABLE_ASAN_DEBUG)
+  set (CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fsanitize=address")
+  set (CMAKE_EXE_LINKER_FLAGS_DEBUG "${CMAKE_EXE_LINKER_FLAGS_DEBUG} -fsanitize=address")
+  # Up till Apple clang-703.0.29 it doesn't support -fsanitize=undefined
+  if (CMAKE_CXX_COMPILER_ID MATCHES "GNU")
+    set (CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fsanitize=undefined")
+    set (CMAKE_EXE_LINKER_FLAGS_DEBUG "${CMAKE_EXE_LINKER_FLAGS_DEBUG} -fsanitize=undefined")
+  endif (CMAKE_CXX_COMPILER_ID MATCHES "GNU")
+endif (ENABLE_ASAN_DEBUG)
+
+if (ENABLE_TSAN_DEBUG)
+  if (ENABLE_ASAN_DEBUG)
+    message( FATAL_ERROR "ASAN and TSAN cannot be enabled together." )
+  endif (ENABLE_ASAN_DEBUG)
+  set (CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fsanitize=thread")
+  set (CMAKE_EXE_LINKER_FLAGS_DEBUG "${CMAKE_EXE_LINKER_FLAGS_DEBUG} -fsanitize=thread")
+endif (ENABLE_TSAN_DEBUG)
 
 ###############################################################################
 ## GLOBAL BUILD OPTIONS

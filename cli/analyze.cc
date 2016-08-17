@@ -267,7 +267,8 @@ int handle_analyze(int argc, const char** argv) {
             // e.code().message() doesn't contain any meaningful information on Mac
             cerr << "==========================================" << endl;
             cerr << "Error. Log before the error:" << endl << "..." << endl;
-            cerr << pilot_get_last_log_lines(3);
+            shared_ptr<const char> p(pilot_get_last_log_lines(3), [](const char*p){ pilot_free((void*)p);});
+            cerr << *p;
             cerr.flush();
             fatal_log << format("I/O error (%1%): %2%") % errno % strerror(errno);
             return errno;

@@ -43,6 +43,7 @@
 #include <boost/math/distributions/students_t.hpp>
 #include <boost/shared_ptr.hpp>
 #include <algorithm>
+#include <cstdlib>
 #include "common.h"
 #include "config.h"
 #include <cstdio>
@@ -745,7 +746,11 @@ void pilot_set_log_level(pilot_log_level_t log_level) {
 }
 
 const char* pilot_get_last_log_lines(size_t n) {
-    return sstream_get_last_lines(g_in_mem_log_buffer, n);
+    const string s = sstream_get_last_lines(g_in_mem_log_buffer, n);
+    char *r = (char*)malloc(s.size());
+    if (!r) abort();
+    memcpy(r, s.data(), s.size());
+    return r;
 }
 
 pilot_log_level_t pilot_get_log_level(void) {

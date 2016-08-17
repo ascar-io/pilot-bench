@@ -132,13 +132,13 @@ std::ostream& operator<<(std::ostream &o, const std::vector<T> &a) {
     return o;
 }
 
-inline const char* sstream_get_last_lines(const std::stringstream& ss, size_t n = 1) {
+inline std::string sstream_get_last_lines(const std::stringstream& ss, size_t n = 1) {
     const std::string &s = ss.str();
     if (0 == s.size()) {
-        return "";
+        return std::string("");
     }
     if (1 == s.size()) {
-        return s.data();
+        return s;
     }
     size_t loc;
     if ('\n' != s.back()) {
@@ -150,18 +150,18 @@ inline const char* sstream_get_last_lines(const std::stringstream& ss, size_t n 
         // TOOD: need to handle \r here too for Windows later
         loc = s.rfind('\n', loc);
         if (std::string::npos == loc) {
-            return s.data();
+            return s;
         }
         if (0 == loc) {
             if (1 == n) {
-                return s.data() + 1;
+                return std::string(s.data() + 1);
             } else {
-                return s.data();
+                return s;
             }
         }
         --loc;
     }
-    return s.data() + loc + 2;
+    return std::string(s.data() + loc + 2);
 }
 
 } /* namespace pilot */
