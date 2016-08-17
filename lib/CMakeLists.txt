@@ -148,10 +148,10 @@ add_test (NAME unit_test_compare_results
           COMMAND unit_test_compare_results ${CMAKE_CURRENT_LIST_DIR}/test/unit_test_compare_results_input.csv)
 add_test (NAME unit_test_wps
           COMMAND unit_test_wps)
-if (WITH_PYTHON)
+if (WITH_PYTHON AND NOT ENABLE_ASAN_DEBUG)
   add_test (NAME unit_test_python_statistics
             COMMAND bash -c "PYTHONPATH=$<TARGET_FILE_DIR:pilot_sharedlib> python ${CMAKE_CURRENT_LIST_DIR}/test/unit_test_python_statistics.py")
-endif(WITH_PYTHON)
+endif(WITH_PYTHON AND NOT ENABLE_ASAN_DEBUG)
 # Disabled this test because it is too long.
 # add_test (NAME unit_test_macros
 #		  COMMAND unit_test_macros)
