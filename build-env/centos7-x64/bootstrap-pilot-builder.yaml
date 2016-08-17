@@ -36,6 +36,7 @@
       - doxygen
       - git
       - graphviz
+      - libasan
       - lua-devel
       - mg
       - ncurses-devel
