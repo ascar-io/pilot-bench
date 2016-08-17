@@ -80,3 +80,12 @@ TEST(WPSUnitTest, CornerCases) {
     shared_ptr<pilot_analytical_result_t> ar(pilot_analytical_result(wl.get(), NULL), pilot_free_analytical_result);
     ASSERT_EQ(false, ar->wps_has_data);
 }
+
+int main(int argc, char **argv) {
+    PILOT_LIB_SELF_CHECK;
+
+    // this does away a gtest warning message, and we don't care about execution time
+    ::testing::FLAGS_gtest_death_test_style = "threadsafe";
+    ::testing::InitGoogleTest(&argc, argv);
+    return RUN_ALL_TESTS();
+}
