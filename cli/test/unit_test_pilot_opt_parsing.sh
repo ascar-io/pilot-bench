@@ -116,6 +116,11 @@ grep -q "Setting the required width of confidence interval to 12% of mean" $TMPF
 grep -q "Setting the required minimum subsession sample size to 200" $TMPFILE
 grep -q "Setting the short round threshold to 20 second(s)" $TMPFILE
 
+# Test setting session limit
+run ./bench run_program -v --pi "throughput,MB/s,2,1,1" --session-limit 50 -- true 2>&1 | grep -q "Setting session limit to 50 seconds"
+run ./bench run_program -v --pi "throughput,MB/s,2,1,1" --session-limit -1 -- true 2>&1 | grep -q "<fatal> Session limit must be greater than 0, exiting..."
+
+# Test other options
 run ./bench run_program -v --pi "throughput,MB/s,2,1,1" -- true 2>&1 | grep -q "PI\[0\] name: throughput, unit: MB/s, reading must satisfy: yes, mean method: harmonic"
 
 run ./bench run_program -v --pi "throughput,MB/s,2,1:latency,ms,3,0:threads,,4,0" -- true 2>&1 | grep -q "Error: at least one PI needs to have must_satisfy set."

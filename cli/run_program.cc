@@ -196,6 +196,7 @@ int handle_run_program(int argc, const char** argv) {
                     "            \tmin. subsession sample size: 200,\n"
                     "            \tworkload round duration threshold: 20 seconds")
             ("quiet,q", "Enable quiet mode")
+            ("session-limit,s", po::value<int>(), "Set the session duration limit in seconds. Pilot will stop with error code 13 if the session runs longer (default: unlimited).")
             ("verbose,v", "Print debug information")
             ("work-amount,w", po::value<string>(), "Set the valid range of work amount [min,max]")
             ("wps", "WPS must satisfy")
@@ -299,6 +300,17 @@ int handle_run_program(int argc, const char** argv) {
     } else {
         // this workload doesn't need work amount
         pilot_set_work_amount_limit(g_wl.get(), 0);
+    }
+
+    // parse session limit
+    if (vm.count("session-limit")) {
+        int session_limit = vm["session-limit"].as<int>();
+        if (session_limit <= 0) {
+            fatal_log << "Session limit must be greater than 0, exiting...";
+            return 2;
+        }
+        info_log << format("Setting session limit to %1% seconds") % session_limit;
+        pilot_set_session_duration_limit(g_wl.get(), static_cast<size_t>(session_limit));
     }
 
     // parse and set PI info
