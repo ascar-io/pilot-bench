@@ -50,6 +50,12 @@ extern "C" {
 namespace pilot {
 #endif
 
+#ifdef __cplusplus
+    #define DEFAULT_VALUE(value) = value
+#else
+    #define DEFAULT_VALUE(value)
+#endif
+
 enum pilot_error_t {
     NO_ERROR = 0,
     ERR_WRONG_PARAM = 2,
@@ -246,12 +252,12 @@ typedef double pilot_pi_display_format_func_t(const pilot_workload_t* wl, double
  */
 void pilot_set_pi_info(pilot_workload_t* wl, int piid,
         const char *pi_name,
-        const char *pi_unit = NULL,
-        pilot_pi_display_format_func_t *format_reading_func = NULL,
-        pilot_pi_display_format_func_t *format_unit_reading_func = NULL,
-        bool reading_must_satisfy = false, bool unit_reading_must_satisfy = false,
-        pilot_mean_method_t reading_mean_type = ARITHMETIC_MEAN,
-        pilot_mean_method_t unit_reading_mean_type = ARITHMETIC_MEAN);
+        const char *pi_unit DEFAULT_VALUE(NULL),
+        pilot_pi_display_format_func_t *format_reading_func DEFAULT_VALUE(NULL),
+        pilot_pi_display_format_func_t *format_unit_reading_func DEFAULT_VALUE(NULL),
+        bool reading_must_satisfy DEFAULT_VALUE(false), bool unit_reading_must_satisfy DEFAULT_VALUE(false),
+        pilot_mean_method_t reading_mean_type DEFAULT_VALUE(ARITHMETIC_MEAN),
+        pilot_mean_method_t unit_reading_mean_type DEFAULT_VALUE(ARITHMETIC_MEAN));
 
 // TODO: implement a get_pi_info()
 
@@ -495,7 +501,7 @@ void pilot_set_log_level(pilot_log_level_t log_level);
  * @return A pointer to the static log lines. Need to be freed using pilot_free()
  * @param n lines of log to get
  */
-const char* pilot_get_last_log_lines(size_t n = 1);
+const char* pilot_get_last_log_lines(size_t n DEFAULT_VALUE(1));
 
 /**
  * \brief Get the logging level of the library
@@ -543,8 +549,8 @@ int pilot_wps_warmup_removal_lr_method_p(size_t rounds, const size_t *round_work
         float autocorrelation_coefficient_limit,
         nanosecond_type duration_threshold,
         double *alpha, double *v,
-        double *ci_width, double *ssr_out = NULL, double *ssr_out_percent = NULL,
-        size_t *subsession_sample_size = NULL);
+        double *ci_width, double *ssr_out DEFAULT_VALUE(NULL), double *ssr_out_percent DEFAULT_VALUE(NULL),
+        size_t *subsession_sample_size DEFAULT_VALUE(NULL));
 
 /**
  * \brief Basic and statistics information of a workload round
@@ -570,7 +576,7 @@ struct pilot_round_info_t {
  * that was returned by a previous call to pilot_round_info()
  * @return a pointer to a pilot_round_info_t struct
  */
-pilot_round_info_t* pilot_round_info(const pilot_workload_t *wl, size_t round, pilot_round_info_t *info = NULL);
+pilot_round_info_t* pilot_round_info(const pilot_workload_t *wl, size_t round, pilot_round_info_t *info DEFAULT_VALUE(NULL));
 
 /**
  * \brief Basic and statistics information of a workload
@@ -670,7 +676,7 @@ struct pilot_analytical_result_t {
  * that was returned by a previous call to pilot_analytical_result()
  * @return a pointer to a pilot_analytical_result_t struct
  */
-pilot_analytical_result_t* pilot_analytical_result(const pilot_workload_t *wl, pilot_analytical_result_t *info = NULL);
+pilot_analytical_result_t* pilot_analytical_result(const pilot_workload_t *wl, pilot_analytical_result_t *info DEFAULT_VALUE(NULL));
 
 void pilot_free_analytical_result(pilot_analytical_result_t *info);
 
@@ -702,7 +708,8 @@ void pilot_free_text_dump(char *dump);
  * @param max_autocorrelation_coefficient the maximal limit of the autocorrelation coefficient
  * @return the size of subsession (q); -1 if q can't be found (e.g. q would be larger than n)
  */
-int pilot_optimal_subsession_size_p(const double *data, size_t n, pilot_mean_method_t mean_method, double max_autocorrelation_coefficient = 0.1);
+int pilot_optimal_subsession_size_p(const double *data, size_t n,
+        pilot_mean_method_t mean_method, double max_autocorrelation_coefficient DEFAULT_VALUE(0.1));
 
 /**
  * \brief Calculate the width of the confidence interval given subsession size q and confidence level
@@ -739,7 +746,7 @@ double __attribute__ ((const)) pilot_calc_deg_of_freedom(double var1, double var
  */
 double pilot_p_eq(double mean1, double mean2, size_t size1, size_t size2,
                   double var1, double var2, double *ci_left, double *ci_right,
-                  double confidence_level = 0.95);
+                  double confidence_level DEFAULT_VALUE(0.95));
 
 /**
  * \brief Calculate the sample size needed for comparing against a baseline
@@ -780,8 +787,8 @@ pilot_optimal_sample_size_p(const double *data, size_t n,
                             double confidence_interval_width,
                             pilot_mean_method_t mean_method,
                             size_t *q, size_t *opt_sample_size,
-                            double confidence_level = 0.95,
-                            double max_autocorrelation_coefficient = 0.1);
+                            double confidence_level DEFAULT_VALUE(0.95),
+                            double max_autocorrelation_coefficient DEFAULT_VALUE(0.1));
 
 #define MIN_CHANGEPOINT_DETECTION_SAMPLE_SIZE (30)
 
@@ -795,7 +802,8 @@ pilot_optimal_sample_size_p(const double *data, size_t n,
  * @return 0 on success; otherwise error code
  */
 int pilot_changepoint_detection(const double *data, size_t n,
-        int **changepoints, size_t *cp_n, double percent = 0.25, int degree = 1);
+        int **changepoints, size_t *cp_n, double percent DEFAULT_VALUE(0.25),
+        int degree DEFAULT_VALUE(1));
 
 /**
  * Find the dominant segment
@@ -811,8 +819,8 @@ int pilot_changepoint_detection(const double *data, size_t n,
  * @return 0 on success, otherwise error code
  */
 int pilot_find_dominant_segment(const double *data, size_t n, size_t *begin,
-        size_t *end, size_t min_size = MIN_CHANGEPOINT_DETECTION_SAMPLE_SIZE,
-        double percent = 0.25, int degree = 1);
+        size_t *end, size_t min_size DEFAULT_VALUE(MIN_CHANGEPOINT_DETECTION_SAMPLE_SIZE),
+        double percent DEFAULT_VALUE(0.25), int degree DEFAULT_VALUE(1));
 
 /**
  * Use EDM tail method to find one changepoint
@@ -822,7 +830,7 @@ int pilot_find_dominant_segment(const double *data, size_t n, size_t *begin,
  * @return 0 on success, otherwise error code
  */
 int pilot_find_one_changepoint(const double *data, size_t n, size_t *loc,
-                               double percent = 0.25, int degree = 1);
+                               double percent DEFAULT_VALUE(0.25), int degree DEFAULT_VALUE(1));
 
 struct pilot_pi_unit_readings_iter_t;
 
@@ -1063,8 +1071,8 @@ int _simple_runner(pilot_simple_workload_func_t func,
                    const char *benchmark_name);
 int _simple_runner_with_wa(pilot_simple_workload_with_wa_func_t func,
                            const char *benchmark_name,
-                           size_t min_wa = 0, size_t max_wa = ULONG_MAX,
-                           size_t short_round_threshold = 1);
+                           size_t min_wa DEFAULT_VALUE(0), size_t max_wa DEFAULT_VALUE(ULONG_MAX),
+                           size_t short_round_threshold DEFAULT_VALUE(1));
 #define simple_runner(func, ...) \
     _simple_runner(func, #func, ##__VA_ARGS__)
 #define simple_runner_with_wa(func, ...) \
