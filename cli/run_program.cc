@@ -493,7 +493,7 @@ int handle_run_program(int argc, const char** argv) {
                                     % r->readings_mean_formatted[piid]
                                     % r->readings_optimal_subsession_ci_width_formatted[piid]
                                     % r->readings_optimal_subsession_var_formatted[piid]
-                                    % r->readings_dominant_segment_begin[piid]
+                                    % r->readings_last_changepoint[piid]
                                     % r->readings_raw_mean_formatted[piid]
                                     % r->readings_raw_optimal_subsession_ci_width_formatted[piid]
                                     % r->readings_raw_optimal_subsession_var_formatted[piid];

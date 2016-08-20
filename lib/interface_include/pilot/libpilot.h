@@ -66,6 +66,7 @@ enum pilot_error_t {
     ERR_NOT_ENOUGH_DATA_FOR_CI = 31,
     ERR_NO_DOMINANT_SEGMENT = 32,
     ERR_ROUND_TOO_SHORT = 33,
+    ERR_NO_CHANGEPOINT = 34,
     ERR_NOT_IMPL = 200,
     ERR_LINKED_WRONG_VER = 201
 };
@@ -582,8 +583,7 @@ struct pilot_analytical_result_t {
     // Readings analysis
     size_t* readings_num;              //! the following readings fields are undefined if readings_num is 0
     pilot_mean_method_t* readings_mean_method;
-    size_t* readings_dominant_segment_begin;
-    size_t* readings_dominant_segment_size;
+    size_t* readings_last_changepoint;
 
     // Dominant segment analysis (these info. are preferred to raw data)
     double* readings_mean;             //! the mean of all readings so far according to PI reading's mean method; is undefined if readings_num < 2
@@ -783,6 +783,8 @@ pilot_optimal_sample_size_p(const double *data, size_t n,
                             double confidence_level = 0.95,
                             double max_autocorrelation_coefficient = 0.1);
 
+#define MIN_CHANGEPOINT_DETECTION_SAMPLE_SIZE (30)
+
 /**
  * \brief Detect changepoint of mean in data
  * Use pilot_free() to free the memory you get in changepoints
@@ -793,8 +795,7 @@ pilot_optimal_sample_size_p(const double *data, size_t n,
  * @return 0 on success; otherwise error code
  */
 int pilot_changepoint_detection(const double *data, size_t n,
-        int **changepoints, size_t *cp_n, int min_size = 30,
-        double percent = 0.25, int degree = 1);
+        int **changepoints, size_t *cp_n, double percent = 0.25, int degree = 1);
 
 /**
  * Find the dominant segment
@@ -807,10 +808,21 @@ int pilot_changepoint_detection(const double *data, size_t n,
  * @param degree
  * @param begin
  * @param end
- * @return
+ * @return 0 on success, otherwise error code
  */
 int pilot_find_dominant_segment(const double *data, size_t n, size_t *begin,
-        size_t *end, int min_size = 30, double percent = 0.25, int degree = 1);
+        size_t *end, size_t min_size = MIN_CHANGEPOINT_DETECTION_SAMPLE_SIZE,
+        double percent = 0.25, int degree = 1);
+
+/**
+ * Use EDM tail method to find one changepoint
+ * @param data
+ * @param n
+ * @param [out] loc for storing the detected changepoint
+ * @return 0 on success, otherwise error code
+ */
+int pilot_find_one_changepoint(const double *data, size_t n, size_t *loc,
+                               double percent = 0.25, int degree = 1);
 
 struct pilot_pi_unit_readings_iter_t;
 

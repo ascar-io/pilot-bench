@@ -1,8 +1,17 @@
-commit 81cf5268b77feb15953d2346ea6646b66b798503
-Author: Yan Li <yanli@soe.ucsc.edu>
-Date:   Wed Apr 6 11:46:24 2016 -0700
+From 4438aaedceed28ef7a689e5360f186e0b74157ad Mon Sep 17 00:00:00 2001
+Message-Id: <4438aaedceed28ef7a689e5360f186e0b74157ad.1471702729.git.yanli@ascar.io>
+From: Yan Li <yanli@soe.ucsc.edu>
+Date: Wed, 6 Apr 2016 11:46:24 -0700
+Subject: [PATCH] Patch to enable being compiled as a standalone library
 
-    Patch to enable being compiled as a standalone library
+Signed-off-by: Yan Li <yanli@ascar.io>
+---
+ src/edm-multi.cpp | 11 ++++++-----
+ src/edm-per.cpp   | 13 +++++++------
+ src/edmTail.cpp   | 27 ++++++++++++++-------------
+ src/helper.cpp    |  2 --
+ src/helper.h      |  2 --
+ 5 files changed, 27 insertions(+), 28 deletions(-)
 
 diff --git a/src/edm-multi.cpp b/src/edm-multi.cpp
 index 8c96601..6adb0f1 100644
@@ -91,6 +100,97 @@ index 2da4eb8..097b517 100644
 -	return List::create(_["loc"]=ret);
 +	return ret;
  }
+diff --git a/src/edmTail.cpp b/src/edmTail.cpp
+index 42707b7..ab21fd2 100644
+--- a/src/edmTail.cpp
++++ b/src/edmTail.cpp
+@@ -2,13 +2,15 @@
+ This version calculates the between distance using the delta points around the change point estimate.
+ */
+ 
+-#include<Rcpp.h>
+ #include<cmath>
+ #include<algorithm>
+ #include<iostream>
+ #include<vector>
+ 
+-using namespace Rcpp;
++using namespace std;
++typedef vector<int> List;
++typedef vector<double> NumericVector;
++typedef vector<int> IntegerVector;
+ 
+ //Class used to hold all the information about the
+ //breakout location and the interval trees
+@@ -36,8 +38,8 @@ Information::Information(int bb, int m){
+ 	std::cout<<"best_loc: "<<info.best_loc<<std::endl;
+ }*/
+ 
+-void BackwardUpdate(NumericVector& Z, Information& info, int& tau1, double quant, double alpha);
+-void ForwardUpdate(NumericVector& Z, Information& info, int& tau1, double quant, double alpha);
++void BackwardUpdate(const double *Z, int N, Information& info, int& tau1, double quant, double alpha);
++void ForwardUpdate(const double *Z, int N, Information& info, int& tau1, double quant, double alpha);
+ 
+ int GetIndex(int B, double x){
+ 	//Get index of leaf node interval containing x
+@@ -91,9 +93,8 @@ IntegerVector AddToTree(int B, NumericVector& x){
+ }
+ 
+ // [[Rcpp::export]]
+-List EDM_tail(NumericVector& Z, int min_size=24, double alpha=2, double quant=0.5){
++int EDM_tail(const double *Z, int N, int min_size=24, double alpha=2, double quant=0.5){
+ 
+-	int N = Z.size();
+ 	int eps = (int)std::ceil( std::log(N) );
+ 	eps = std::max( eps, 10 );
+ 	
+@@ -177,10 +178,10 @@ List EDM_tail(NumericVector& Z, int min_size=24, double alpha=2, double quant=0.
+ 	while(tau1 < N-min_size){
+ 		//"warm start" to update tree and statistic value for other prefix series
+ 		if(forward_move){
+-			ForwardUpdate(Z, info, tau1, quant, alpha);
++			ForwardUpdate(Z, N, info, tau1, quant, alpha);
+ 		}
+ 		else{
+-			BackwardUpdate(Z, info, tau1, quant, alpha);
++			BackwardUpdate(Z, N, info, tau1, quant, alpha);
+ 		}
+ 		forward_move = !forward_move;
+ 	}
+@@ -188,15 +189,15 @@ List EDM_tail(NumericVector& Z, int min_size=24, double alpha=2, double quant=0.
+ 	//return statment for debugging
+ 	//return List::create(_["loc"]=info.best_loc, _["tail"]=info.best_t2, _["stat"]=info.best_stat);
+ 
+-	return List::create(_["loc"]=info.best_loc, _["stat"]=info.best_stat);
++	return info.best_loc;
+ }
+ 
+-void ForwardUpdate(NumericVector& Z, Information& info, int& tau1, double quant, double alpha){
++void ForwardUpdate(const double *Z, int N, Information& info, int& tau1, double quant, double alpha){
+ 	
+ 	int min_size = info.min_size;
+ 	int tau2 = tau1 + min_size;
+ 	++tau1;
+-	int N = Z.size(), index;
++	int index;
+ 	//Update A tree
+ 	for(int i=tau1-min_size; i<tau1-1; ++i){
+ 		index = GetIndex(info.b, Z[i]-Z[tau1-1]);
+@@ -291,12 +292,12 @@ void ForwardUpdate(NumericVector& Z, Information& info, int& tau1, double quant,
+ 	}
+ }
+ 
+-void BackwardUpdate(NumericVector& Z, Information& info, int& tau1, double quant, double alpha){
++void BackwardUpdate(const double *Z, int N, Information& info, int& tau1, double quant, double alpha){
+ 
+ 	int min_size = info.min_size;
+ 	int tau2 = tau1 + min_size;
+ 	++tau1;
+-	int N = Z.size(), index;
++	int index;
+ 	//Update A tree
+ 	for(int i=tau1-min_size; i<tau1-1; ++i){
+ 		index = GetIndex(info.b, Z[i]-Z[tau1-1]);
 diff --git a/src/helper.cpp b/src/helper.cpp
 index ed1f1f6..cc4396a 100644
 --- a/src/helper.cpp
@@ -122,3 +222,6 @@ index c4bd4e2..4053f77 100644
  using namespace std;
  
  double get_median(const multiset<double>&, const multiset<double, std::greater<double> >&);
+-- 
+2.9.1
+

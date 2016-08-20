@@ -270,6 +270,22 @@ TEST(StatisticsUnitTest, FindDominantSegment) {
     ASSERT_EQ(131, end);
 }
 
+TEST(StatisticsUnitTest, FindChangepoint) {
+    vector<double> data;
+    size_t loc;
+    for (int i = 0; i < 30; ++i)
+        data.push_back(1.1);
+    ASSERT_EQ(ERR_NO_CHANGEPOINT, pilot_find_one_changepoint(data.data(), data.size(), &loc));
+    for (int i = 0; i < 30; ++i)
+        data.push_back(5.1);
+    ASSERT_EQ(0, pilot_find_one_changepoint(data.data(), data.size(), &loc));
+    ASSERT_EQ(30, loc);
+    for (int i = 0; i < 30; ++i)
+        data.push_back(1.1);
+    ASSERT_EQ(0, pilot_find_one_changepoint(data.data(), data.size(), &loc));
+    ASSERT_EQ(60, loc);
+}
+
 int main(int argc, char **argv) {
     PILOT_LIB_SELF_CHECK;
     // we only display fatals because errors are expected in some test cases

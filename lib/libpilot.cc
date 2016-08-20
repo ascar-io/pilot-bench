@@ -777,8 +777,7 @@ void pilot_analytical_result_t::_free_all_field() {
 
     FREE_AND_NULL(readings_num);
     FREE_AND_NULL(readings_mean_method);
-    FREE_AND_NULL(readings_dominant_segment_begin);
-    FREE_AND_NULL(readings_dominant_segment_size);
+    FREE_AND_NULL(readings_last_changepoint);
     FREE_AND_NULL(readings_mean);
     FREE_AND_NULL(readings_mean_formatted);
     FREE_AND_NULL(readings_var);
@@ -832,8 +831,7 @@ void pilot_analytical_result_t::_copyfrom(const pilot_analytical_result_t &a) {
 
     COPY_ARRAY(readings_num);
     COPY_ARRAY(readings_mean_method);
-    COPY_ARRAY(readings_dominant_segment_begin);
-    COPY_ARRAY(readings_dominant_segment_size);
+    COPY_ARRAY(readings_last_changepoint);
     COPY_ARRAY(readings_mean);
     COPY_ARRAY(readings_mean_formatted);
     COPY_ARRAY(readings_var);
@@ -920,8 +918,8 @@ void pilot_analytical_result_t::set_num_of_pi(size_t new_num_of_pi) {
     INIT_FIELD(readings_num);
     SET_VAL(readings_num, 0);
     INIT_FIELD(readings_mean_method);
-    INIT_FIELD(readings_dominant_segment_begin);
-    INIT_FIELD(readings_dominant_segment_size);
+    INIT_FIELD(readings_last_changepoint);
+    SET_VAL(readings_last_changepoint, 0);
     INIT_FIELD(readings_mean);
     INIT_FIELD(readings_mean_formatted);
     INIT_FIELD(readings_var);
@@ -1108,15 +1106,15 @@ pilot_optimal_sample_size_p(const double *data, size_t n,
 
 int pilot_changepoint_detection(const double *data, size_t n,
                                 int **changepoints, size_t *cp_n,
-                                int min_size, double percent, int degree) {
+                                double percent, int degree) {
     ASSERT_VALID_POINTER(data);
     ASSERT_VALID_POINTER(changepoints);
     ASSERT_VALID_POINTER(cp_n);
-    if (n < 24) {
-        error_log << __func__ << "() requires at least 24 data points";
+    if (n < MIN_CHANGEPOINT_DETECTION_SAMPLE_SIZE) {
+        error_log << __func__ << format("() requires at least %1% data points") % MIN_CHANGEPOINT_DETECTION_SAMPLE_SIZE;
         return ERR_NOT_ENOUGH_DATA;
     }
-    vector<int> t = EDM_percent(data, n, min_size, percent, degree);
+    vector<int> t = EDM_percent(data, n, MIN_CHANGEPOINT_DETECTION_SAMPLE_SIZE, percent, degree);
 
     // prepare result array from vector
     size_t result_bytes = sizeof(int) * t.size();
@@ -1127,12 +1125,12 @@ int pilot_changepoint_detection(const double *data, size_t n,
 }
 
 int pilot_find_dominant_segment(const double *data, size_t n, size_t *begin,
-        size_t *end, int min_size, double percent, int degree) {
+        size_t *end, size_t min_size, double percent, int degree) {
     ASSERT_VALID_POINTER(data);
     ASSERT_VALID_POINTER(begin);
     ASSERT_VALID_POINTER(end);
-    if (n < 24) {
-        debug_log << __func__ << "() requires at least 24 data points";
+    if (n < min_size) {
+        error_log << __func__ << format("() requires at least %1% data points") % min_size;
         return ERR_NOT_ENOUGH_DATA;
     }
     vector<int> cps = EDM_percent(data, n, min_size, percent, degree);
@@ -1166,6 +1164,23 @@ int pilot_find_dominant_segment(const double *data, size_t n, size_t *begin,
         cur_seg.begin = cp;
     }
     return ERR_NO_DOMINANT_SEGMENT;
+}
+
+int pilot_find_one_changepoint(const double *data, size_t n, size_t *loc,
+                               double percent, int degree) {
+    ASSERT_VALID_POINTER(data);
+    ASSERT_VALID_POINTER(loc);
+    if (n < MIN_CHANGEPOINT_DETECTION_SAMPLE_SIZE) {
+        error_log << __func__ << format("() requires at least %1% data points") % MIN_CHANGEPOINT_DETECTION_SAMPLE_SIZE;
+        return ERR_NOT_ENOUGH_DATA;
+    }
+    vector<int> cps = EDM_percent(data, n, MIN_CHANGEPOINT_DETECTION_SAMPLE_SIZE, percent, degree);
+    if (cps.size() > 0) {
+        *loc = cps.back();
+        return 0;
+    } else {
+        return ERR_NO_CHANGEPOINT;
+    }
 }
 
 int pilot_wps_warmup_removal_lr_method_p(size_t rounds, const size_t *round_work_amounts,

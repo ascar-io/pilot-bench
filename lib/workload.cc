@@ -93,8 +93,12 @@ ssize_t pilot_workload_t::required_num_of_readings(int piid) const {
     if (analytical_result_.readings_required_sample_size[piid] < 0) {
         return -1;
     } else {
-        return total_num_of_readings_[piid] +
-               (analytical_result_.readings_required_sample_size[piid] - analytical_result_.readings_dominant_segment_size[piid]);
+        ssize_t after_changepoint_samples = total_num_of_readings_[piid] - analytical_result_.readings_last_changepoint[piid];
+        if (after_changepoint_samples >= analytical_result_.readings_required_sample_size[piid])
+            return total_num_of_readings_[piid];
+        else
+            return total_num_of_readings_[piid] +
+               (analytical_result_.readings_required_sample_size[piid] - after_changepoint_samples);
     }
 }
 
@@ -251,21 +255,28 @@ void pilot_workload_t::refresh_analytical_result(void) const {
         analytical_result_.readings_mean_method[piid] = pi_info_[piid].reading_mean_method;
         if (analytical_result_.readings_num[piid] >= 2) {
             // First see if we can find a dominant segment
-            size_t dominant_seg_begin, dominant_seg_end;
-            int res = pilot_find_dominant_segment(readings_[piid].data(), readings_[piid].size(),
-                            &dominant_seg_begin, &dominant_seg_end);
-            if (0 != res) {
-                info_log << __func__ << "(): readings have no dominant segment yet";
-                dominant_seg_begin = 0;
-                dominant_seg_end = readings_[piid].size();
-            } else {
-                info_log << __func__ << "() found dominant segment in readings: ["
-                        << dominant_seg_begin << ", " << dominant_seg_end << ")";
+            if (analytical_result_.readings_num[piid] > MIN_CHANGEPOINT_DETECTION_SAMPLE_SIZE) {
+                size_t change_loc;
+                // We use 30% as change penalty to make sure the changepoint is significant enough
+                int res = pilot_find_one_changepoint(readings_[piid].data() + analytical_result_.readings_last_changepoint[piid],
+                                                     readings_[piid].size() - analytical_result_.readings_last_changepoint[piid],
+                                                     &change_loc);
+                switch (res) {
+                case ERR_NO_CHANGEPOINT:
+                    debug_log << __func__ << "(): readings have no changepoint detected";
+                    break;
+                case 0:
+                    analytical_result_.readings_last_changepoint[piid] += change_loc;
+                    info_log << __func__ << format("(): changepoint in readings detected at %1%. "
+                                                   "Previous readings will be ignored in analysis.") %
+                                                   analytical_result_.readings_last_changepoint[piid];
+                    break;
+                default:
+                    fatal_log << __func__ << format("(): unknown error %1% detected, aborting") % res;
+                    abort();
+                    break;
+                }
             }
-            analytical_result_.readings_dominant_segment_begin[piid] = dominant_seg_begin;
-            analytical_result_.readings_dominant_segment_size[piid] = dominant_seg_end - dominant_seg_begin;
-            const double *dom_seg_data = readings_[piid].data() + dominant_seg_begin;
-            const size_t dom_seg_size = dominant_seg_end - dominant_seg_begin;
 
             double sm, var_rt, subsession_var_rt, ci, cif_low, cif_high;
             size_t q;
@@ -314,7 +325,8 @@ void pilot_workload_t::refresh_analytical_result(void) const {
             }
 
             // Dominant segment analysis
-            ANALYZE_READINGS(analytical_result_.readings, dom_seg_data, dom_seg_size)
+            ANALYZE_READINGS(analytical_result_.readings, readings_[piid].data() + analytical_result_.readings_last_changepoint[piid],
+                             readings_[piid].size() - analytical_result_.readings_last_changepoint[piid])
             // Raw data analysis
             ANALYZE_READINGS(analytical_result_.readings_raw, readings_[piid].data(), readings_[piid].size())
 #undef ANALYZE_READINGS

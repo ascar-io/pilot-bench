@@ -5,7 +5,7 @@ project (pilot)
 ## VERSION
 
 set (PILOT_VERSION_MAJOR 0)
-set (PILOT_VERSION_MINOR 9)
+set (PILOT_VERSION_MINOR 10)
 
 ###############################################################################
 ## OPTIONS
