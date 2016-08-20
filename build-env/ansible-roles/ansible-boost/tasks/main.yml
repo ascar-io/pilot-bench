@@ -70,4 +70,4 @@
 - name: Insall Boost
   become: yes
   become_user: root
-  command: chdir={{ boost_work_dir }} ./b2 install
+  command: chdir={{ boost_work_dir }} ./b2 -j8 install
