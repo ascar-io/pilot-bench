@@ -78,6 +78,6 @@ else
     echo "Found Pilot header in default search path"
 fi
 
-c++ ${HEADER_ARG[@]:-} ${LIB_ARG[@]:-} -g -O2 -o benchmark_hash benchmark_hash.cc -lpilot
+c++ ${HEADER_ARG[@]:-} ${LIB_ARG[@]:-} --std=c++11 -g -O2 -o benchmark_hash benchmark_hash.cc -lpilot
 
 echo "All examples built successfully."
