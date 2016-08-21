@@ -36,6 +36,9 @@ if (NOT CMAKE_BUILD_TYPE)
       FORCE)
 endif (NOT CMAKE_BUILD_TYPE)
 
+# Apply visibility settings to all targets including .a files. This sets
+# policy CMP0063 to NEW.
+cmake_policy (VERSION 3.5.2)
 # Don't expose useless symbols. This is also needed if Boost is compiled with
 # -fvisibility=hidden.
 set (CMAKE_CXX_VISIBILITY_PRESET hidden)
@@ -100,6 +103,13 @@ set (GTEST_BINARY_DIR ${BINARY_DIR})
 
 ###############################################################################
 ## TUI LIBRARIES
+
+# We want to link to ncurses statically on Mac and Windows
+if (WIN32)
+   set (CMAKE_FIND_LIBRARY_SUFFIXES .lib .a ${CMAKE_FIND_LIBRARY_SUFFIXES})
+elseif (APPLE)
+   set (CMAKE_FIND_LIBRARY_SUFFIXES .a ${CMAKE_FIND_LIBRARY_SUFFIXES})
+endif (WIN32)
 
 find_package (Curses REQUIRED)
 ExternalProject_Add (cdk
