@@ -87,7 +87,7 @@ public:
 
 bool g_lib_self_check_done = false;
 
-void pilot_lib_self_check(int vmajor, int vminor, size_t nanosecond_type_size) {
+void pilot_lib_self_check(int vmajor, int vminor, size_t nanosecond_type_size) noexcept {
     // Only need to run once
     if (g_lib_self_check_done) return;
 
@@ -133,11 +133,11 @@ void pilot_lib_self_check(int vmajor, int vminor, size_t nanosecond_type_size) {
     g_lib_self_check_done = true;
 }
 
-void pilot_free(void *p) {
+void pilot_free(void *p) noexcept {
     free(p);
 }
 
-void pilot_remove_console_log_sink(void) {
+void pilot_remove_console_log_sink(void) noexcept {
     namespace logging = boost::log;
     boost::shared_ptr< logging::core > core = logging::core::get();
     assert (g_console_log_sink.get() != NULL);
@@ -151,7 +151,7 @@ void pilot_set_pi_info(pilot_workload_t* wl, int piid,
         pilot_pi_display_format_func_t *format_unit_reading_func,
         bool reading_must_satisfy, bool unit_reading_must_satisfy,
         pilot_mean_method_t reading_mean_type,
-        pilot_mean_method_t unit_reading_mean_type)
+        pilot_mean_method_t unit_reading_mean_type) noexcept
 {
     ASSERT_VALID_POINTER(wl);
     ASSERT_VALID_POINTER(pi_name);
@@ -164,42 +164,42 @@ void pilot_set_pi_info(pilot_workload_t* wl, int piid,
     wl->pi_info_[piid].unit_reading_must_satisfy = unit_reading_must_satisfy;
 }
 
-pilot_workload_t* pilot_new_workload(const char *workload_name) {
+pilot_workload_t* pilot_new_workload(const char *workload_name) noexcept {
     pilot_workload_t *wl = new pilot_workload_t(workload_name);
     return wl;
 }
 
-void pilot_set_workload_data(pilot_workload_t* wl, void *data) {
+void pilot_set_workload_data(pilot_workload_t* wl, void *data) noexcept {
     ASSERT_VALID_POINTER(wl);
     wl->workload_data_ = data;
 }
 
-void pilot_set_next_round_work_amount_hook(pilot_workload_t* wl, next_round_work_amount_hook_t *f) {
+void pilot_set_next_round_work_amount_hook(pilot_workload_t* wl, next_round_work_amount_hook_t *f) noexcept {
     ASSERT_VALID_POINTER(wl);
     ASSERT_VALID_POINTER(f);
     wl->next_round_work_amount_hook_ = f;
 }
 
 void pilot_set_calc_required_readings_func(pilot_workload_t* wl,
-        calc_required_readings_func_t *f) {
+        calc_required_readings_func_t *f) noexcept {
     ASSERT_VALID_POINTER(wl);
     ASSERT_VALID_POINTER(f);
     wl->calc_required_readings_func_ = f;
 }
 
 void pilot_set_calc_required_unit_readings_func(pilot_workload_t* wl,
-        calc_required_readings_func_t *f) {
+        calc_required_readings_func_t *f) noexcept {
     ASSERT_VALID_POINTER(wl);
     ASSERT_VALID_POINTER(f);
     wl->calc_required_unit_readings_func_ = f;
 }
 
-void pilot_set_num_of_pi(pilot_workload_t* wl, size_t num_of_pi) {
+void pilot_set_num_of_pi(pilot_workload_t* wl, size_t num_of_pi) noexcept {
     ASSERT_VALID_POINTER(wl);
     wl->set_num_of_pi(num_of_pi);
 }
 
-int pilot_get_num_of_pi(const pilot_workload_t* wl, size_t *p_num_of_pi) {
+int pilot_get_num_of_pi(const pilot_workload_t* wl, size_t *p_num_of_pi) noexcept {
     ASSERT_VALID_POINTER(wl);
     ASSERT_VALID_POINTER(p_num_of_pi);
     if (0 == wl->num_of_pi_) {
@@ -210,29 +210,29 @@ int pilot_get_num_of_pi(const pilot_workload_t* wl, size_t *p_num_of_pi) {
     return 0;
 }
 
-void pilot_set_workload_func(pilot_workload_t* wl, pilot_workload_func_t *wf) {
+void pilot_set_workload_func(pilot_workload_t* wl, pilot_workload_func_t *wf) noexcept {
     ASSERT_VALID_POINTER(wl);
     wl->workload_func_ = wf;
 }
 
-void pilot_set_work_amount_limit(pilot_workload_t* wl, size_t t) {
+void pilot_set_work_amount_limit(pilot_workload_t* wl, size_t t) noexcept {
     ASSERT_VALID_POINTER(wl);
     wl->max_work_amount_ = t;
 }
 
-int pilot_get_work_amount_limit(const pilot_workload_t* wl, size_t *p_work_amount_limit) {
+int pilot_get_work_amount_limit(const pilot_workload_t* wl, size_t *p_work_amount_limit) noexcept {
     ASSERT_VALID_POINTER(wl);
     ASSERT_VALID_POINTER(p_work_amount_limit);
     *p_work_amount_limit = wl->max_work_amount_;
     return 0;
 }
 
-void pilot_set_init_work_amount(pilot_workload_t* wl, size_t init_work_amount) {
+void pilot_set_init_work_amount(pilot_workload_t* wl, size_t init_work_amount) noexcept {
     ASSERT_VALID_POINTER(wl);
     wl->init_work_amount_ = init_work_amount;
 }
 
-int pilot_get_init_work_amount(const pilot_workload_t* wl, size_t *p_init_work_amount) {
+int pilot_get_init_work_amount(const pilot_workload_t* wl, size_t *p_init_work_amount) noexcept {
     ASSERT_VALID_POINTER(wl);
     ASSERT_VALID_POINTER(p_init_work_amount);
     *p_init_work_amount = wl->init_work_amount_;
@@ -240,7 +240,7 @@ int pilot_get_init_work_amount(const pilot_workload_t* wl, size_t *p_init_work_a
 }
 
 int pilot_set_hook_func(pilot_workload_t* wl, enum pilot_hook_t hook,
-                        general_hook_func_t *f) {
+                        general_hook_func_t *f) noexcept {
     ASSERT_VALID_POINTER(wl);
     general_hook_func_t old_f;
     switch(hook) {
@@ -257,12 +257,12 @@ int pilot_set_hook_func(pilot_workload_t* wl, enum pilot_hook_t hook,
 }
 
 void pilot_set_warm_up_removal_method(pilot_workload_t* wl,
-        pilot_warm_up_removal_detection_method_t m) {
+        pilot_warm_up_removal_detection_method_t m) noexcept {
     ASSERT_VALID_POINTER(wl);
     wl->warm_up_removal_detection_method_ = m;
 }
 
-void pilot_set_warm_up_removal_percentage(pilot_workload_t* wl, double percent) {
+void pilot_set_warm_up_removal_percentage(pilot_workload_t* wl, double percent) noexcept {
     ASSERT_VALID_POINTER(wl);
     if (percent < 0 || percent >= 1) {
         fatal_log << "warm-up removal percentage must be within [0, 1), aborting...";
@@ -271,12 +271,12 @@ void pilot_set_warm_up_removal_percentage(pilot_workload_t* wl, double percent) 
     wl->warm_up_removal_percentage_ = percent;
 }
 
-void pilot_set_short_workload_check(pilot_workload_t* wl, bool check_short_workload) {
+void pilot_set_short_workload_check(pilot_workload_t* wl, bool check_short_workload) noexcept {
     ASSERT_VALID_POINTER(wl);
     wl->short_workload_check_ = check_short_workload;
 }
 
-int pilot_run_workload(pilot_workload_t *wl) {
+int pilot_run_workload(pilot_workload_t *wl) noexcept {
     // sanity check
     ASSERT_VALID_POINTER(wl);
     if (wl->workload_func_ == nullptr) {
@@ -445,7 +445,7 @@ int pilot_run_workload(pilot_workload_t *wl) {
     return result;
 }
 
-int pilot_run_workload_tui(pilot_workload_t *wl) {
+int pilot_run_workload_tui(pilot_workload_t *wl) noexcept {
     unique_ptr<PilotTUI> pilot_tui;
     try {
         pilot_tui.reset(new PilotTUI(&(wl->pi_info_), wl->format_wps_));
@@ -464,7 +464,7 @@ int pilot_run_workload_tui(pilot_workload_t *wl) {
     return workload_runner.get_workload_result();
 }
 
-void pilot_stop_workload(pilot_workload_t *wl) {
+void pilot_stop_workload(pilot_workload_t *wl) noexcept {
     ASSERT_VALID_POINTER(wl);
     wl->status_ = WL_STOP_REQUESTED;
 }
@@ -488,14 +488,14 @@ static void _pilot_ui_printf(pilot_workload_t *wl, const char* prefix, const cha
     g_in_mem_log_buffer << buf.get();
 }
 
-void pilot_ui_printf(pilot_workload_t *wl, const char* format, ...) {
+void pilot_ui_printf(pilot_workload_t *wl, const char* format, ...) noexcept {
     va_list args;
     va_start(args, format);
     _pilot_ui_printf(wl, "", format, args);
     va_end(args);
 }
 
-void pilot_ui_printf_hl(pilot_workload_t *wl, const char* format, ...) {
+void pilot_ui_printf_hl(pilot_workload_t *wl, const char* format, ...) noexcept {
     va_list args;
     va_start(args, format);
     if (NULL == wl->tui_) {
@@ -506,12 +506,12 @@ void pilot_ui_printf_hl(pilot_workload_t *wl, const char* format, ...) {
     va_end(args);
 }
 
-size_t pilot_get_total_num_of_unit_readings(const pilot_workload_t *wl, int piid) {
+size_t pilot_get_total_num_of_unit_readings(const pilot_workload_t *wl, int piid) noexcept {
     ASSERT_VALID_POINTER(wl);
     return wl->total_num_of_unit_readings_[piid];
 }
 
-const char *pilot_strerror(int errnum) {
+const char *pilot_strerror(int errnum) noexcept {
     switch (errnum) {
     case NO_ERROR:        return "No error";
     case ERR_WRONG_PARAM: return "Parameter error";
@@ -529,16 +529,16 @@ const char *pilot_strerror(int errnum) {
     }
 }
 
-void* pilot_malloc_func(size_t size) {
+void* pilot_malloc_func(size_t size) noexcept {
     return malloc(size);
 }
 
-int pilot_get_num_of_rounds(const pilot_workload_t *wl) {
+int pilot_get_num_of_rounds(const pilot_workload_t *wl) noexcept {
     ASSERT_VALID_POINTER(wl);
     return wl->rounds_;
 }
 
-const double* pilot_get_pi_readings(const pilot_workload_t *wl, size_t piid) {
+const double* pilot_get_pi_readings(const pilot_workload_t *wl, size_t piid) noexcept {
     ASSERT_VALID_POINTER(wl);
     if (piid >= wl->num_of_pi_) {
         error_log << "piid out of range";
@@ -548,7 +548,7 @@ const double* pilot_get_pi_readings(const pilot_workload_t *wl, size_t piid) {
 }
 
 const double* pilot_get_pi_unit_readings(const pilot_workload_t *wl,
-    size_t piid, size_t round, size_t *num_of_work_units) {
+    size_t piid, size_t round, size_t *num_of_work_units) noexcept {
     ASSERT_VALID_POINTER(wl);
     if (piid >= wl->num_of_pi_) {
         error_log << "piid out of range";
@@ -562,7 +562,7 @@ const double* pilot_get_pi_unit_readings(const pilot_workload_t *wl,
     return wl->unit_readings_[piid][round].data();
 }
 
-int pilot_export(const pilot_workload_t *wl, const char *dirname) {
+int pilot_export(const pilot_workload_t *wl, const char *dirname) noexcept {
     ASSERT_VALID_POINTER(wl);
     ASSERT_VALID_POINTER(dirname);
 
@@ -728,13 +728,13 @@ int pilot_export(const pilot_workload_t *wl, const char *dirname) {
     return 0;
 }
 
-int pilot_destroy_workload(pilot_workload_t *wl) {
+int pilot_destroy_workload(pilot_workload_t *wl) noexcept {
     ASSERT_VALID_POINTER(wl);
     delete wl;
     return 0;
 }
 
-void pilot_set_log_level(pilot_log_level_t log_level) {
+void pilot_set_log_level(pilot_log_level_t log_level) noexcept {
     ASSERT_VALID_POINTER(g_console_log_sink);
     g_log_level = log_level;
     // We only change the verbose level on the console log sink. The backend always stores
@@ -745,7 +745,7 @@ void pilot_set_log_level(pilot_log_level_t log_level) {
     );
 }
 
-const char* pilot_get_last_log_lines(size_t n) {
+const char* pilot_get_last_log_lines(size_t n) noexcept {
     const string s = sstream_get_last_lines(g_in_mem_log_buffer, n);
     char *r = (char*)malloc(s.size());
     if (!r) abort();
@@ -753,21 +753,21 @@ const char* pilot_get_last_log_lines(size_t n) {
     return r;
 }
 
-pilot_log_level_t pilot_get_log_level(void) {
+pilot_log_level_t pilot_get_log_level(void) noexcept {
     return g_log_level;
 }
 
-pilot_round_info_t* pilot_round_info(const pilot_workload_t *wl, size_t round, pilot_round_info_t *info) {
+pilot_round_info_t* pilot_round_info(const pilot_workload_t *wl, size_t round, pilot_round_info_t *info) noexcept {
     ASSERT_VALID_POINTER(wl);
     return wl->round_info(round, info);
 }
 
-pilot_analytical_result_t* pilot_analytical_result(const pilot_workload_t *wl, pilot_analytical_result_t *info) {
+pilot_analytical_result_t* pilot_analytical_result(const pilot_workload_t *wl, pilot_analytical_result_t *info) noexcept {
     ASSERT_VALID_POINTER(wl);
     return wl->get_analytical_result(info);
 }
 
-void pilot_free_analytical_result(pilot_analytical_result_t *result) {
+void pilot_free_analytical_result(pilot_analytical_result_t *result) noexcept {
     ASSERT_VALID_POINTER(result);
     delete result;
 }
@@ -975,53 +975,53 @@ pilot_analytical_result_t& pilot_analytical_result_t::operator=(const pilot_anal
     return *this;
 }
 
-void pilot_free_round_info(pilot_round_info_t *info) {
+void pilot_free_round_info(pilot_round_info_t *info) noexcept {
     ASSERT_VALID_POINTER(info);
     if (info->num_of_unit_readings) free(info->num_of_unit_readings);
     if (info->warm_up_phase_lens)   free(info->warm_up_phase_lens);
     free(info);
 }
 
-char* pilot_text_round_summary(const pilot_workload_t *wl, size_t round_id) {
+char* pilot_text_round_summary(const pilot_workload_t *wl, size_t round_id) noexcept {
     ASSERT_VALID_POINTER(wl);
     return wl->text_round_summary(round_id);
 }
 
-char* pilot_text_workload_summary(const pilot_workload_t *wl) {
+char* pilot_text_workload_summary(const pilot_workload_t *wl) noexcept {
     ASSERT_VALID_POINTER(wl);
     return wl->text_workload_summary();
 }
 
-void pilot_free_text_dump(char *dump) {
+void pilot_free_text_dump(char *dump) noexcept {
     ASSERT_VALID_POINTER(dump);
     delete[] dump;
 }
 
-double pilot_subsession_mean_p(const double *data, size_t n, pilot_mean_method_t mean_method) {
+double pilot_subsession_mean_p(const double *data, size_t n, pilot_mean_method_t mean_method) noexcept {
     return pilot_subsession_mean(data, n, mean_method);
 }
 
-double pilot_subsession_auto_cov_p(const double *data, size_t n, size_t q, double sample_mean, pilot_mean_method_t mean_method) {
+double pilot_subsession_auto_cov_p(const double *data, size_t n, size_t q, double sample_mean, pilot_mean_method_t mean_method) noexcept {
     return pilot_subsession_auto_cov(data, n, q, sample_mean, mean_method);
 }
 
-double pilot_subsession_var_p(const double *data, size_t n, size_t q, double sample_mean, pilot_mean_method_t mean_method) {
+double pilot_subsession_var_p(const double *data, size_t n, size_t q, double sample_mean, pilot_mean_method_t mean_method) noexcept {
     return pilot_subsession_var(data, n, q, sample_mean, mean_method);
 }
 
-double pilot_subsession_autocorrelation_coefficient_p(const double *data, size_t n, size_t q, double sample_mean, pilot_mean_method_t mean_method) {
+double pilot_subsession_autocorrelation_coefficient_p(const double *data, size_t n, size_t q, double sample_mean, pilot_mean_method_t mean_method) noexcept {
     return pilot_subsession_autocorrelation_coefficient(data, n, q, sample_mean, mean_method);
 }
 
-int pilot_optimal_subsession_size_p(const double *data, size_t n, pilot_mean_method_t mean_method, double max_autocorrelation_coefficient) {
+int pilot_optimal_subsession_size_p(const double *data, size_t n, pilot_mean_method_t mean_method, double max_autocorrelation_coefficient) noexcept {
     return pilot_optimal_subsession_size(data, n, mean_method, max_autocorrelation_coefficient);
 }
 
-double pilot_subsession_confidence_interval_p(const double *data, size_t n, size_t q, double confidence_level, pilot_mean_method_t mean_method) {
+double pilot_subsession_confidence_interval_p(const double *data, size_t n, size_t q, double confidence_level, pilot_mean_method_t mean_method) noexcept {
     return pilot_subsession_confidence_interval(data, n, q, confidence_level, mean_method);
 }
 
-double __attribute__ ((const)) pilot_calc_deg_of_freedom(double var1, double var2, size_t size1, size_t size2) {
+double __attribute__ ((const)) pilot_calc_deg_of_freedom(double var1, double var2, size_t size1, size_t size2) noexcept {
     assert (size1 > 1);
     assert (size2 > 1);
     double num = pow(var1 / static_cast<double>(size1) + var2 / static_cast<double>(size2), 2);
@@ -1032,7 +1032,7 @@ double __attribute__ ((const)) pilot_calc_deg_of_freedom(double var1, double var
 
 double pilot_p_eq(double mean1, double mean2, size_t size1, size_t size2,
                   double var1, double var2, double *ci_left, double *ci_right,
-                  double confidence_level) {
+                  double confidence_level) noexcept {
     using namespace boost::math;
     if (var1 < 0 || var2 < 0) {
         fatal_log << __func__ << "(): variance must be greater than or equal 0";
@@ -1064,7 +1064,7 @@ double pilot_p_eq(double mean1, double mean2, size_t size1, size_t size2,
 int pilot_optimal_sample_size_for_eq_test(double baseline_mean,
         size_t baseline_sample_size, double baseline_var,
         double new_mean, size_t new_sample_size, double new_var,
-        double required_p, size_t *opt_new_sample_size) {
+        double required_p, size_t *opt_new_sample_size) noexcept {
     using namespace boost::math;
     if (baseline_var < 0 || new_var < 0) {
         info_log << __func__ << "(): variance must be greater than or equal 0";
@@ -1094,7 +1094,7 @@ pilot_optimal_sample_size_p(const double *data, size_t n,
                             pilot_mean_method_t mean_method,
                             size_t *q, size_t *opt_sample_size,
                             double confidence_level,
-                            double max_autocorrelation_coefficient) {
+                            double max_autocorrelation_coefficient) noexcept {
     ASSERT_VALID_POINTER(q);
     ASSERT_VALID_POINTER(opt_sample_size);
     return pilot_optimal_sample_size(data, n, confidence_interval_width,
@@ -1106,7 +1106,7 @@ pilot_optimal_sample_size_p(const double *data, size_t n,
 
 int pilot_changepoint_detection(const double *data, size_t n,
                                 int **changepoints, size_t *cp_n,
-                                double percent, int degree) {
+                                double percent, int degree) noexcept {
     ASSERT_VALID_POINTER(data);
     ASSERT_VALID_POINTER(changepoints);
     ASSERT_VALID_POINTER(cp_n);
@@ -1125,7 +1125,7 @@ int pilot_changepoint_detection(const double *data, size_t n,
 }
 
 int pilot_find_dominant_segment(const double *data, size_t n, size_t *begin,
-        size_t *end, size_t min_size, double percent, int degree) {
+        size_t *end, size_t min_size, double percent, int degree) noexcept {
     ASSERT_VALID_POINTER(data);
     ASSERT_VALID_POINTER(begin);
     ASSERT_VALID_POINTER(end);
@@ -1167,7 +1167,7 @@ int pilot_find_dominant_segment(const double *data, size_t n, size_t *begin,
 }
 
 int pilot_find_one_changepoint(const double *data, size_t n, size_t *loc,
-                               double percent, int degree) {
+                               double percent, int degree) noexcept {
     ASSERT_VALID_POINTER(data);
     ASSERT_VALID_POINTER(loc);
     if (n < MIN_CHANGEPOINT_DETECTION_SAMPLE_SIZE) {
@@ -1187,7 +1187,7 @@ int pilot_wps_warmup_removal_lr_method_p(size_t rounds, const size_t *round_work
         const nanosecond_type *round_durations,
         float autocorrelation_coefficient_limit, nanosecond_type duration_threshold,
         double *alpha, double *v,
-        double *ci_width, double *ssr_out, double *ssr_out_percent, size_t *subsession_sample_size) {
+        double *ci_width, double *ssr_out, double *ssr_out_percent, size_t *subsession_sample_size) noexcept {
     return pilot_wps_warmup_removal_lr_method(rounds, round_work_amounts,
                                               round_durations,
                                               autocorrelation_coefficient_limit,
@@ -1201,7 +1201,7 @@ int pilot_warm_up_removal_detect(const pilot_workload_t *wl,
                                  size_t n,
                                  boost::timer::nanosecond_type round_duration,
                                  pilot_warm_up_removal_detection_method_t method,
-                                 size_t *begin, size_t *end) {
+                                 size_t *begin, size_t *end) noexcept {
     ASSERT_VALID_POINTER(wl);
     ASSERT_VALID_POINTER(begin);
     ASSERT_VALID_POINTER(end);
@@ -1246,7 +1246,7 @@ void pilot_import_benchmark_results(pilot_workload_t *wl, size_t round,
                                     boost::timer::nanosecond_type round_duration,
                                     const double *readings,
                                     size_t num_of_unit_readings,
-                                    const double * const *unit_readings) {
+                                    const double * const *unit_readings) noexcept {
     ASSERT_VALID_POINTER(wl);
     die_if(round > wl->rounds_, ERR_WRONG_PARAM, string("Invalid round value for ") + __func__);
     wl->raw_data_changed_time_ = chrono::steady_clock::now();
@@ -1361,44 +1361,44 @@ void pilot_import_benchmark_results(pilot_workload_t *wl, size_t round,
 }
 
 pilot_pi_unit_readings_iter_t*
-pilot_pi_unit_readings_iter_new(const pilot_workload_t *wl, int piid) {
+pilot_pi_unit_readings_iter_new(const pilot_workload_t *wl, int piid) noexcept {
     return new pilot_pi_unit_readings_iter_t(wl, piid);
 }
 
-double pilot_pi_unit_readings_iter_get_val(const pilot_pi_unit_readings_iter_t* iter) {
+double pilot_pi_unit_readings_iter_get_val(const pilot_pi_unit_readings_iter_t* iter) noexcept {
     return *(*iter);
 }
 
-void pilot_pi_unit_readings_iter_next(pilot_pi_unit_readings_iter_t* iter) {
+void pilot_pi_unit_readings_iter_next(pilot_pi_unit_readings_iter_t* iter) noexcept {
     ++(*iter);
 }
 
-bool pilot_pi_unit_readings_iter_valid(const pilot_pi_unit_readings_iter_t* iter) {
+bool pilot_pi_unit_readings_iter_valid(const pilot_pi_unit_readings_iter_t* iter) noexcept {
     return iter->valid();
 }
 
-void pilot_pi_unit_readings_iter_destroy(pilot_pi_unit_readings_iter_t* iter) {
+void pilot_pi_unit_readings_iter_destroy(pilot_pi_unit_readings_iter_t* iter) noexcept {
     ASSERT_VALID_POINTER(iter);
     delete iter;
 }
 
-bool pilot_next_round_work_amount(const pilot_workload_t *wl, size_t *needed_work_amount) {
+bool pilot_next_round_work_amount(const pilot_workload_t *wl, size_t *needed_work_amount) noexcept {
     ASSERT_VALID_POINTER(wl);
     return wl->calc_next_round_work_amount(needed_work_amount);
 }
 
-void pilot_set_short_round_detection_threshold(pilot_workload_t *wl, size_t threshold) {
+void pilot_set_short_round_detection_threshold(pilot_workload_t *wl, size_t threshold) noexcept {
     ASSERT_VALID_POINTER(wl);
     wl->short_round_detection_threshold_ = ONE_SECOND * threshold;
 }
 
-void pilot_set_required_confidence_interval(pilot_workload_t *wl, double percent_of_mean, double absolute_value) {
+void pilot_set_required_confidence_interval(pilot_workload_t *wl, double percent_of_mean, double absolute_value) noexcept {
     ASSERT_VALID_POINTER(wl);
     wl->set_required_ci_percent_of_mean(percent_of_mean);
     wl->set_required_ci_absolute_value(absolute_value);
 }
 
-bool calc_next_round_work_amount_meet_lower_bound(const pilot_workload_t *wl, size_t *needed_work_amount) {
+bool calc_next_round_work_amount_meet_lower_bound(const pilot_workload_t *wl, size_t *needed_work_amount) noexcept {
     // We can't do anything if this workload doesn't support setting work amount.
     if (0 == wl->max_work_amount_) {
         *needed_work_amount = 0;
@@ -1444,7 +1444,7 @@ bool calc_next_round_work_amount_meet_lower_bound(const pilot_workload_t *wl, si
     return true;
 }
 
-bool calc_next_round_work_amount_from_readings(const pilot_workload_t *wl, size_t *needed_work_amount) {
+bool calc_next_round_work_amount_from_readings(const pilot_workload_t *wl, size_t *needed_work_amount) noexcept {
     // No need to do anything for first round.
     if (0 == wl->rounds_) {
         *needed_work_amount = 0;
@@ -1483,7 +1483,7 @@ bool calc_next_round_work_amount_from_readings(const pilot_workload_t *wl, size_
     return false;
 }
 
-bool calc_next_round_work_amount_from_unit_readings(const pilot_workload_t *wl, size_t *needed_work_amount) {
+bool calc_next_round_work_amount_from_unit_readings(const pilot_workload_t *wl, size_t *needed_work_amount) noexcept {
     // No need to do anything for first round.
     if (0 == wl->rounds_) {
         *needed_work_amount = 0;
@@ -1567,7 +1567,7 @@ bool calc_next_round_work_amount_from_unit_readings(const pilot_workload_t *wl, 
     return need_more_rounds;
 }
 
-bool calc_next_round_work_amount_from_wps(const pilot_workload_t *wl, size_t *needed_work_amount) {
+bool calc_next_round_work_amount_from_wps(const pilot_workload_t *wl, size_t *needed_work_amount) noexcept {
     *needed_work_amount = 0;
     if (0 == wl->max_work_amount_) {
         warning_log << "max_work_amount is not set, skipping WPS analysis";
@@ -1657,7 +1657,7 @@ bool calc_next_round_work_amount_from_wps(const pilot_workload_t *wl, size_t *ne
     }
 }
 
-bool calc_next_round_work_amount_for_comparison(const pilot_workload_t *wl, size_t *needed_work_amount) {
+bool calc_next_round_work_amount_for_comparison(const pilot_workload_t *wl, size_t *needed_work_amount) noexcept {
     size_t max_work_amount_needed = 0;
     bool need_more_rounds = false;
     for (size_t piid = 0; piid != wl->num_of_pi_; ++piid) {
@@ -1711,20 +1711,20 @@ bool calc_next_round_work_amount_for_comparison(const pilot_workload_t *wl, size
 
 int pilot_set_wps_analysis(pilot_workload_t *wl,
         pilot_pi_display_format_func_t *format_wps_func,
-        bool enabled, bool wps_must_satisfy) {
+        bool enabled, bool wps_must_satisfy) noexcept {
     wl->format_wps_.format_func_ = format_wps_func;
     return wl->set_wps_analysis(enabled, wps_must_satisfy);
 }
 
-size_t pilot_set_session_desired_duration(pilot_workload_t *wl, size_t sec) {
+size_t pilot_set_session_desired_duration(pilot_workload_t *wl, size_t sec) noexcept {
     return wl->set_session_desired_duration(sec);
 }
 
-size_t pilot_set_session_duration_limit(pilot_workload_t *wl, size_t sec) {
+size_t pilot_set_session_duration_limit(pilot_workload_t *wl, size_t sec) noexcept {
     return wl->set_session_duration_limit(sec);
 }
 
-double pilot_set_autocorrelation_coefficient(pilot_workload_t *wl, double ac) {
+double pilot_set_autocorrelation_coefficient(pilot_workload_t *wl, double ac) noexcept {
     ASSERT_VALID_POINTER(wl);
     double old_ac = wl->autocorrelation_coefficient_limit_;
     wl->autocorrelation_coefficient_limit_ = ac;
@@ -1732,14 +1732,14 @@ double pilot_set_autocorrelation_coefficient(pilot_workload_t *wl, double ac) {
 }
 
 void pilot_set_baseline(pilot_workload_t *wl, size_t piid, pilot_reading_type_t rt,
-        double baseline_mean, size_t baseline_sample_size, double baseline_var) {
+        double baseline_mean, size_t baseline_sample_size, double baseline_var) noexcept {
     ASSERT_VALID_POINTER(wl);
     wl->set_baseline(piid, rt, baseline_mean, baseline_sample_size, baseline_var);
 }
 
 int pilot_get_baseline(const pilot_workload_t *wl, size_t piid, pilot_reading_type_t rt,
         double *p_baseline_mean, size_t *p_baseline_sample_size,
-        double *p_baseline_var) {
+        double *p_baseline_var) noexcept {
     ASSERT_VALID_POINTER(wl);
     ASSERT_VALID_POINTER(p_baseline_mean);
     ASSERT_VALID_POINTER(p_baseline_sample_size);
@@ -1775,12 +1775,12 @@ int pilot_get_baseline(const pilot_workload_t *wl, size_t piid, pilot_reading_ty
     return 0;
 }
 
-int pilot_load_baseline_file(pilot_workload_t *wl, const char *filename) {
+int pilot_load_baseline_file(pilot_workload_t *wl, const char *filename) noexcept {
     ASSERT_VALID_POINTER(wl);
     return wl->load_baseline_file(filename);
 }
 
-size_t pilot_set_min_sample_size(pilot_workload_t *wl, size_t min_sample_size) {
+size_t pilot_set_min_sample_size(pilot_workload_t *wl, size_t min_sample_size) noexcept {
     ASSERT_VALID_POINTER(wl);
     return wl->set_min_sample_size(min_sample_size);
 }
@@ -1830,7 +1830,7 @@ int _simple_workload_func_with_wa_runner(const pilot_workload_t *wl,
 }
 
 int _simple_runner(pilot_simple_workload_func_t func,
-                   const char* benchmark_name) {
+                   const char* benchmark_name) noexcept {
     PILOT_LIB_SELF_CHECK;
     int res, wl_res;
 
@@ -1865,7 +1865,7 @@ int _simple_runner(pilot_simple_workload_func_t func,
 int _simple_runner_with_wa(pilot_simple_workload_with_wa_func_t func,
                            const char* benchmark_name,
                            size_t min_wa, size_t max_wa,
-                           size_t short_round_threshold) {
+                           size_t short_round_threshold) noexcept {
     PILOT_LIB_SELF_CHECK;
     pilot_set_log_level(lv_warning);
     shared_ptr<pilot_workload_t> wl(pilot_new_workload(benchmark_name), pilot_destroy_workload);
