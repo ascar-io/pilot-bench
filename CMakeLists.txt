@@ -36,6 +36,11 @@ if (NOT CMAKE_BUILD_TYPE)
       FORCE)
 endif (NOT CMAKE_BUILD_TYPE)
 
+# Don't expose useless symbols. This is also needed if Boost is compiled with
+# -fvisibility=hidden.
+set (CMAKE_CXX_VISIBILITY_PRESET hidden)
+set (CMAKE_C_VISIBILITY_PRESET hidden)
+
 # Boost uses -O3 by default. We use -O3 here too. Commenting them out
 # would give you back CMake's default -O2. 
 string(REPLACE "-O2" "-O3" CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO}")

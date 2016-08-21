@@ -56,6 +56,31 @@ namespace pilot {
     #define DEFAULT_VALUE(value)
 #endif
 
+#if defined _WIN32 || defined __CYGWIN__
+  #ifdef BUILDING_DLL
+    #ifdef __GNUC__
+      #define DLL_PUBLIC __attribute__ ((dllexport))
+    #else
+      #define DLL_PUBLIC __declspec(dllexport) // Note: actually gcc seems to also supports this syntax.
+    #endif
+  #else
+    #ifdef __GNUC__
+      #define DLL_PUBLIC __attribute__ ((dllimport))
+    #else
+      #define DLL_PUBLIC __declspec(dllimport) // Note: actually gcc seems to also supports this syntax.
+    #endif
+  #endif
+  #define DLL_LOCAL
+#else
+  #if __GNUC__ >= 4
+    #define DLL_PUBLIC __attribute__ ((visibility ("default")))
+    #define DLL_LOCAL  __attribute__ ((visibility ("hidden")))
+  #else
+    #define DLL_PUBLIC
+    #define DLL_LOCAL
+  #endif
+#endif
+
 enum pilot_error_t {
     NO_ERROR = 0,
     ERR_WRONG_PARAM = 2,
@@ -97,9 +122,9 @@ typedef int_least64_t nanosecond_type;
 #define PILOT_LIB_SELF_CHECK pilot::pilot_lib_self_check(PILOT_VERSION_MAJOR, \
         PILOT_VERSION_MINOR, sizeof(pilot::nanosecond_type))
 
-void pilot_lib_self_check(int vmajor, int vminor, size_t nanosecond_type_size);
+DLL_PUBLIC void pilot_lib_self_check(int vmajor, int vminor, size_t nanosecond_type_size);
 
-void pilot_remove_console_log_sink(void);
+DLL_PUBLIC void pilot_remove_console_log_sink(void);
 
 /**
  * \brief The type of memory allocation function, which is used by pilot_workload_func_t.
@@ -109,12 +134,12 @@ void pilot_remove_console_log_sink(void);
  * @param size the size of memory to allocate
  */
 typedef void* pilot_malloc_func_t(size_t size);
-void* pilot_malloc_func(size_t size);
+DLL_PUBLIC void* pilot_malloc_func(size_t size);
 
 /**
  * \brief Free memory allocated by a pilot_malloc_func_t
  */
-void pilot_free(void *p);
+DLL_PUBLIC void pilot_free(void *p);
 
 /**
  * \brief The data object that holds all the information of a workload.
@@ -171,7 +196,7 @@ struct pilot_pi_unit_readings_iter_t;
  */
 typedef ssize_t calc_required_readings_func_t(const pilot_workload_t* wl, int piid);
 
-void pilot_set_calc_required_readings_func(pilot_workload_t* wl, calc_required_readings_func_t *f);
+DLL_PUBLIC void pilot_set_calc_required_readings_func(pilot_workload_t* wl, calc_required_readings_func_t *f);
 
 /**
  * \brief Set the function hook that calculates how many unit readings are needed
@@ -179,7 +204,7 @@ void pilot_set_calc_required_readings_func(pilot_workload_t* wl, calc_required_r
  * @param[in] wl pointer to the workload struct
  * @param f the new hook function
  */
-void pilot_set_calc_required_unit_readings_func(pilot_workload_t* wl, calc_required_readings_func_t *f);
+DLL_PUBLIC void pilot_set_calc_required_unit_readings_func(pilot_workload_t* wl, calc_required_readings_func_t *f);
 
 /**
  * \brief a function that returns what work amount should be used for next
@@ -221,7 +246,7 @@ enum pilot_hook_t {
  * @param f the new hook function
   * @return 0 on success; otherwise error code
  */
-int pilot_set_hook_func(pilot_workload_t* wl, enum pilot_hook_t hook, general_hook_func_t *f);
+DLL_PUBLIC int pilot_set_hook_func(pilot_workload_t* wl, enum pilot_hook_t hook, general_hook_func_t *f);
 
 /**
  * \brief Type for a function that formats a number for output
@@ -250,7 +275,7 @@ typedef double pilot_pi_display_format_func_t(const pilot_workload_t* wl, double
  * @param unit_reading_must_satisfy set if the unit readings must satisfy
  * quality requirements
  */
-void pilot_set_pi_info(pilot_workload_t* wl, int piid,
+DLL_PUBLIC void pilot_set_pi_info(pilot_workload_t* wl, int piid,
         const char *pi_name,
         const char *pi_unit DEFAULT_VALUE(NULL),
         pilot_pi_display_format_func_t *format_reading_func DEFAULT_VALUE(NULL),
@@ -261,13 +286,13 @@ void pilot_set_pi_info(pilot_workload_t* wl, int piid,
 
 // TODO: implement a get_pi_info()
 
-pilot_workload_t* pilot_new_workload(const char *workload_name);
+DLL_PUBLIC pilot_workload_t* pilot_new_workload(const char *workload_name);
 
 /**
  * Set an arbitrary pointer that will be passed to the workload_func
  * @param data
  */
-void pilot_set_workload_data(pilot_workload_t* wl, void *data);
+DLL_PUBLIC void pilot_set_workload_data(pilot_workload_t* wl, void *data);
 
 /**
  * \brief Set the number of performance indices to record
@@ -277,7 +302,7 @@ void pilot_set_workload_data(pilot_workload_t* wl, void *data);
  * @param[in] wl pointer to the workload struct
  * @param num_of_pi the number of performance indices
  */
-void pilot_set_num_of_pi(pilot_workload_t* wl, size_t num_of_pi);
+DLL_PUBLIC void pilot_set_num_of_pi(pilot_workload_t* wl, size_t num_of_pi);
 
 /**
  * \brief Get the number of performance indices
@@ -285,9 +310,9 @@ void pilot_set_num_of_pi(pilot_workload_t* wl, size_t num_of_pi);
  * @param[out] p_num_of_pi the pointer for storing the num_of_pi
  * @return 0 on success; aborts if wl is NULL; otherwise error code
  */
-int pilot_get_num_of_pi(const pilot_workload_t* wl, size_t *p_num_of_pi);
+DLL_PUBLIC int pilot_get_num_of_pi(const pilot_workload_t* wl, size_t *p_num_of_pi);
 
-void pilot_set_workload_func(pilot_workload_t*, pilot_workload_func_t*);
+DLL_PUBLIC void pilot_set_workload_func(pilot_workload_t*, pilot_workload_func_t*);
 
 /**
  * \brief Set the upper limit for work amount that pilot should attempt
@@ -298,7 +323,7 @@ void pilot_set_workload_func(pilot_workload_t*, pilot_workload_func_t*);
  * @param[in] wl pointer to the workload struct
  * @param init_work_amount the initial work amount
  */
-void pilot_set_work_amount_limit(pilot_workload_t* wl, size_t work_amount_limit);
+DLL_PUBLIC void pilot_set_work_amount_limit(pilot_workload_t* wl, size_t work_amount_limit);
 
 /**
  * \brief Get work_amount_limit, the upper limit of work amount that pilot should attempt
@@ -306,7 +331,7 @@ void pilot_set_work_amount_limit(pilot_workload_t* wl, size_t work_amount_limit)
  * @param[out] p_work_amount_limit the pointer for storing the work_amount_limit
  * @return 0 on success; aborts if wl is NULL; otherwise error code
  */
-int pilot_get_work_amount_limit(const pilot_workload_t* wl, size_t *p_work_amount_limit);
+DLL_PUBLIC int pilot_get_work_amount_limit(const pilot_workload_t* wl, size_t *p_work_amount_limit);
 
 /**
  * \brief Set the initial work amount that pilot should attempt
@@ -317,7 +342,7 @@ int pilot_get_work_amount_limit(const pilot_workload_t* wl, size_t *p_work_amoun
  * @param[in] wl pointer to the workload struct
  * @param init_work_amount the initial work amount
  */
-void pilot_set_init_work_amount(pilot_workload_t* wl, size_t init_work_amount);
+DLL_PUBLIC void pilot_set_init_work_amount(pilot_workload_t* wl, size_t init_work_amount);
 
 /**
  * \brief Get init_work_amount, the initial work amount that pilot should attempt
@@ -325,7 +350,7 @@ void pilot_set_init_work_amount(pilot_workload_t* wl, size_t init_work_amount);
  * @param[out] p_init_work_amount the pointer for storing init_work_amount
  * @return 0 on success; aborts if wl is NULL; otherwise error code
  */
-int pilot_get_init_work_amount(const pilot_workload_t* wl, size_t *p_init_work_amount);
+DLL_PUBLIC int pilot_get_init_work_amount(const pilot_workload_t* wl, size_t *p_init_work_amount);
 
 enum pilot_warm_up_removal_detection_method_t {
     NO_WARM_UP_REMOVAL = 0,
@@ -338,7 +363,7 @@ enum pilot_warm_up_removal_detection_method_t {
  * @param[in] wl pointer to the workload struct
  * @param m the warm-up removal method
  */
-void pilot_set_warm_up_removal_method(pilot_workload_t* wl, pilot_warm_up_removal_detection_method_t m);
+DLL_PUBLIC void pilot_set_warm_up_removal_method(pilot_workload_t* wl, pilot_warm_up_removal_detection_method_t m);
 
 /**
  * \brief Set the percentage to remove as warm-up
@@ -347,7 +372,7 @@ void pilot_set_warm_up_removal_method(pilot_workload_t* wl, pilot_warm_up_remova
  * @param[in] wl pointer to the workload struct
  * @param percent the percent to remove
  */
-void pilot_set_warm_up_removal_percentage(pilot_workload_t* wl, double percent);
+DLL_PUBLIC void pilot_set_warm_up_removal_percentage(pilot_workload_t* wl, double percent);
 
 /**
  * \brief Detect the ending location of the warm-up phase
@@ -357,7 +382,7 @@ void pilot_set_warm_up_removal_percentage(pilot_workload_t* wl, double percent);
  * @param method the detection method
  * @return 0 on success; otherwise error code
  */
-int pilot_warm_up_removal_detect(const pilot_workload_t *wl,
+DLL_PUBLIC int pilot_warm_up_removal_detect(const pilot_workload_t *wl,
                                  const double *data,
                                  size_t n,
                                  nanosecond_type round_duration,
@@ -369,7 +394,7 @@ int pilot_warm_up_removal_detect(const pilot_workload_t *wl,
  * @param[in] wl pointer to the workload struct
  * @param check_short_workload true to enable short-lived workload check
  */
-void pilot_set_short_workload_check(pilot_workload_t* wl, bool check_short_workload);
+DLL_PUBLIC void pilot_set_short_workload_check(pilot_workload_t* wl, bool check_short_workload);
 
 /**
  * \brief Run the workload as specified in wl
@@ -377,7 +402,7 @@ void pilot_set_short_workload_check(pilot_workload_t* wl, bool check_short_workl
  * @return 0 on success, otherwise error code. On error, call pilot_strerror to
  * get a pointer to the error message.
  */
-int pilot_run_workload(pilot_workload_t *wl);
+DLL_PUBLIC int pilot_run_workload(pilot_workload_t *wl);
 
 /**
  * \brief Run the workload as specified in wl using the text user interface
@@ -387,42 +412,42 @@ int pilot_run_workload(pilot_workload_t *wl);
  * @return 0 on success, otherwise error code. On error, call pilot_strerror to
  * get a pointer to the error message.
  */
-int pilot_run_workload_tui(pilot_workload_t *wl);
+DLL_PUBLIC int pilot_run_workload_tui(pilot_workload_t *wl);
 
 /**
  * \brief Request to stop a workload at a proper time
  * \details This function is usually used in signal handlers.
  * @param[in] wl pointer to the workload struct
  */
-void pilot_stop_workload(pilot_workload_t *wl);
+DLL_PUBLIC void pilot_stop_workload(pilot_workload_t *wl);
 
 /**
  * \brief Print a message into the UI's message box
  * @param[in] wl pointer to the workload struct
  * @param format a format string using the same format as plain printf
  */
-void pilot_ui_printf(pilot_workload_t *wl, const char* format, ...);
+DLL_PUBLIC void pilot_ui_printf(pilot_workload_t *wl, const char* format, ...);
 
 /**
  * \brief Print a message into the UI's message box using highlight font
  * @param[in] wl pointer to the workload struct
  * @param format a format string using the same format as plain printf
  */
-void pilot_ui_printf_hl(pilot_workload_t *wl, const char* format, ...);
+DLL_PUBLIC void pilot_ui_printf_hl(pilot_workload_t *wl, const char* format, ...);
 
 /**
  * \brief Get the number of total valid unit readings after warm-up removal
  * @param[in] wl pointer to the workload struct
  * @return the total number of valid unit readings
  */
-size_t pilot_get_total_num_of_unit_readings(const pilot_workload_t *wl, int piid);
+DLL_PUBLIC size_t pilot_get_total_num_of_unit_readings(const pilot_workload_t *wl, int piid);
 
 /**
  * \brief Get pointer to error message string
  * @param errnum the error number returned by a libpilot function
  * @return a pointer to a static memory of error message
  */
-const char *pilot_strerror(int errnum);
+DLL_PUBLIC const char *pilot_strerror(int errnum);
 
 /**
  * \brief Estimate the sample variance when sample cannot be proven not
@@ -434,14 +459,14 @@ const char *pilot_strerror(int errnum);
  * @param q size of independent subsessions
  * @return
  */
-int pilot_est_sample_var_dist_unknown(const size_t n, const double *sample, size_t q);
+DLL_PUBLIC int pilot_est_sample_var_dist_unknown(const size_t n, const double *sample, size_t q);
 
 /**
  * \brief Return the total number of rounds so far.
  * @param[in] wl pointer to the workload struct
  * @return the number of rounds; a negative number on error
  */
-int pilot_get_num_of_rounds(const pilot_workload_t *wl);
+DLL_PUBLIC int pilot_get_num_of_rounds(const pilot_workload_t *wl);
 
 /**
  * \brief Return the read only copy of all raw readings of a performance index
@@ -449,7 +474,7 @@ int pilot_get_num_of_rounds(const pilot_workload_t *wl);
  * @param piid Performance Index ID
  * @return a pointer to readings data, the length of which can be get by using pilot_get_num_of_rounds(); NULL on error.
  */
-const double* pilot_get_pi_readings(const pilot_workload_t *wl, size_t piid);
+DLL_PUBLIC const double* pilot_get_pi_readings(const pilot_workload_t *wl, size_t piid);
 
 /**
  * \brief Return the read only copy of all raw unit readings of a performance index in a certain round
@@ -459,7 +484,7 @@ const double* pilot_get_pi_readings(const pilot_workload_t *wl, size_t piid);
  * @param[out] num_of_work_units the number of work units in that round
  * @return the data of all unit readings of PIID in that round. It is a read-only array of size num_of_work_units.
  */
-const double* pilot_get_pi_unit_readings(const pilot_workload_t *wl, size_t piid, size_t round, size_t *num_of_work_units);
+DLL_PUBLIC const double* pilot_get_pi_unit_readings(const pilot_workload_t *wl, size_t piid, size_t round, size_t *num_of_work_units);
 
 /**
  * \brief Export workload data
@@ -470,7 +495,7 @@ const double* pilot_get_pi_unit_readings(const pilot_workload_t *wl, size_t piid
  * @return 0 on success; aborts if wl is NULL; otherwise returns an error code. On error, call pilot_strerror to
  * get a pointer to the error message.
  */
-int pilot_export(const pilot_workload_t *wl, const char *dirname);
+DLL_PUBLIC int pilot_export(const pilot_workload_t *wl, const char *dirname);
 
 /**
  * \brief Destroy (free) a workload struct
@@ -478,7 +503,7 @@ int pilot_export(const pilot_workload_t *wl, const char *dirname);
  * @return 0 on success; aborts if wl is NULL; otherwise returns an error code. On error, call pilot_strerror to
  * get a pointer to the error message.
  */
-int pilot_destroy_workload(pilot_workload_t *wl);
+DLL_PUBLIC int pilot_destroy_workload(pilot_workload_t *wl);
 
 enum pilot_log_level_t
 {
@@ -494,14 +519,14 @@ enum pilot_log_level_t
  * \brief Set the logging level of the library
  * @param log_level
  */
-void pilot_set_log_level(pilot_log_level_t log_level);
+DLL_PUBLIC void pilot_set_log_level(pilot_log_level_t log_level);
 
 /**
  * \brief Get last n log lines
  * @return A pointer to the static log lines. Need to be freed using pilot_free()
  * @param n lines of log to get
  */
-const char* pilot_get_last_log_lines(size_t n DEFAULT_VALUE(1));
+DLL_PUBLIC const char* pilot_get_last_log_lines(size_t n DEFAULT_VALUE(1));
 
 /**
  * \brief Get the logging level of the library
@@ -509,7 +534,7 @@ const char* pilot_get_last_log_lines(size_t n DEFAULT_VALUE(1));
  */
 pilot_log_level_t pilot_get_log_level(void);
 
-double pilot_subsession_mean_p(const double *data, size_t n, pilot_mean_method_t mean_method);
+DLL_PUBLIC double pilot_subsession_mean_p(const double *data, size_t n, pilot_mean_method_t mean_method);
 
 /**
  * \brief Calculate the subsession covariance of data
@@ -520,10 +545,10 @@ double pilot_subsession_mean_p(const double *data, size_t n, pilot_mean_method_t
  * @param sample_mean the sample mean
  * @return the calculated covariance
  */
-double pilot_subsession_auto_cov_p(const double *data, size_t n, size_t q, double sample_mean, pilot_mean_method_t mean_method);
+DLL_PUBLIC double pilot_subsession_auto_cov_p(const double *data, size_t n, size_t q, double sample_mean, pilot_mean_method_t mean_method);
 
-double pilot_subsession_var_p(const double *data, size_t n, size_t q, double sample_mean, pilot_mean_method_t mean_method);
-double pilot_subsession_autocorrelation_coefficient_p(const double *data, size_t n, size_t q, double sample_mean, pilot_mean_method_t mean_method);
+DLL_PUBLIC double pilot_subsession_var_p(const double *data, size_t n, size_t q, double sample_mean, pilot_mean_method_t mean_method);
+DLL_PUBLIC double pilot_subsession_autocorrelation_coefficient_p(const double *data, size_t n, size_t q, double sample_mean, pilot_mean_method_t mean_method);
 
 /**
  * \brief Calculate the mean and confidence interval of WPS with warm-up
@@ -544,7 +569,7 @@ double pilot_subsession_autocorrelation_coefficient_p(const double *data, size_t
  * for calculate v; ERR_NOT_ENOUGH_DATA_FOR_CI when there is enough data for
  * calculating v but not enough for calculating confidence interval.
  */
-int pilot_wps_warmup_removal_lr_method_p(size_t rounds, const size_t *round_work_amounts,
+DLL_PUBLIC int pilot_wps_warmup_removal_lr_method_p(size_t rounds, const size_t *round_work_amounts,
         const nanosecond_type *round_durations,
         float autocorrelation_coefficient_limit,
         nanosecond_type duration_threshold,
@@ -576,7 +601,7 @@ struct pilot_round_info_t {
  * that was returned by a previous call to pilot_round_info()
  * @return a pointer to a pilot_round_info_t struct
  */
-pilot_round_info_t* pilot_round_info(const pilot_workload_t *wl, size_t round, pilot_round_info_t *info DEFAULT_VALUE(NULL));
+DLL_PUBLIC pilot_round_info_t* pilot_round_info(const pilot_workload_t *wl, size_t round, pilot_round_info_t *info DEFAULT_VALUE(NULL));
 
 /**
  * \brief Basic and statistics information of a workload
@@ -676,11 +701,11 @@ struct pilot_analytical_result_t {
  * that was returned by a previous call to pilot_analytical_result()
  * @return a pointer to a pilot_analytical_result_t struct
  */
-pilot_analytical_result_t* pilot_analytical_result(const pilot_workload_t *wl, pilot_analytical_result_t *info DEFAULT_VALUE(NULL));
+DLL_PUBLIC pilot_analytical_result_t* pilot_analytical_result(const pilot_workload_t *wl, pilot_analytical_result_t *info DEFAULT_VALUE(NULL));
 
-void pilot_free_analytical_result(pilot_analytical_result_t *info);
+DLL_PUBLIC void pilot_free_analytical_result(pilot_analytical_result_t *info);
 
-void pilot_free_round_info(pilot_round_info_t *info);
+DLL_PUBLIC void pilot_free_round_info(pilot_round_info_t *info);
 
 /**
  * Dump the workload summary in Markdown text format
@@ -688,7 +713,7 @@ void pilot_free_round_info(pilot_round_info_t *info);
  * @return a memory buffer of text dump that can be directly output.
  * Use pilot_free_text_dump() to free the buffer after using.
  */
-char* pilot_text_workload_summary(const pilot_workload_t *wl);
+DLL_PUBLIC char* pilot_text_workload_summary(const pilot_workload_t *wl);
 
 /**
  * Dump the summary of a round in Markdown text format
@@ -697,9 +722,9 @@ char* pilot_text_workload_summary(const pilot_workload_t *wl);
  * @return a memory buffer of text dump that can be directly output.
  * Use pilot_free_text_dump() to free the buffer after using.
  */
-char* pilot_text_round_summary(const pilot_workload_t *wl, size_t round_id);
+DLL_PUBLIC char* pilot_text_round_summary(const pilot_workload_t *wl, size_t round_id);
 
-void pilot_free_text_dump(char *dump);
+DLL_PUBLIC void pilot_free_text_dump(char *dump);
 
 /**
  * \brief Calculate the optimal subsession size (q) so that autocorrelation coefficient doesn't exceed the limit
@@ -708,7 +733,7 @@ void pilot_free_text_dump(char *dump);
  * @param max_autocorrelation_coefficient the maximal limit of the autocorrelation coefficient
  * @return the size of subsession (q); -1 if q can't be found (e.g. q would be larger than n)
  */
-int pilot_optimal_subsession_size_p(const double *data, size_t n,
+DLL_PUBLIC int pilot_optimal_subsession_size_p(const double *data, size_t n,
         pilot_mean_method_t mean_method, double max_autocorrelation_coefficient DEFAULT_VALUE(0.1));
 
 /**
@@ -719,7 +744,7 @@ int pilot_optimal_subsession_size_p(const double *data, size_t n,
  * @param confidence_level the probability that the real mean falls within the confidence interval, e.g., .95
  * @return the width of the confidence interval
  */
-double pilot_subsession_confidence_interval_p(const double *data, size_t n, size_t q, double confidence_level, pilot_mean_method_t mean_method);
+DLL_PUBLIC double pilot_subsession_confidence_interval_p(const double *data, size_t n, size_t q, double confidence_level, pilot_mean_method_t mean_method);
 
 /**
  * \brief Calculate the degree of freedom using Welch-Satterthwaite equation
@@ -729,7 +754,7 @@ double pilot_subsession_confidence_interval_p(const double *data, size_t n, size
  * @param size2
  * @return the degree of freedom
  */
-double __attribute__ ((const)) pilot_calc_deg_of_freedom(double var1, double var2, size_t size1, size_t size2);
+DLL_PUBLIC double __attribute__ ((const)) pilot_calc_deg_of_freedom(double var1, double var2, size_t size1, size_t size2);
 
 /**
  * \brief Calculate the p-value for the hypothesis mean1 == mean2
@@ -744,7 +769,7 @@ double __attribute__ ((const)) pilot_calc_deg_of_freedom(double var1, double var
  * @param confidence_level
  * @return the p-value
  */
-double pilot_p_eq(double mean1, double mean2, size_t size1, size_t size2,
+DLL_PUBLIC double pilot_p_eq(double mean1, double mean2, size_t size1, size_t size2,
                   double var1, double var2, double *ci_left, double *ci_right,
                   double confidence_level DEFAULT_VALUE(0.95));
 
@@ -761,7 +786,7 @@ double pilot_p_eq(double mean1, double mean2, size_t size1, size_t size2,
  * @param[out] opt_new_sample_size the optimal sample size needed for new
  * @return 0 on success; error code otherwise
  */
-int pilot_optimal_sample_size_for_eq_test(double baseline_mean,
+DLL_PUBLIC int pilot_optimal_sample_size_for_eq_test(double baseline_mean,
         size_t baseline_sample_size, double baseline_var,
         double new_mean, size_t new_sample_size, double new_var,
         double required_p, size_t *opt_new_sample_size);
@@ -782,7 +807,7 @@ int pilot_optimal_sample_size_for_eq_test(double baseline_mean,
  * @return true if the calculation was successful; false if there was not
  * enough data for calculation
  */
-bool
+DLL_PUBLIC bool
 pilot_optimal_sample_size_p(const double *data, size_t n,
                             double confidence_interval_width,
                             pilot_mean_method_t mean_method,
@@ -801,7 +826,7 @@ pilot_optimal_sample_size_p(const double *data, size_t n,
  * @param[out] cp_n the number of changepoints
  * @return 0 on success; otherwise error code
  */
-int pilot_changepoint_detection(const double *data, size_t n,
+DLL_PUBLIC int pilot_changepoint_detection(const double *data, size_t n,
         int **changepoints, size_t *cp_n, double percent DEFAULT_VALUE(0.25),
         int degree DEFAULT_VALUE(1));
 
@@ -818,7 +843,7 @@ int pilot_changepoint_detection(const double *data, size_t n,
  * @param end
  * @return 0 on success, otherwise error code
  */
-int pilot_find_dominant_segment(const double *data, size_t n, size_t *begin,
+DLL_PUBLIC int pilot_find_dominant_segment(const double *data, size_t n, size_t *begin,
         size_t *end, size_t min_size DEFAULT_VALUE(MIN_CHANGEPOINT_DETECTION_SAMPLE_SIZE),
         double percent DEFAULT_VALUE(0.25), int degree DEFAULT_VALUE(1));
 
@@ -829,7 +854,7 @@ int pilot_find_dominant_segment(const double *data, size_t n, size_t *begin,
  * @param [out] loc for storing the detected changepoint
  * @return 0 on success, otherwise error code
  */
-int pilot_find_one_changepoint(const double *data, size_t n, size_t *loc,
+DLL_PUBLIC int pilot_find_one_changepoint(const double *data, size_t n, size_t *loc,
                                double percent DEFAULT_VALUE(0.25), int degree DEFAULT_VALUE(1));
 
 struct pilot_pi_unit_readings_iter_t;
@@ -841,7 +866,7 @@ struct pilot_pi_unit_readings_iter_t;
  * @param piid the ID of the PI
  * @return a iterator
  */
-pilot_pi_unit_readings_iter_t*
+DLL_PUBLIC pilot_pi_unit_readings_iter_t*
 pilot_pi_unit_readings_iter_new(const pilot_workload_t *wl, int piid);
 
 /**
@@ -849,26 +874,26 @@ pilot_pi_unit_readings_iter_new(const pilot_workload_t *wl, int piid);
  * @param[in] iter a iterator get by using pilot_get_pi_unit_readings_iter()
  * @return the value pointed to by the iterator
  */
-double pilot_pi_unit_readings_iter_get_val(const pilot_pi_unit_readings_iter_t* iter);
+DLL_PUBLIC double pilot_pi_unit_readings_iter_get_val(const pilot_pi_unit_readings_iter_t* iter);
 
 /**
  * \brief Move the iterator to next value and return it
  * @param[in] iter a iterator get by using pilot_get_pi_unit_readings_iter()
  */
-void pilot_pi_unit_readings_iter_next(pilot_pi_unit_readings_iter_t* iter);
+DLL_PUBLIC void pilot_pi_unit_readings_iter_next(pilot_pi_unit_readings_iter_t* iter);
 
 /**
  * \brief Check if the iterator points to a valid reading
  * @param[in] iter a iterator get by using pilot_get_pi_unit_readings_iter()
  * @return true on yes; false on end of data
  */
-bool pilot_pi_unit_readings_iter_valid(const pilot_pi_unit_readings_iter_t* iter);
+DLL_PUBLIC bool pilot_pi_unit_readings_iter_valid(const pilot_pi_unit_readings_iter_t* iter);
 
 /**
  * \brief Destroy and free an iterator
  * @param[in] iter a iterator get by using pilot_get_pi_unit_readings_iter()
  */
-void pilot_pi_unit_readings_iter_destroy(pilot_pi_unit_readings_iter_t* iter);
+DLL_PUBLIC void pilot_pi_unit_readings_iter_destroy(pilot_pi_unit_readings_iter_t* iter);
 
 /**
  * \brief Import one round of benchmark results into a workload session
@@ -884,7 +909,7 @@ void pilot_pi_unit_readings_iter_destroy(pilot_pi_unit_readings_iter_t* iter);
  * @param[in] unit_readings the unit readings of each PI, can be NULL if there
  * is no unit readings in this round
  */
-void pilot_import_benchmark_results(pilot_workload_t *wl, size_t round,
+DLL_PUBLIC void pilot_import_benchmark_results(pilot_workload_t *wl, size_t round,
                                     size_t work_amount,
                                     nanosecond_type round_duration,
                                     const double *readings,
@@ -901,7 +926,7 @@ void pilot_import_benchmark_results(pilot_workload_t *wl, size_t round,
  * useful for further refining the result.
  * @return true if more rounds are needed; false if no more rounds are needed
  */
-bool pilot_next_round_work_amount(const pilot_workload_t *wl, size_t *needed_work_amount);
+DLL_PUBLIC bool pilot_next_round_work_amount(const pilot_workload_t *wl, size_t *needed_work_amount);
 
 /**
  * \brief Set the threshold for short round detection
@@ -909,7 +934,7 @@ bool pilot_next_round_work_amount(const pilot_workload_t *wl, size_t *needed_wor
  * @param[in] wl pointer to the workload struct
  * @param threshold the threshold in seconds
  */
-void pilot_set_short_round_detection_threshold(pilot_workload_t *wl, size_t threshold);
+DLL_PUBLIC void pilot_set_short_round_detection_threshold(pilot_workload_t *wl, size_t threshold);
 
 /**
  * \brief Set the required width of confidence interval
@@ -919,7 +944,7 @@ void pilot_set_short_round_detection_threshold(pilot_workload_t *wl, size_t thre
  * @param absolute_value use an absolute value, set this to -1 (or any negative
  *        value to use percent_of_medium instead
  */
-void pilot_set_required_confidence_interval(pilot_workload_t *wl, double percent_of_mean, double absolute_value);
+DLL_PUBLIC void pilot_set_required_confidence_interval(pilot_workload_t *wl, double percent_of_mean, double absolute_value);
 
 /**
  * \brief Calculate the work amount needed for the round duration to meet
@@ -932,7 +957,7 @@ void pilot_set_required_confidence_interval(pilot_workload_t *wl, double percent
  * useful for further refining the result.
  * @return true if more rounds are needed; false if no more rounds are needed
  */
-bool calc_next_round_work_amount_meet_lower_bound(const pilot_workload_t *wl, size_t *needed_work_amount);
+DLL_PUBLIC bool calc_next_round_work_amount_meet_lower_bound(const pilot_workload_t *wl, size_t *needed_work_amount);
 
 /**
  * \brief Calculate the work amount for next round from readings data
@@ -944,7 +969,7 @@ bool calc_next_round_work_amount_meet_lower_bound(const pilot_workload_t *wl, si
  * useful for further refining the result.
  * @return true if more rounds are needed; false if no more rounds are needed
  */
-bool calc_next_round_work_amount_from_readings(const pilot_workload_t *wl, size_t *needed_work_amount);
+DLL_PUBLIC bool calc_next_round_work_amount_from_readings(const pilot_workload_t *wl, size_t *needed_work_amount);
 
 /**
  * \brief Calculate the work amount for next round from unit readings data
@@ -956,7 +981,7 @@ bool calc_next_round_work_amount_from_readings(const pilot_workload_t *wl, size_
  * useful for further refining the result.
  * @return true if more rounds are needed; false if no more rounds are needed
  */
-bool calc_next_round_work_amount_from_unit_readings(const pilot_workload_t *wl, size_t *needed_work_amount);
+DLL_PUBLIC bool calc_next_round_work_amount_from_unit_readings(const pilot_workload_t *wl, size_t *needed_work_amount);
 
 /**
  * \brief Calculate the work amount for next round from unit readings data
@@ -968,7 +993,7 @@ bool calc_next_round_work_amount_from_unit_readings(const pilot_workload_t *wl, 
  * useful for further refining the result.
  * @return true if more rounds are needed; false if no more rounds are needed
  */
-bool calc_next_round_work_amount_from_wps(const pilot_workload_t *wl, size_t *needed_work_amount);
+DLL_PUBLIC bool calc_next_round_work_amount_from_wps(const pilot_workload_t *wl, size_t *needed_work_amount);
 
 
 /**
@@ -982,7 +1007,7 @@ bool calc_next_round_work_amount_from_wps(const pilot_workload_t *wl, size_t *ne
  * useful for further refining the result.
  * @return true if more rounds are needed; false if no more rounds are needed
  */
-bool calc_next_round_work_amount_for_comparison(const pilot_workload_t *wl, size_t *needed_work_amount);
+DLL_PUBLIC bool calc_next_round_work_amount_for_comparison(const pilot_workload_t *wl, size_t *needed_work_amount);
 
 /**
  * \brief Set if WPS analysis should be enabled
@@ -994,7 +1019,7 @@ bool calc_next_round_work_amount_for_comparison(const pilot_workload_t *wl, size
  * @param wps_must_satisfy if WPS CI must satisfy
  * @return 0 on success; otherwise error code
  */
-int pilot_set_wps_analysis(pilot_workload_t *wl,
+DLL_PUBLIC int pilot_set_wps_analysis(pilot_workload_t *wl,
         pilot_pi_display_format_func_t *format_wps_func,
         bool enabled, bool wps_must_satisfy);
 
@@ -1006,7 +1031,7 @@ int pilot_set_wps_analysis(pilot_workload_t *wl,
  * @param sec the desired session duration limit
  * @return previous setting
  */
-size_t pilot_set_session_desired_duration(pilot_workload_t *wl, size_t sec);
+DLL_PUBLIC size_t pilot_set_session_desired_duration(pilot_workload_t *wl, size_t sec);
 
 /**
  * \brief Set the duration limit for running a session. The session will stop after
@@ -1015,9 +1040,9 @@ size_t pilot_set_session_desired_duration(pilot_workload_t *wl, size_t sec);
  * @param sec the session duration limit; 0 disables limit.
  * @return previous setting
  */
-size_t pilot_set_session_duration_limit(pilot_workload_t *wl, size_t sec);
+DLL_PUBLIC size_t pilot_set_session_duration_limit(pilot_workload_t *wl, size_t sec);
 
-double pilot_set_autocorrelation_coefficient(pilot_workload_t *wl, double ac);
+DLL_PUBLIC double pilot_set_autocorrelation_coefficient(pilot_workload_t *wl, double ac);
 
 /**
  * \brief Set the baseline for comparison
@@ -1032,7 +1057,7 @@ double pilot_set_autocorrelation_coefficient(pilot_workload_t *wl, double ac);
  * @param baseline_sample_size
  * @param baseline_var
  */
-void pilot_set_baseline(pilot_workload_t *wl, size_t piid, pilot_reading_type_t rt,
+DLL_PUBLIC void pilot_set_baseline(pilot_workload_t *wl, size_t piid, pilot_reading_type_t rt,
         double baseline_mean, size_t baseline_sample_size, double baseline_var);
 
 /**
@@ -1048,7 +1073,7 @@ void pilot_set_baseline(pilot_workload_t *wl, size_t piid, pilot_reading_type_t 
  * @param p_baseline_var the pointer for storing the baseline variance
  * @return 0 on success; ERR_NOT_INIT if the baseline is not set
  */
-int pilot_get_baseline(const pilot_workload_t *wl, size_t piid, pilot_reading_type_t rt,
+DLL_PUBLIC int pilot_get_baseline(const pilot_workload_t *wl, size_t piid, pilot_reading_type_t rt,
         double *p_baseline_mean, size_t *p_baseline_sample_size,
         double *p_baseline_var);
 
@@ -1056,7 +1081,7 @@ int pilot_get_baseline(const pilot_workload_t *wl, size_t piid, pilot_reading_ty
  * \brief Load baseline data from a CSV file
  * @return 0 on a successful read; ERR_IO on failures
  */
-int pilot_load_baseline_file(pilot_workload_t *wl, const char *filename);
+DLL_PUBLIC int pilot_load_baseline_file(pilot_workload_t *wl, const char *filename);
 
 /**
  * \brief Set the lower threshold of sample size used in all statistical
@@ -1065,11 +1090,11 @@ int pilot_load_baseline_file(pilot_workload_t *wl, const char *filename);
  * @param min_sample_size the new minimum sample size
  * @return the old min sample size
  */
-size_t pilot_set_min_sample_size(pilot_workload_t *wl, size_t min_sample_size);
+DLL_PUBLIC size_t pilot_set_min_sample_size(pilot_workload_t *wl, size_t min_sample_size);
 
-int _simple_runner(pilot_simple_workload_func_t func,
+DLL_PUBLIC int _simple_runner(pilot_simple_workload_func_t func,
                    const char *benchmark_name);
-int _simple_runner_with_wa(pilot_simple_workload_with_wa_func_t func,
+DLL_PUBLIC int _simple_runner_with_wa(pilot_simple_workload_with_wa_func_t func,
                            const char *benchmark_name,
                            size_t min_wa DEFAULT_VALUE(0), size_t max_wa DEFAULT_VALUE(ULONG_MAX),
                            size_t short_round_threshold DEFAULT_VALUE(1));
