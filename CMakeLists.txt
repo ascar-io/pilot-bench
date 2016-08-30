@@ -87,18 +87,14 @@ include( CTest )
 
 include (ExternalProject)
 ExternalProject_Add (gtest
-  URL https://googletest.googlecode.com/files/gtest-1.7.0.zip
-  # Comment above line, and uncomment line below to use subversion.
-  # SVN_REPOSITORY http://googletest.googlecode.com/svn/trunk/
-  # Uncomment line below to freeze a revision (here the one for 1.7.0)
-  # SVN_REVISION -r700
-
+  URL https://github.com/google/googletest/archive/release-1.8.0.zip
+  URL_HASH SHA256=f3ed3b58511efd272eb074a3a6d6fb79d7c2e6a0e374323d1e6bcbcc1ef141bf
   PREFIX ${CMAKE_CURRENT_BINARY_DIR}/gtest
   INSTALL_COMMAND ""
 )
 ExternalProject_Get_Property(gtest SOURCE_DIR BINARY_DIR)
-set (GTEST_INCLUDE_DIR ${SOURCE_DIR})
-set (GTEST_BINARY_DIR ${BINARY_DIR})
+set (GTEST_INCLUDE_DIR ${SOURCE_DIR}/googletest/include)
+set (GTEST_BINARY_DIR ${BINARY_DIR}/googlemock/gtest)
 
 
 ###############################################################################

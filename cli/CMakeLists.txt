@@ -37,7 +37,7 @@ include_directories (${LUA_INCLUDE_DIR})
 include_directories (${LUAPROMPT_INCLUDE_DIR})
 endif (WITH_LUA)
 
-include_directories (SYSTEM ${CMAKE_CURRENT_BINARY_DIR}/../gtest/src/gtest/include)
+include_directories (SYSTEM ${GTEST_INCLUDE_DIR})
 include_directories (${CDK_INCLUDE_DIR})
 include_directories (${CMAKE_SOURCE_DIR}/include)
 include_directories (${CMAKE_SOURCE_DIR}/lib/interface_include)

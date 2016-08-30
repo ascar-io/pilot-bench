@@ -29,7 +29,7 @@ add_custom_command(OUTPUT ${TWITTER_BREAKOUTDETECTION_INCLUDE_DIR}/src/helper.cp
 
 # add the binary tree directory to the search path 
 # for include files
-include_directories (SYSTEM ${CMAKE_CURRENT_BINARY_DIR}/../gtest/src/gtest/include)
+include_directories (SYSTEM ${GTEST_INCLUDE_DIR})
 include_directories (${CMAKE_SOURCE_DIR}/include)
 include_directories (interface_include)
 include_directories (priv_include)
