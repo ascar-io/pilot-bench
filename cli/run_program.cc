@@ -226,15 +226,15 @@ int handle_run_program(int argc, const char** argv) {
                     "quick:      \t(default) autocorrelation limit: 0.8,\n"
                     "            \tconfidence interval: 20% of mean,\n"
                     "            \tmin. subsession sample size: 30,\n"
-                    "            \tworkload round duration threshold: 3 seconds\n"
+                    "            \tworkload round duration threshold: 3 seconds (only used when work amount is set)\n"
                     "normal:     \tautocorrelation limit: 0.2,\n"
                     "            \tconfidence interval: 10% of mean,\n"
                     "            \tmin. subsession sample size: 50,\n"
-                    "            \tworkload round duration threshold: 10 seconds\n"
+                    "            \tworkload round duration threshold: 10 seconds (only used when work amount is set)\n"
                     "strict:     \tautocorrelation limit: 0.1,\n"
                     "            \tconfidence interval: 10% of mean,\n"
                     "            \tmin. subsession sample size: 200,\n"
-                    "            \tworkload round duration threshold: 20 seconds")
+                    "            \tworkload round duration threshold: 20 seconds (only used when work amount is set)")
             ("quiet,q", "Enable quiet mode")
             ("session-limit,s", po::value<int>(), "Set the session duration limit in seconds. Pilot will stop with error code 13 if the session runs longer (default: unlimited).")
             ("verbose,v", "Print debug information")
