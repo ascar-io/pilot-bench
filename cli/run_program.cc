@@ -69,6 +69,8 @@ static string         g_round_results_dir;
 static bool           g_quiet = false;
 static bool           g_verbose = false;
 static shared_ptr<pilot_workload_t> g_wl;
+static FILE*          g_pipe = NULL;
+static string         g_prog_stdout;
 
 void sigint_handler(int dummy) {
     if (g_wl)
@@ -76,22 +78,59 @@ void sigint_handler(int dummy) {
 }
 
 /**
- * \brief Execute cmd and return the stdout of the cmd
+ * \brief Execute cmd and return one line of the stdout of the cmd
+ *
+ * The client program can output many lines and they will all be read in. Each
+ * line should contain exactly one sample.
  * @param cmd
  * @param stdout the stdout of the client program
- * @return the return code of the client program
+ * @return one line of the stdout from running the cmd
  */
-int exec(const char* cmd, string &prog_stdout) {
+string exec(const char* cmd) {
     char buffer[128];
-    prog_stdout = "";
     clearerr(stdin);
-    FILE* pipe = popen(cmd, "r");
-    if (!pipe) throw std::runtime_error("popen() failed!");
-    while (!feof(pipe)) {
-        if (fgets(buffer, 128, pipe) != NULL)
-            prog_stdout += buffer;
+    string result;
+    for (;;) {
+        if (!g_pipe) {
+            g_pipe = popen(cmd, "r");
+            if (!g_pipe) throw std::runtime_error("popen() failed!");
+        }
+        for(;;) {
+            size_t newline_pos = g_prog_stdout.find('\n');
+            if (string::npos != newline_pos) {
+                result = g_prog_stdout.substr(0, newline_pos);
+                g_prog_stdout = g_prog_stdout.substr(newline_pos+1, g_prog_stdout.size()-newline_pos-1);
+                if (result == "") {
+                    // Skip empty lines
+                    continue;
+                }
+                return result;
+            }
+
+            if (feof(g_pipe))
+                break;
+
+            if (fgets(buffer, 128, g_pipe) != NULL) {
+                g_prog_stdout += buffer;
+            } else {
+                break;
+            }
+        }
+        // We reach here when eof is detected
+        int rc = pclose(g_pipe);
+        // pclose() returns -1 when the client is already exited
+        if (0 != rc && -1 != rc) {
+            throw runtime_error(str(format("Client program returned %1%") % rc).c_str());
+        }
+        // Return whatever we have no matter if it ends with a \n
+        if (g_prog_stdout.size() != 0) {
+            result = g_prog_stdout;
+            g_prog_stdout = "";
+            return result;
+        }
+        // If we still have nothing so far, run the benchmark command
+        g_pipe = NULL;
     }
-    return pclose(pipe);
 }
 
 /**
@@ -129,7 +168,12 @@ int workload_func(const pilot_workload_t *wl,
 
     string prog_stdout;
     debug_log << "Executing client program: " << my_cmd;
-    int rc = exec(my_cmd.c_str(), prog_stdout);
+    try {
+        prog_stdout = exec(my_cmd.c_str());
+    } catch (const runtime_error& e) {
+        error_log << e.what();
+        return 1;
+    }
     // remove trailing \n
     int i = prog_stdout.size() - 1;
     while (i >= 0 && '\n' == prog_stdout[i])
@@ -137,10 +181,6 @@ int workload_func(const pilot_workload_t *wl,
     prog_stdout.resize(i + 1);
 
     info_log << "Got output from client program: " << prog_stdout;
-    if (0 != rc) {
-        error_log << "Client program returned: " << rc;
-        return rc;
-    }
 
     // parse the result
     try {

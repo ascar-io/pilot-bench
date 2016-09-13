@@ -81,7 +81,11 @@ add_custom_target(copy_test_files ALL
                    COMMAND ${CMAKE_COMMAND} -E copy_if_different
                        ${CMAKE_CURRENT_LIST_DIR}/test/unit_test_benchmark.sh $<TARGET_FILE_DIR:bench>
                    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                       ${CMAKE_CURRENT_LIST_DIR}/test/unit_test_benchmark_long_lines.sh $<TARGET_FILE_DIR:bench>
+                   COMMAND ${CMAKE_COMMAND} -E copy_if_different
                        ${CMAKE_CURRENT_LIST_DIR}/test/mock_benchmark.sh $<TARGET_FILE_DIR:bench>
+                   COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                       ${CMAKE_CURRENT_LIST_DIR}/test/mock_benchmark_long_lines.sh $<TARGET_FILE_DIR:bench>
                    COMMAND ${CMAKE_COMMAND} -E copy_if_different
                        ${CMAKE_CURRENT_LIST_DIR}/test/mock_benchmark_with_work_amount.sh $<TARGET_FILE_DIR:bench>
                    COMMAND ${CMAKE_COMMAND} -E copy_if_different
