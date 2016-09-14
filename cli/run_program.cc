@@ -47,6 +47,7 @@
 #include <stdexcept>
 #include <string>
 #include <sys/types.h>   // for kill()
+#include <sys/wait.h>    // for waitpid()
 #include <signal.h>      // for kill()
 #include <unistd.h>
 #include <vector>
