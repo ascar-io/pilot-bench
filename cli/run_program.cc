@@ -113,6 +113,8 @@ static pid_t popen2(char * const*command, FILE **infp, FILE **outfp)
         perror("execvp");
         exit(1);
     }
+    close(p_stdin[READ]);
+    close(p_stdout[WRITE]);
 
     if (infp == NULL)
         close(p_stdin[WRITE]);
