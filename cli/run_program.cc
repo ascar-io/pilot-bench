@@ -148,7 +148,7 @@ string exec(char* const* cmd) {
     char buffer[128];
     clearerr(stdin);
     string result;
-    for (;;) {
+    for (int loop_time = 0; loop_time < 3; ++loop_time) {
         if (0 == g_client_pid) {
             g_client_pid = popen2(cmd, NULL, &g_client_out_fs);
         }
@@ -189,8 +189,10 @@ string exec(char* const* cmd) {
             g_prog_stdout = "";
             return result;
         }
-        // If we still have nothing so far, run the benchmark command
+        // If we still have nothing so far, run the benchmark command again
     }
+    // We've already tried twice and didn't get anything, give up to prevent dead loop.
+    throw runtime_error("Client program does not generate output");
 }
 
 static void _free_argv_vector(vector<char*> &v) {
