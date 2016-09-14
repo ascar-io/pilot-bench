@@ -39,7 +39,6 @@
 #include <boost/program_options.hpp>
 #include <boost/timer/timer.hpp>
 #include <common.h>
-#include <cstdio>
 #include <iostream>
 #include <memory>
 #include "pilot-cli.h"
@@ -47,6 +46,9 @@
 #include <sstream>
 #include <stdexcept>
 #include <string>
+#include <sys/types.h>   // for kill()
+#include <signal.h>      // for kill()
+#include <unistd.h>
 #include <vector>
 
 namespace po = boost::program_options;
@@ -59,22 +61,76 @@ using namespace boost::filesystem;
 using namespace std;
 using namespace pilot;
 
+static const char**   g_client_cmd;
+static size_t         g_client_cmd_len;
+static string         g_client_name;
+static int            g_client_pid = 0;
+static FILE*          g_client_out_fs = NULL;
 static size_t         g_duration_col = (size_t)-1; // column of the round duration
 static int            g_num_of_pi = 0;
 static vector<int>    g_pi_col;          // column of each PI in client program's output
-static string         g_program_cmd;
-static string         g_program_name;
 static string         g_output_dir;
 static string         g_round_results_dir;
 static bool           g_quiet = false;
 static bool           g_verbose = false;
 static shared_ptr<pilot_workload_t> g_wl;
-static FILE*          g_pipe = NULL;
 static string         g_prog_stdout;
 
 void sigint_handler(int dummy) {
     if (g_wl)
         pilot_stop_workload(g_wl.get());
+}
+
+/**
+ * \brief Our own version of popen that returns the PID of the child process
+ * @param command[in] the command to run
+ * @param infp[out] the new fd for stdin
+ * @param outfp[out] the new fd for stdout of the child process
+ * @return
+ */
+static pid_t popen2(char * const*command, FILE **infp, FILE **outfp)
+{
+    const int READ = 0, WRITE = 1;
+    int p_stdin[2], p_stdout[2];
+    pid_t pid;
+
+    if (pipe(p_stdin) != 0 || pipe(p_stdout) != 0)
+        throw runtime_error("Failed to create pipes");
+
+    pid = fork();
+
+    if (pid < 0)
+        throw runtime_error("Fork failed");
+    else if (pid == 0)    /* Child */
+    {
+        dup2(p_stdin[READ], READ);
+        close(p_stdin[WRITE]);
+        close(p_stdin[READ]);
+        dup2(p_stdout[WRITE], WRITE);
+        close(p_stdout[READ]);
+        close(p_stdout[WRITE]);
+        execvp(*command, command);
+        perror("execvp");
+        exit(1);
+    }
+
+    if (infp == NULL)
+        close(p_stdin[WRITE]);
+    else
+        *infp = fdopen(p_stdin[WRITE], "w");
+
+    if (outfp == NULL)
+        close(p_stdout[READ]);
+    else
+        *outfp = fdopen(p_stdout[READ], "r");
+
+    return pid;
+}
+
+static int pclose2(pid_t pid) {
+    int internal_stat;
+    waitpid(pid, &internal_stat, 0);
+    return WEXITSTATUS(internal_stat);
 }
 
 /**
@@ -86,14 +142,13 @@ void sigint_handler(int dummy) {
  * @param stdout the stdout of the client program
  * @return one line of the stdout from running the cmd
  */
-string exec(const char* cmd) {
+string exec(char* const* cmd) {
     char buffer[128];
     clearerr(stdin);
     string result;
     for (;;) {
-        if (!g_pipe) {
-            g_pipe = popen(cmd, "r");
-            if (!g_pipe) throw std::runtime_error("popen() failed!");
+        if (0 == g_client_pid) {
+            g_client_pid = popen2(cmd, NULL, &g_client_out_fs);
         }
         for(;;) {
             size_t newline_pos = g_prog_stdout.find('\n');
@@ -107,21 +162,25 @@ string exec(const char* cmd) {
                 return result;
             }
 
-            if (feof(g_pipe))
+            if (feof(g_client_out_fs))
                 break;
 
-            if (fgets(buffer, 128, g_pipe) != NULL) {
+            if (fgets(buffer, 128, g_client_out_fs) != NULL) {
                 g_prog_stdout += buffer;
             } else {
+                // eof reached
                 break;
             }
         }
         // We reach here when eof is detected
-        int rc = pclose(g_pipe);
+        fclose(g_client_out_fs);
+        g_client_out_fs = NULL;
+        int rc = pclose2(g_client_pid);
         // pclose() returns -1 when the client is already exited
         if (0 != rc && -1 != rc) {
             throw runtime_error(str(format("Client program returned %1%") % rc).c_str());
         }
+        g_client_pid = 0;
         // Return whatever we have no matter if it ends with a \n
         if (g_prog_stdout.size() != 0) {
             result = g_prog_stdout;
@@ -129,8 +188,12 @@ string exec(const char* cmd) {
             return result;
         }
         // If we still have nothing so far, run the benchmark command
-        g_pipe = NULL;
     }
+}
+
+static void _free_argv_vector(vector<char*> &v) {
+    for (char* p : v)
+        free(p);
 }
 
 /**
@@ -162,18 +225,31 @@ int workload_func(const pilot_workload_t *wl,
     // substitute macros
     string my_result_dir = g_round_results_dir + str(format("/%1%") % round);
     create_directories(my_result_dir);
-    string my_cmd(g_program_cmd);
-    replace_all(my_cmd, "%RESULT_DIR%", my_result_dir);
-    replace_all(my_cmd, "%WORK_AMOUNT%", to_string(total_work_amount));
+    vector<char*> my_cmd(g_client_cmd_len);
+    for (size_t i = 0; i < g_client_cmd_len; ++i) {
+        string tmp(g_client_cmd[i]);
+        replace_all(tmp, "%RESULT_DIR%", my_result_dir);
+        replace_all(tmp, "%WORK_AMOUNT%", to_string(total_work_amount));
+        my_cmd[i] = strdup(tmp.c_str());
+    }
+
+    stringstream ss;
+    ss << "Executing client program:";
+    for (const char* p : my_cmd) {
+        ss << " ";
+        ss << *p;
+    }
+    debug_log << ss.str();
 
     string prog_stdout;
-    debug_log << "Executing client program: " << my_cmd;
     try {
-        prog_stdout = exec(my_cmd.c_str());
+        prog_stdout = exec((char* const*)my_cmd.data());
     } catch (const runtime_error& e) {
         error_log << e.what();
+        _free_argv_vector(my_cmd);
         return 1;
     }
+    _free_argv_vector(my_cmd);
     // remove trailing \n
     int i = prog_stdout.size() - 1;
     while (i >= 0 && '\n' == prog_stdout[i])
@@ -305,17 +381,19 @@ int handle_run_program(int argc, const char** argv) {
         cerr << desc << endl;
         return 2;
     }
-    ++program_path_start_loc;
-    g_program_cmd = g_program_name = string(argv[program_path_start_loc]);
+    ++program_path_start_loc;   // move pass "--"
+    g_client_cmd = &(argv[program_path_start_loc]);
+    g_client_cmd_len = argc - program_path_start_loc;
+    string client_cmd_str = g_client_name = string(argv[program_path_start_loc]);
     while (++program_path_start_loc < argc) {
-        g_program_cmd += " ";
-        g_program_cmd += argv[program_path_start_loc];
+        client_cmd_str += " ";
+        client_cmd_str += argv[program_path_start_loc];
     }
     info_log << GREETING_MSG;
-    debug_log << "Program path and args: " << g_program_cmd;
+    debug_log << "Program path and args: " << client_cmd_str;
 
     // create the workload
-    g_wl.reset(pilot_new_workload(g_program_name.c_str()), pilot_destroy_workload);
+    g_wl.reset(pilot_new_workload(g_client_name.c_str()), pilot_destroy_workload);
     if (signal(SIGINT, sigint_handler) == SIG_ERR) {
         fatal_log << "signal(): " << strerror(errno) << endl;
         return 1;
@@ -554,6 +632,10 @@ int handle_run_program(int argc, const char** argv) {
         return res;
     }
     info_log << "Results saved in " << g_output_dir;
+
+    if (g_client_pid != 0) {
+        kill(g_client_pid, SIGTERM);
+    }
 
     return wl_res;
 }
