@@ -229,17 +229,19 @@ int workload_func(const pilot_workload_t *wl,
     // substitute macros
     string my_result_dir = g_round_results_dir + str(format("/%1%") % round);
     create_directories(my_result_dir);
-    vector<char*> my_cmd(g_client_cmd_len);
+    vector<char*> my_cmd(g_client_cmd_len+1);
     for (size_t i = 0; i < g_client_cmd_len; ++i) {
         string tmp(g_client_cmd[i]);
         replace_all(tmp, "%RESULT_DIR%", my_result_dir);
         replace_all(tmp, "%WORK_AMOUNT%", to_string(total_work_amount));
         my_cmd[i] = strdup(tmp.c_str());
     }
+    my_cmd[g_client_cmd_len] = NULL;   // execvp requires this
 
     stringstream ss;
     ss << "Executing client program:";
     for (const char* p : my_cmd) {
+        if (!p) break;
         ss << " ";
         ss << *p;
     }
