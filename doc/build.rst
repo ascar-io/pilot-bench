@@ -17,8 +17,13 @@ Build Options
 *************
 
 The following are configuration options that are supported by Pilot's
-CMake builder. To set an option, use: `-DOPT=VAL`. For example:
+CMake builder. To set an option, use: `-DOPT=VAL`. For example, on
+Linux (CentOS 7) to use the system's Python 2.7 you can set
+`-DWITH_PYTHON=ON -DPYTHON_LIBRARY=/usr/lib64/libpython2.7.so -DPYTHON_INCLUDE_DIR=/usr/include/python2.7`.
+If you are using Python 3 from CentOS Software Collection, you can set
 `-DWITH_PYTHON=ON -DPYTHON_LIBRARY=/opt/python3.5/lib/libpython3.5.so -DPYTHON_INCLUDE_DIR=/opt/python3.5/inc`.
+On macOS you can set
+`-DWITH_PYTHON=ON -DPYTHON_LIBRARY=/System/Library/Frameworks/Python.framework/Versions/2.7/Python -DPYTHON_INCLUDE_DIR=/System/Library/Frameworks/Python.framework/Versions/2.7/include/python2.7`.
 
 =================== ================================================================================== ================ ==========
 Option              Description                                                                        Default          Introduced
