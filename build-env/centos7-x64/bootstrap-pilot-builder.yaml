@@ -7,7 +7,7 @@
   become_user: root
   become_method: sudo
   vars:
-    boost_version: 1.61.0
+    boost_version: 1.62.0
     boost_prefix: '/opt/boost_{{ boost_version.replace(".", "_") }}'
     boost_fpic: True
     cc_prefix: scl enable devtoolset-4
