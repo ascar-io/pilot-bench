@@ -54,8 +54,10 @@ if (ENABLE_ASAN_DEBUG)
   set (CMAKE_EXE_LINKER_FLAGS_DEBUG "${CMAKE_EXE_LINKER_FLAGS_DEBUG} -fsanitize=address")
   # Up till Apple clang-703.0.29 it doesn't support -fsanitize=undefined
   if (CMAKE_CXX_COMPILER_ID MATCHES "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER "4.8.999")
-    set (CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fsanitize=undefined")
-    set (CMAKE_EXE_LINKER_FLAGS_DEBUG "${CMAKE_EXE_LINKER_FLAGS_DEBUG} -fsanitize=undefined")
+    # Boost triggers vptr false alarms in UBSan so vptr has to be disabled.
+    # See https://github.com/scylladb/seastar/issues/78
+    set (CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fsanitize=undefined -fno-sanitize=vptr")
+    set (CMAKE_EXE_LINKER_FLAGS_DEBUG "${CMAKE_EXE_LINKER_FLAGS_DEBUG} -fsanitize=undefined -fno-sanitize=vptr")
   endif (CMAKE_CXX_COMPILER_ID MATCHES "GNU")
 endif (ENABLE_ASAN_DEBUG)
 
