@@ -323,6 +323,7 @@ int handle_run_program(int argc, const char** argv) {
             ("verbose,v", "Print debug information")
             ("work-amount,w", po::value<string>(), "Set the valid range of work amount [min,max]")
             ("wps", "WPS must satisfy")
+            ("env", po::value<std::vector<string> >()->multitoken(), "Environment variable to pass to program, formatted as \"NAME=VALUE\". This option can be used to set variables such as LD_PRELOAD that should be set only for the benchmark program and not for Pilot. It may be specified multiple times.")
             ;
     // copy options into args and find program_path_start_loc
     vector<string> args;
@@ -522,6 +523,20 @@ int handle_run_program(int argc, const char** argv) {
     if (vm.count("preset")) {
         preset_mode = vm["preset"].as<string>();
     }
+
+    if(vm.count("env")) {
+        vector<string> strs = vm["env"].as<vector<string> >();
+        for(auto s : strs) {
+            vector<string> var;
+            boost::split(var, s, boost::is_any_of("="));
+            if(var.size() != 2) {
+                cerr << "Environment variable must be in 'NAME=VALUE' format";
+                return 2;
+            }
+            setenv(var[0].c_str(), var[1].c_str(), true);
+        }
+    }
+
     {
         double ac;       // autocorrelation coefficient threshold
         double ci = -1;  // CI as absolute value
