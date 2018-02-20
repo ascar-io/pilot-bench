@@ -7,10 +7,10 @@
   become_user: root
   become_method: sudo
   vars:
-    boost_version: 1.62.0
+    boost_version: 1.66.0
     boost_prefix: '/opt/boost_{{ boost_version.replace(".", "_") }}'
     boost_fpic: True
-    cc_prefix: scl enable devtoolset-4
+    cc_prefix: scl enable devtoolset-7
 
   pre_tasks:
   # epel-release and centos-release-scl have to be installed first
@@ -30,10 +30,10 @@
     with_items:
       - bc
       - cmake3
-      - devtoolset-4-libasan-devel
-      - devtoolset-4-libubsan-devel
-      - devtoolset-4-toolchain
-      - devtoolset-4-valgrind
+      - devtoolset-7-libasan-devel
+      - devtoolset-7-libubsan-devel
+      - devtoolset-7-toolchain
+      - devtoolset-7-valgrind
       - doxygen
       - git
       - graphviz

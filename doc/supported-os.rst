@@ -10,7 +10,7 @@ Windows or other embedded systems, please send us an email on the
 
 Currently we support Pilot on the following operating systems:
 
-1. Red Hat Enterprise Linux / CentOS 7 (gcc 4.8.5 and gcc 5.2 from `devtoolset-4`_)
+1. Red Hat Enterprise Linux / CentOS 7 (gcc 4.8.5 and gcc 7.2.1 from `devtoolset-7`_)
 
 The following OSes are supported on a best effort basis:
 
@@ -23,5 +23,5 @@ Fedora.  Please feel free to send an email to the `users mailing
 list`_ to share your experience if you have tested Pilot on other
 systems.
 
-.. _devtoolset-4: https://www.softwarecollections.org/en/scls/rhscl/devtoolset-4/
+.. _devtoolset-7: https://www.softwarecollections.org/en/scls/rhscl/devtoolset-7/
 
