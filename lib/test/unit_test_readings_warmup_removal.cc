@@ -2,8 +2,25 @@
  * unit_test_readings_warm-up_removal.cc: test cases for doing warm-up removal
  * on readings (i.e., when unit readings are not available)
  *
- * Copyright (c) 2015, University of California, Santa Cruz, CA, USA.
- * Created by Yan Li <yanli@ucsc.edu, elliot.li.tech@gmail.com>,
+ * Copyright (c) 2017-2018 Yan Li <yanli@tuneup.ai>. All rights reserved.
+ * The Pilot tool and library is free software; you can redistribute it
+ * and/or modify it under the terms of the GNU Lesser General Public
+ * License version 2.1 (not any other version) as published by the Free
+ * Software Foundation.
+ *
+ * The Pilot tool and library is distributed in the hope that it will be
+ * useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this program in file lgpl-2.1.txt; if not, see
+ * https://www.gnu.org/licenses/old-licenses/lgpl-2.1.html
+ *
+ * Commit 033228934e11b3f86fb0a4932b54b2aeea5c803c and before were
+ * released with the following license:
+ * Copyright (c) 2015, 2016, University of California, Santa Cruz, CA, USA.
+ * Created by Yan Li <yanli@tuneup.ai>,
  * Department of Computer Science, Baskin School of Engineering.
  *
  * Redistribution and use in source and binary forms, with or without

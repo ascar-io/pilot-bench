@@ -1,7 +1,3 @@
-Copyright (c) 2015-2017, University of California, Santa Cruz, CA, USA.
-Created by Yan Li <yanli@ascar.io, elliot.li.tech@gmail.com>,
-Department of Computer Science, Baskin School of Engineering.
-
 This research was supported in part by the National Science Foundation
 under awards IIP-1266400, CCF-1219163, CNS-1018928, the Department of
 Energy under award DE-FC02-10ER26017/DESC0005417, Symantec Graduate
@@ -16,5 +12,6 @@ Sandisk, Seagate Technology, Symantec, and Toshiba for their generous
 support. We also thank the faculty and students of SSRC for their
 help, guidance, and valuable comments.
 
-List of contributors:
+List of contributors (in alphabetical order):
 Daniel Bittman
+Yan Li
