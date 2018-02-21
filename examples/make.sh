@@ -2,7 +2,7 @@
 # Make scripts for Pilot examples
 #
 # Copyright (c) 2015, 2016, University of California, Santa Cruz, CA, USA.
-# Created by Yan Li <yanli@ascar.io>,
+# Created by Yan Li <yanli@tuneup.ai>,
 # Department of Computer Science, Baskin School of Engineering.
 #
 # Redistribution and use in source and binary forms, with or without

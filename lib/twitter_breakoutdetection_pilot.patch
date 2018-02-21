@@ -1,10 +1,10 @@
 From 4438aaedceed28ef7a689e5360f186e0b74157ad Mon Sep 17 00:00:00 2001
-Message-Id: <4438aaedceed28ef7a689e5360f186e0b74157ad.1471702729.git.yanli@ascar.io>
+Message-Id: <4438aaedceed28ef7a689e5360f186e0b74157ad.1471702729.git.yanli@tuneup.ai>
 From: Yan Li <yanli@soe.ucsc.edu>
 Date: Wed, 6 Apr 2016 11:46:24 -0700
 Subject: [PATCH] Patch to enable being compiled as a standalone library
 
-Signed-off-by: Yan Li <yanli@ascar.io>
+Signed-off-by: Yan Li <yanli@tuneup.ai>
 ---
  src/edm-multi.cpp | 11 ++++++-----
  src/edm-per.cpp   | 13 +++++++------

@@ -1,6 +1,6 @@
 #!/bin/bash
 # Run dd and extract duration from dd's output
-# Author: Yan Li <yanli@ascar.io>
+# Author: Yan Li <yanli@tuneup.ai>
 # This file is in public domain.
 set -e -u
 

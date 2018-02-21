@@ -181,7 +181,7 @@ install (PROGRAMS examples/make.sh
 set (CPACK_PACKAGE_NAME pilot-bench)
 set (CPACK_PACKAGE_VERSION ${PILOT_VERSION_MAJOR}.${PILOT_VERSION_MINOR})
 set (CPACK_PACKAGE_VENDOR "Project ASCAR")
-set (CPACK_PACKAGE_CONTACT "yanli@ascar.io")
+set (CPACK_PACKAGE_CONTACT "yanli@tuneup.ai")
 set (CPACK_PACKAGE_DESCRIPTION_SUMMARY "Pilot is a tool and a library (libpilot) that help you run benchmarks to get scientifically accurate and meaningful results fast.")
 
 set (CPACK_RPM_POST_INSTALL_SCRIPT_FILE "${CMAKE_SOURCE_DIR}/packaging/post-install.sh")
