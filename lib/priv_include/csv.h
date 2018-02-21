@@ -67,7 +67,7 @@ namespace csv {
                                 return error_message_buffer;
                         }
 
-                        mutable char error_message_buffer[256];
+                        mutable char error_message_buffer[1024];
                 };
 
                 const int max_file_name_length = 255;
