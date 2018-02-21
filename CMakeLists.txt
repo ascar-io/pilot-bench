@@ -58,7 +58,7 @@ if (ENABLE_ASAN_DEBUG)
     # See https://github.com/scylladb/seastar/issues/78
     set (CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fsanitize=undefined -fno-sanitize=vptr")
     set (CMAKE_EXE_LINKER_FLAGS_DEBUG "${CMAKE_EXE_LINKER_FLAGS_DEBUG} -fsanitize=undefined -fno-sanitize=vptr")
-  endif (CMAKE_CXX_COMPILER_ID MATCHES "GNU")
+  endif (CMAKE_CXX_COMPILER_ID MATCHES "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER "4.8.999")
 endif (ENABLE_ASAN_DEBUG)
 
 if (ENABLE_TSAN_DEBUG)
