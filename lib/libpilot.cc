@@ -168,7 +168,8 @@ void pilot_set_pi_info(pilot_workload_t* wl, int piid,
         pilot_pi_display_format_func_t *format_unit_reading_func,
         bool reading_must_satisfy, bool unit_reading_must_satisfy,
         pilot_mean_method_t reading_mean_type,
-        pilot_mean_method_t unit_reading_mean_type) noexcept
+        pilot_mean_method_t unit_reading_mean_type,
+        pilot_confidence_interval_type_t reading_ci_type) noexcept
 {
     ASSERT_VALID_POINTER(wl);
     ASSERT_VALID_POINTER(pi_name);
@@ -179,6 +180,7 @@ void pilot_set_pi_info(pilot_workload_t* wl, int piid,
     wl->pi_info_[piid].format_unit_reading.format_func_ = format_unit_reading_func;
     wl->pi_info_[piid].reading_must_satisfy = reading_must_satisfy;
     wl->pi_info_[piid].unit_reading_must_satisfy = unit_reading_must_satisfy;
+    wl->pi_info_[piid].reading_ci_type = reading_ci_type;
 }
 
 pilot_workload_t* pilot_new_workload(const char *workload_name) noexcept {
@@ -352,17 +354,33 @@ int pilot_run_workload(pilot_workload_t *wl) noexcept {
         info_log << infos;
 
         reported_round_duration = 0;
+        readings = NULL;
+        unit_readings = NULL;
         round_timer.reset(new cpu_timer);
-        int rc =
-        wl->workload_func_(wl, wl->rounds_, work_amount, &pilot_malloc_func,
-                           &num_of_unit_readings, &unit_readings,
-                           &readings, &reported_round_duration, wl->workload_data_);
+        int rc = wl->workload_func_(wl, wl->rounds_, work_amount, &pilot_malloc_func,
+                                    &num_of_unit_readings, &unit_readings,
+                                    &readings, &reported_round_duration, wl->workload_data_);
         measured_round_duration = round_timer->elapsed().wall;
         info_log << "Finished workload round " << wl->rounds_;
         round_duration = reported_round_duration == 0 ? measured_round_duration : reported_round_duration;
 
+        // Use unique_ptrs to free readings and unit_readings automatically
+        unique_ptr<double, decltype(&std::free)> readings_unique_ptr(readings, &std::free);
+        unique_ptr<double*, std::function<void(double**)> > unit_readings_unique_ptr(unit_readings, [wl](double **p) {
+            if (p) {
+                for (size_t piid = 0; piid < wl->num_of_pi_; ++piid) {
+                    if (p[piid])
+                        free(p[piid]);
+                }
+                free(p);
+            }
+        });
+
         // result check first
-        if (0 != rc)   { result = ERR_WL_FAIL; break; }
+        if (0 != rc) {
+            result = ERR_WL_FAIL;
+            break;
+        }
 
         //! TODO validity check: if (wl->short_workload_check_) ...
         // Get the total_elapsed_time and avg_time_per_unit = total_elapsed_time / num_of_work_units.
@@ -377,16 +395,6 @@ int pilot_run_workload(pilot_workload_t *wl) noexcept {
                                        unit_readings);
 
         //! TODO: save the data to a database
-
-        // cleaning up
-        if (readings) free(readings);
-        if (unit_readings) {
-            for (size_t piid = 0; piid < wl->num_of_pi_; ++piid) {
-                if (unit_readings[piid])
-                    free(unit_readings[piid]);
-            }
-            free(unit_readings);
-        }
 
         // refresh UI
         if (wl->tui_) {
@@ -794,6 +802,7 @@ void pilot_analytical_result_t::_free_all_field() {
 
     FREE_AND_NULL(readings_num);
     FREE_AND_NULL(readings_mean_method);
+    FREE_AND_NULL(readings_ci_type);
     FREE_AND_NULL(readings_last_changepoint);
     FREE_AND_NULL(readings_mean);
     FREE_AND_NULL(readings_mean_formatted);
@@ -848,6 +857,7 @@ void pilot_analytical_result_t::_copyfrom(const pilot_analytical_result_t &a) {
 
     COPY_ARRAY(readings_num);
     COPY_ARRAY(readings_mean_method);
+    COPY_ARRAY(readings_ci_type);
     COPY_ARRAY(readings_last_changepoint);
     COPY_ARRAY(readings_mean);
     COPY_ARRAY(readings_mean_formatted);
@@ -935,6 +945,7 @@ void pilot_analytical_result_t::set_num_of_pi(size_t new_num_of_pi) {
     INIT_FIELD(readings_num);
     SET_VAL(readings_num, 0);
     INIT_FIELD(readings_mean_method);
+    INIT_FIELD(readings_ci_type);
     INIT_FIELD(readings_last_changepoint);
     SET_VAL(readings_last_changepoint, 0);
     INIT_FIELD(readings_mean);
@@ -1034,8 +1045,8 @@ int pilot_optimal_subsession_size_p(const double *data, size_t n, pilot_mean_met
     return pilot_optimal_subsession_size(data, n, mean_method, max_autocorrelation_coefficient);
 }
 
-double pilot_subsession_confidence_interval_p(const double *data, size_t n, size_t q, double confidence_level, pilot_mean_method_t mean_method) noexcept {
-    return pilot_subsession_confidence_interval(data, n, q, confidence_level, mean_method);
+double pilot_subsession_confidence_interval_p(const double *data, size_t n, size_t q, double confidence_level, pilot_mean_method_t mean_method, pilot_confidence_interval_type_t ci_type) noexcept {
+    return pilot_subsession_confidence_interval(data, n, q, confidence_level, mean_method, ci_type);
 }
 
 double __attribute__ ((const)) pilot_calc_deg_of_freedom(double var1, double var2, size_t size1, size_t size2) noexcept {
@@ -1110,6 +1121,7 @@ pilot_optimal_sample_size_p(const double *data, size_t n,
                             double confidence_interval_width,
                             pilot_mean_method_t mean_method,
                             size_t *q, size_t *opt_sample_size,
+                            pilot_confidence_interval_type_t ci_type,
                             double confidence_level,
                             double max_autocorrelation_coefficient) noexcept {
     ASSERT_VALID_POINTER(q);
@@ -1117,6 +1129,7 @@ pilot_optimal_sample_size_p(const double *data, size_t n,
     return pilot_optimal_sample_size(data, n, confidence_interval_width,
                                      mean_method,
                                      q, opt_sample_size,
+                                     ci_type,
                                      confidence_level,
                                      max_autocorrelation_coefficient);
 }
@@ -1854,7 +1867,7 @@ int _simple_runner(pilot_simple_workload_func_t func,
     pilot_set_log_level(lv_info);
     shared_ptr<pilot_workload_t> wl(pilot_new_workload(benchmark_name), pilot_destroy_workload);
     pilot_set_num_of_pi(wl.get(), 1);
-    pilot_set_pi_info(wl.get(), 0, "Duration", "second", NULL, NULL, false, true, ARITHMETIC_MEAN);
+    pilot_set_pi_info(wl.get(), 0, "Duration", "second", NULL, NULL, false, true, ARITHMETIC_MEAN, ARITHMETIC_MEAN, SAMPLE_MEAN);
     pilot_set_wps_analysis(wl.get(), NULL, false, false);
     pilot_set_init_work_amount(wl.get(), 0);
     pilot_set_work_amount_limit(wl.get(), ULONG_MAX);

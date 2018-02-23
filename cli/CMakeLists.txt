@@ -81,9 +81,13 @@ add_custom_target(copy_test_files ALL
                    COMMAND ${CMAKE_COMMAND} -E copy_if_different
                        ${CMAKE_CURRENT_LIST_DIR}/test/unit_test_benchmark.sh $<TARGET_FILE_DIR:bench>
                    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                       ${CMAKE_CURRENT_LIST_DIR}/test/unit_test_benchmark_binomial_proportion.sh $<TARGET_FILE_DIR:bench>
+                   COMMAND ${CMAKE_COMMAND} -E copy_if_different
                        ${CMAKE_CURRENT_LIST_DIR}/test/unit_test_benchmark_long_lines.sh $<TARGET_FILE_DIR:bench>
                    COMMAND ${CMAKE_COMMAND} -E copy_if_different
                        ${CMAKE_CURRENT_LIST_DIR}/test/mock_benchmark.sh $<TARGET_FILE_DIR:bench>
+                   COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                       ${CMAKE_CURRENT_LIST_DIR}/test/mock_benchmark_binomial_proportion.sh $<TARGET_FILE_DIR:bench>
                    COMMAND ${CMAKE_COMMAND} -E copy_if_different
                        ${CMAKE_CURRENT_LIST_DIR}/test/mock_benchmark_long_lines.sh $<TARGET_FILE_DIR:bench>
                    COMMAND ${CMAKE_COMMAND} -E copy_if_different
@@ -101,6 +105,8 @@ add_test (NAME unit_test_analyze
 		  COMMAND unit_test_analyze.sh)
 add_test (NAME unit_test_benchmark
           COMMAND unit_test_benchmark.sh)
+add_test (NAME unit_test_benchmark_binomial_proportion
+        COMMAND unit_test_benchmark_binomial_proportion.sh)
 add_test (NAME unit_test_cli
 		  COMMAND unit_test_cli)
 if (WITH_LUA)

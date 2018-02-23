@@ -1,7 +1,7 @@
 /*
  * libpilotcpp.h: the C++ binding (under construction)
  *
- * This file is still under construction and is not fully tested yet.
+ * This C++ binding is still under construction and is not fully tested yet.
  * Use at your own risk. Feedbacks are welcome.
  *
  * Copyright (c) 2017-2018 Yan Li <yanli@tuneup.ai>. All rights reserved.
@@ -57,6 +57,7 @@
 #include <boost/format.hpp>
 #include <boost/math/distributions/students_t.hpp>
 #include <cmath>
+#include <exception>
 #include "pilot/libpilot.h"
 #include <limits>
 #include <map>
@@ -220,22 +221,49 @@ int pilot_optimal_subsession_size(InputIterator first, const size_t n,
     return -1;
 }
 
+/**
+ * \brief Calculate two sided confidence interval on the mean assuming the population variance is unknown
+ *
+ * If the population variance is known, we can use z* as the critical value. Here we don't know the
+ * population variance so we have to use Student's t distribution with n-1 degrees of freedom. When ci_type
+ * is BINOMIAL_PROPORTION, subsession size (q) is usually set to 1.
+ *
+ * @tparam InputIterator type of the input iterator
+ * @param first iterator to the beginning of the data
+ * @param n length of data
+ * @param q subsession size
+ * @param confidence_level desired confidence level
+ * @param mean_method method to calculate mean: arithmetic or harmonic
+ * @param ci_type confidence interval type: sample mean or binomial proportion
+ * @return width of the confidence interval
+ */
 template <typename InputIterator>
 double pilot_subsession_confidence_interval(InputIterator first, size_t n,
-        size_t q, double confidence_level, pilot_mean_method_t mean_method) {
-    // See http://www.boost.org/doc/libs/1_59_0/libs/math/doc/html/math_toolkit/stat_tut/weg/st_eg/tut_mean_intervals.html
+        size_t q, double confidence_level, pilot_mean_method_t mean_method, pilot_confidence_interval_type_t ci_type) {
+    // See http://www.boost.org/doc/libs/1_66_0/libs/math/doc/html/math_toolkit/stat_tut/weg/st_eg/tut_mean_intervals.html
     // for explanation of the code. The same formula can also be found at
     // [Ferrari78], page 59 and [Le Boudec15], page 34.
     using namespace boost::math;
 
     size_t h = n / q;
     students_t dist(h - 1);
-    // T is called z' in [Ferrari78], page 60.
+    // T is called z' in [Ferrari78], page 60 and is z in https://en.m.wikipedia.org/wiki/Binomial_proportion_confidence_interval.
     double T = ::boost::math::quantile(complement(dist, (1 - confidence_level) / 2));
 
     double sm = pilot_subsession_mean(first, n, mean_method);
-    double var = pilot_subsession_var(first, n, q, sm, mean_method);
-    return T * sqrt(var / double(h)) * 2;
+    double var;
+    switch (ci_type) {
+        case SAMPLE_MEAN:
+            var = pilot_subsession_var(first, n, q, sm, mean_method);
+            return T * sqrt(var / double(h)) * 2;
+        case BINOMIAL_PROPORTION:
+            if (sm > 1 || sm < 0) {
+                throw std::runtime_error("The data mean for BINOMIAL_PROPORTION confidence interval calculation is not within [0, 1]");
+            }
+            return T * sqrt(sm * (1-sm) / h) * 2;
+        default:
+            throw std::runtime_error("Invalid value for ci_type, must be SAMPLE_MEAN or BINOMIAL_PROPORTION");
+    }
 }
 
 /**
@@ -246,16 +274,28 @@ pilot_optimal_sample_size(InputIterator first, size_t n,
                           double confidence_interval_width,
                           pilot_mean_method_t mean_method,
                           size_t *q, size_t *opt_sample_size,
+                          pilot_confidence_interval_type_t ci_type = SAMPLE_MEAN,
                           double confidence_level = 0.95,
                           double max_autocorrelation_coefficient = 0.1) {
     using namespace boost::math;
     assert(q);
     assert(opt_sample_size);
 
-    int res = pilot_optimal_subsession_size(first, n, mean_method, max_autocorrelation_coefficient);
-    if (res < 0) return false;
-    *q = static_cast<size_t>(res);
-    trace_log << "optimal subsession size (q) = " << *q;
+    int res;
+    switch (ci_type) {
+        case SAMPLE_MEAN:
+            res = pilot_optimal_subsession_size(first, n, mean_method, max_autocorrelation_coefficient);
+            if (res < 0) return false;
+            *q = static_cast<size_t>(res);
+            trace_log << "optimal subsession size (q) = " << *q;
+            break;
+        case BINOMIAL_PROPORTION:
+            *q = 1;
+            trace_log << "optimal subsession size (q) for binomial proportion CI is always " << *q;
+            break;
+        default:
+            throw std::runtime_error("Invalid value for ci_type, must be SAMPLE_MEAN or BINOMIAL_PROPORTION");
+    }
 
     size_t h = n / *q;
     students_t dist(h-1);

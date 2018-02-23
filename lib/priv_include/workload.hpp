@@ -98,18 +98,21 @@ public:
     bool unit_reading_must_satisfy;
     pilot_mean_method_t reading_mean_method;
     pilot_mean_method_t unit_reading_mean_method;
+    pilot_confidence_interval_type_t reading_ci_type;
 
     pilot_pi_info_t(std::string _name = "", std::string _unit = "",
            pilot_pi_display_format_func_t *_r_format_func = NULL,
            pilot_pi_display_format_func_t *_ur_format_func = NULL,
            bool _r_sat = true, bool _ur_sat = true,
            pilot_mean_method_t _reading_mean_method = ARITHMETIC_MEAN,
-           pilot_mean_method_t _unit_reading_mean_method = ARITHMETIC_MEAN) :
+           pilot_mean_method_t _unit_reading_mean_method = ARITHMETIC_MEAN,
+           pilot_confidence_interval_type_t _reading_ci_type = SAMPLE_MEAN) :
         name(_name), unit(_unit), format_reading(_r_format_func),
         format_unit_reading(_ur_format_func),
         reading_must_satisfy(_r_sat), unit_reading_must_satisfy(_ur_sat),
         reading_mean_method(_reading_mean_method),
-        unit_reading_mean_method(_unit_reading_mean_method) {}
+        unit_reading_mean_method(_unit_reading_mean_method),
+        reading_ci_type(_reading_ci_type) {}
 };
 
 struct runtime_analysis_plugin_t {

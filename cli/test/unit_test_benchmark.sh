@@ -71,7 +71,8 @@ grep -q "0,1.72477,0.283944,0.0446593,0,1.72477,0.283944,0.0446593," "$TMPFILE"
 grep -q "1,2.72477,0.283944,0.0446593,0,2.72477,0.283944,0.0446593"  "$TMPFILE"
 # even we are running in quiet mode log should still contain <debug> information
 grep -q '<debug>' "${OUTPUT_DIR}/session_log.txt"
-# check correctness of saved resuls
+# check correctness of saved results
 grep -q "0,44,1.72477,1.72477,0.0446593,0.0446593,0.283944,0.283944,0" "${OUTPUT_DIR}/pi_results.csv"
 grep -q "1,44,2.72477,2.72477,0.0446593,0.0446593,0.283944,0.283944,0" "${OUTPUT_DIR}/pi_results.csv"
+
 # TODO: add more checks here

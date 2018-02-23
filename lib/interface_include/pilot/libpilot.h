@@ -136,6 +136,11 @@ enum pilot_reading_type_t {
     WPS_TYPE = 2
 };
 
+enum pilot_confidence_interval_type_t {
+    SAMPLE_MEAN = 0,         /**< Confidence interval of sample mean */
+    BINOMIAL_PROPORTION = 1  /**< Confidence interval of binomial proportion */
+};
+
 typedef int_least64_t nanosecond_type;
 
 /**
@@ -305,7 +310,8 @@ DLL_PUBLIC void pilot_set_pi_info(pilot_workload_t* wl, int piid,
         pilot_pi_display_format_func_t *format_unit_reading_func DEFAULT_VALUE(NULL),
         bool reading_must_satisfy DEFAULT_VALUE(false), bool unit_reading_must_satisfy DEFAULT_VALUE(false),
         pilot_mean_method_t reading_mean_type DEFAULT_VALUE(ARITHMETIC_MEAN),
-        pilot_mean_method_t unit_reading_mean_type DEFAULT_VALUE(ARITHMETIC_MEAN)) NOEXCEPT;
+        pilot_mean_method_t unit_reading_mean_type DEFAULT_VALUE(ARITHMETIC_MEAN),
+        pilot_confidence_interval_type_t reading_ci_type DEFAULT_VALUE(SAMPLE_MEAN)) NOEXCEPT;
 
 // TODO: implement a get_pi_info()
 
@@ -637,6 +643,7 @@ struct pilot_analytical_result_t {
     // Readings analysis
     size_t* readings_num;              //! the following readings fields are undefined if readings_num is 0
     pilot_mean_method_t* readings_mean_method;
+    pilot_confidence_interval_type_t* readings_ci_type;
     size_t* readings_last_changepoint;
 
     // Dominant segment analysis (these info. are preferred to raw data)
@@ -767,7 +774,10 @@ DLL_PUBLIC int pilot_optimal_subsession_size_p(const double *data, size_t n,
  * @param confidence_level the probability that the real mean falls within the confidence interval, e.g., .95
  * @return the width of the confidence interval
  */
-DLL_PUBLIC double pilot_subsession_confidence_interval_p(const double *data, size_t n, size_t q, double confidence_level, pilot_mean_method_t mean_method) NOEXCEPT;
+DLL_PUBLIC double pilot_subsession_confidence_interval_p(const double *data, size_t n, size_t q,
+                                                         double confidence_level,
+                                                         pilot_mean_method_t mean_method,
+                                                         pilot_confidence_interval_type_t ci_type DEFAULT_VALUE(SAMPLE_MEAN)) NOEXCEPT;
 
 /**
  * \brief Calculate the degree of freedom using Welch-Satterthwaite equation
@@ -835,6 +845,7 @@ pilot_optimal_sample_size_p(const double *data, size_t n,
                             double confidence_interval_width,
                             pilot_mean_method_t mean_method,
                             size_t *q, size_t *opt_sample_size,
+                            pilot_confidence_interval_type_t ci_type DEFAULT_VALUE(SAMPLE_MEAN),
                             double confidence_level DEFAULT_VALUE(0.95),
                             double max_autocorrelation_coefficient DEFAULT_VALUE(0.1)) NOEXCEPT;
 

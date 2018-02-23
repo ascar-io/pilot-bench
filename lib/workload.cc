@@ -227,7 +227,8 @@ pilot_analytical_result_t* pilot_workload_t::get_analytical_result(pilot_analyti
 
 template <typename InputIterator>
 static ssize_t _calc_required_num_of_readings(const pilot_workload_t *wl,
-        const InputIterator data, size_t n, size_t *q, pilot_mean_method_t mean_method) {
+        const InputIterator data, const size_t n, size_t *q, const pilot_mean_method_t mean_method,
+        const pilot_confidence_interval_type_t ci_type) {
     if (n < 3) {
         debug_log << "Need more than 3 samples to calculate required sample size";
         return -1;
@@ -236,7 +237,7 @@ static ssize_t _calc_required_num_of_readings(const pilot_workload_t *wl,
     double ci_width = wl->get_required_ci(pilot_subsession_mean(data, n, mean_method));
 
     size_t opt_sample_size;
-    if (!pilot_optimal_sample_size(data, n, ci_width, mean_method, q, &opt_sample_size)) {
+    if (!pilot_optimal_sample_size(data, n, ci_width, mean_method, q, &opt_sample_size, ci_type)) {
         debug_log << "Don't have enough data to calculate required readings sample size yet";
         return -1;
     } else {
@@ -270,6 +271,7 @@ void pilot_workload_t::refresh_analytical_result(void) const {
         // Readings analysis
         analytical_result_.readings_num[piid] = readings_[piid].size();
         analytical_result_.readings_mean_method[piid] = pi_info_[piid].reading_mean_method;
+        analytical_result_.readings_ci_type[piid] = pi_info_[piid].reading_ci_type;
         if (analytical_result_.readings_num[piid] >= 2) {
             // First see if we can find a dominant segment
             if (analytical_result_.readings_num[piid] > MIN_CHANGEPOINT_DETECTION_SAMPLE_SIZE) {
@@ -316,7 +318,8 @@ void pilot_workload_t::refresh_analytical_result(void) const {
                             analytical_result_.readings_mean_method[piid]);                           \
             prefix##_required_sample_size[piid] = _calc_required_num_of_readings(this,                \
                     data, size, &q,                                                                   \
-                    analytical_result_.readings_mean_method[piid]);                                   \
+                    analytical_result_.readings_mean_method[piid],                                    \
+                    analytical_result_.readings_ci_type[piid]);                                       \
             if (prefix##_required_sample_size[piid] > 0) {                                            \
                 prefix##_optimal_subsession_size[piid] = q;                                           \
                 prefix##_optimal_subsession_var[piid] =                                               \
@@ -332,7 +335,8 @@ void pilot_workload_t::refresh_analytical_result(void) const {
                 prefix##_optimal_subsession_ci_width[piid] =                                          \
                         pilot_subsession_confidence_interval(data,                                    \
                                 size, prefix##_optimal_subsession_size[piid],                         \
-                                confidence_level_, analytical_result_.readings_mean_method[piid]);    \
+                                confidence_level_, analytical_result_.readings_mean_method[piid],     \
+                                analytical_result_.readings_ci_type[piid]);                           \
                 ci = prefix##_optimal_subsession_ci_width[piid];                                      \
                 cif_low = format_reading(piid, sm - ci/2);                                            \
                 cif_high = format_reading(piid, sm + ci/2);                                           \
@@ -369,7 +373,7 @@ void pilot_workload_t::refresh_analytical_result(void) const {
         // the latter may use our calculation as an input.
         if ((analytical_result_.unit_readings_required_sample_size[piid] =
                 _calc_required_num_of_readings(this, pilot_pi_unit_readings_iter_t(this, piid),
-                        total_num_of_unit_readings_[piid], &q, ARITHMETIC_MEAN)) < 0) {
+                        total_num_of_unit_readings_[piid], &q, ARITHMETIC_MEAN, SAMPLE_MEAN)) < 0) {
             analytical_result_.unit_readings_optimal_subsession_size[piid] = -1;
         } else {
             analytical_result_.unit_readings_optimal_subsession_size[piid] = q;
@@ -378,7 +382,7 @@ void pilot_workload_t::refresh_analytical_result(void) const {
             analytical_result_.unit_readings_optimal_subsession_var_formatted[piid] = subsession_var_rt * analytical_result_.unit_readings_mean_formatted[piid];
             analytical_result_.unit_readings_optimal_subsession_autocorrelation_coefficient[piid] = unit_readings_autocorrelation_coefficient(piid, q, ARITHMETIC_MEAN);
             analytical_result_.unit_readings_optimal_subsession_ci_width[piid] =
-                    pilot_subsession_confidence_interval(pilot_pi_unit_readings_iter_t(this, piid), total_num_of_unit_readings_[piid], q, .95, ARITHMETIC_MEAN);
+                    pilot_subsession_confidence_interval(pilot_pi_unit_readings_iter_t(this, piid), total_num_of_unit_readings_[piid], q, .95, ARITHMETIC_MEAN, SAMPLE_MEAN);
             double ci = analytical_result_.unit_readings_optimal_subsession_ci_width[piid];
             double cif_low = format_unit_reading(piid, sm - ci / 2);
             double cif_high = format_unit_reading(piid, sm + ci / 2);

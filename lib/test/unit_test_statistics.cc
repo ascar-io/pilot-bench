@@ -63,9 +63,16 @@ nanosecond_type const ONE_SECOND = 1000000000LL;
 /**
  * \details These sample response time are taken from [Ferrari78], page 79.
  */
-const vector<double> g_response_time{
+const vector<double> g_response_time {
     1.21, 1.67, 1.71, 1.53, 2.03, 2.15, 1.88, 2.02, 1.75, 1.84, 1.61, 1.35, 1.43, 1.64, 1.52, 1.44, 1.17, 1.42, 1.64, 1.86, 1.68, 1.91, 1.73, 2.18,
     2.27, 1.93, 2.19, 2.04, 1.92, 1.97, 1.65, 1.71, 1.89, 1.70, 1.62, 1.48, 1.55, 1.39, 1.45, 1.67, 1.62, 1.77, 1.88, 1.82, 1.93, 2.09, 2.24, 2.16
+};
+
+/**
+ * Sample data for testing binomial proportion confidence interval
+ */
+const vector<double> g_binary_sample {
+    1, 0, 0, 0, 1, 1, 1, 0, 1, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1
 };
 
 TEST(StatisticsUnitTest, CornerCases) {
@@ -89,11 +96,14 @@ TEST(StatisticsUnitTest, AutocorrelationCoefficient) {
 
     ASSERT_DOUBLE_EQ(0.29157062128900485, pilot_subsession_confidence_interval_p(g_response_time.data(), g_response_time.size(), 4, .95, ARITHMETIC_MEAN));
 
+    // testing binomial proportion confidence interval width
+    ASSERT_DOUBLE_EQ(0.46566845477273205, pilot_subsession_confidence_interval_p(g_binary_sample.data(), g_binary_sample.size(), 1, .95, ARITHMETIC_MEAN, BINOMIAL_PROPORTION));
+
     size_t q = 4;
     ASSERT_DOUBLE_EQ(q, pilot_optimal_subsession_size_p(g_response_time.data(), g_response_time.size(), ARITHMETIC_MEAN));
 
     size_t opt_sample_size;
-    ASSERT_EQ(true, pilot_optimal_sample_size_p(g_response_time.data(), g_response_time.size(), sample_mean * 0.1, ARITHMETIC_MEAN, &q, &opt_sample_size, .95, .1));
+    ASSERT_EQ(true, pilot_optimal_sample_size_p(g_response_time.data(), g_response_time.size(), sample_mean * 0.1, ARITHMETIC_MEAN, &q, &opt_sample_size, SAMPLE_MEAN, .95, .1));
     ASSERT_EQ(4, q);
     ASSERT_EQ(34, opt_sample_size);
 

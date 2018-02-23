@@ -1,5 +1,8 @@
 /*
- * run_program.cc
+ * Implementation of the run_program command of Pilot CLI
+ *
+ * We provide a workload_func() for Pilot to execute. workload_func() implements the running of
+ * the target program and extracting Readings (we don't support unit readings for run_program yet).
  *
  * Copyright (c) 2017-2018 Yan Li <yanli@tuneup.ai>. All rights reserved.
  * The Pilot tool and library is free software; you can redistribute it
@@ -305,21 +308,21 @@ int workload_func(const pilot_workload_t *wl,
 int handle_run_program(int argc, const char** argv) {
     po::options_description desc("Usage: " + string(argv[0]) + " [options] -- program_path [program_options]", 120, 120);
     desc.add_options()
-            ("duration-col,d", po::value<size_t>(), "Set the column (0-based) of the round duration in seconds for WPS analysis.")
             ("help", "Print help message for run_command.")
             ("ac,a", po::value<double>(), "Set the required range of autocorrelation coefficient. arg should be a value within (0, 1], and the range will be set to [-arg,arg]")
-            ("ci,c", po::value<double>(), "The required width of confidence interval (absolute value). Setting it to -1 to disable CI (absolute value) check.")
-            ("ci-perc", po::value<double>(), "The required width of confidence interval (as the percentage of mean). Setting it to -1 disables CI (percent of mean) check. If both ci and ci-perc are set, the narrower one will be used. See preset below for the default value.")
+            ("ci,c", po::value<double>(), "The required width of confidence interval (absolute value). Set it to -1 to disable CI (absolute value) check.")
+            ("ci-perc", po::value<double>(), "The required width of confidence interval (as the percentage of mean). Set it to -1 disables CI (percent of mean) check. If both ci and ci-perc are set, the narrower one will be used. See preset below for the default value.")
+            ("duration-col,d", po::value<size_t>(), "Set the column (0-based) of the round duration in seconds for WPS analysis.")
+            ("env", po::value<std::vector<string> >()->multitoken(), "Environment variable to pass to program, formatted as \"NAME=VALUE\". This option can be used to set variables such as LD_PRELOAD that should be set only for the benchmark program and not for Pilot. It may be specified multiple times.")
             ("min-sample-size,m", po::value<size_t>(), "The required minimum subsession sample size (default to 30, also see Preset Modes below)")
-            ("tui", "Enable the text user interface")
             ("output-dir,o", po::value<string>(), "Set output directory name to arg")
-            ("pi,p", po::value<string>(), "PI(s) to read from stdout of the program, which is expected to be csv\n"
+            ("pi,p", po::value<string>(), "Performance Index to read from the stdout of the program, which is expected to be csv\n"
                     "Format:     \tname,unit,column,type,must_satisfy:...\n"
                     "name:       \tname of the PI, can be empty\n"
                     "unit:       \tunit of the PI, can be empty (the name and unit are used only for display purpose)\n"
                     "column:     \tthe column of the PI in the csv output of the client program (0-based)\n"
-                    "type:       \t0 - ordinary value (like time, bytes, etc.), 1 - ratio (like throughput, speed). "
-                    "Setting the correct type ensures Pilot uses the correct mean calculation method.\n"
+                    "type:       \t0 - ordinary value (like time, bytes, etc.), 1 - ratio (like throughput, speed), 2 - binary (0 or 1). "
+                    "Setting the correct type ensures Pilot uses the correct mean calculation method. For binary type, binomial proportion confidence interval will be calculated.\n"
                     "must_satisfy: \t1 - if this PI's CI must satisfy the requirement of CI width; 0 (or missing) - record data only, no need to satisfy\n"
                     "more than one PI's information can be separated by colon (:)")
             ("preset", po::value<string>(), "preset modes control the statistical requirements for the results to be satisfactory\n"
@@ -337,10 +340,10 @@ int handle_run_program(int argc, const char** argv) {
                     "            \tworkload round duration threshold: 20 seconds (only used when work amount is set)")
             ("quiet,q", "Enable quiet mode")
             ("session-limit,s", po::value<int>(), "Set the session duration limit in seconds. Pilot will stop with error code 13 if the session runs longer (default: unlimited).")
+            ("tui", "Enable the text user interface")
             ("verbose,v", "Print debug information")
             ("work-amount,w", po::value<string>(), "Set the valid range of work amount [min,max]")
             ("wps", "WPS must satisfy")
-            ("env", po::value<std::vector<string> >()->multitoken(), "Environment variable to pass to program, formatted as \"NAME=VALUE\". This option can be used to set variables such as LD_PRELOAD that should be set only for the benchmark program and not for Pilot. It may be specified multiple times.")
             ;
     // copy options into args and find program_path_start_loc
     vector<string> args;
@@ -479,11 +482,21 @@ int handle_run_program(int argc, const char** argv) {
                 string pi_name = pidata[0];
                 string pi_unit = pidata[1];
                 g_pi_col.push_back(lexical_cast<int>(pidata[2]));
+                // parse column type
                 int tmpi = lexical_cast<int>(pidata[3]);
-                if (tmpi > 1 || tmpi < 0) {
+                if (tmpi > 2 || tmpi < 0) {
                     throw runtime_error("Error: invalid value for PI type");
                 }
-                pilot_mean_method_t pi_mean_method = static_cast<pilot_mean_method_t>(tmpi);
+                pilot_mean_method_t pi_mean_method;
+                pilot_confidence_interval_type_t pi_ci_type;
+                if (2 == tmpi) {
+                    // binary type requires arithmetic mean
+                    pi_mean_method = ARITHMETIC_MEAN;
+                    pi_ci_type = BINOMIAL_PROPORTION;
+                } else {
+                    pi_mean_method = static_cast<pilot_mean_method_t>(tmpi);
+                    pi_ci_type = SAMPLE_MEAN;
+                }
 
                 bool reading_must_satisfy = false;
                 if (pidata.size() > 4) {
@@ -501,7 +514,9 @@ int handle_run_program(int argc, const char** argv) {
                                   NULL, NULL,                     /* format functions */
                                   reading_must_satisfy,
                                   false,                          /* unit readings no need to satisfy */
-                                  pi_mean_method);
+                                  pi_mean_method,
+                                  ARITHMETIC_MEAN,
+                                  pi_ci_type);
             }
             if (0 == num_of_PIs_must_satisfy) {
                 throw runtime_error("Error: at least one PI needs to have must_satisfy set.");
