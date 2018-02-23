@@ -41,7 +41,7 @@ following mailing lists:
 
 # INSTALL
 
-Plese see: https://docs.ascar.io/install.html
+Installation guide: https://docs.ascar.io/install.html
 
 # RUN IT
 
