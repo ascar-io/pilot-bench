@@ -1,6 +1,23 @@
 /*
  * python_binding.cc
  *
+ * Copyright (c) 2017-2018 Yan Li <yanli@tuneup.ai>. All rights reserved.
+ * The Pilot tool and library is free software; you can redistribute it
+ * and/or modify it under the terms of the GNU Lesser General Public
+ * License version 2.1 (not any other version) as published by the Free
+ * Software Foundation.
+ *
+ * The Pilot tool and library is distributed in the hope that it will be
+ * useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this program in file lgpl-2.1.txt; if not, see
+ * https://www.gnu.org/licenses/old-licenses/lgpl-2.1.html
+ *
+ * Commit 033228934e11b3f86fb0a4932b54b2aeea5c803c and before were
+ * released with the following license:
  * Copyright (c) 2015, 2016, University of California, Santa Cruz, CA, USA.
  * Created by Yan Li <yanli@tuneup.ai>,
  * Department of Computer Science, Baskin School of Engineering.
@@ -71,13 +88,16 @@ double pilot_subsession_autocorrelation_coefficient_python(list data, int q, dou
             sample_mean, mean_method);
 }
 
-double pilot_subsession_confidence_interval_python(list data, int q, double confidence_level, pilot_mean_method_t mean_method) {
+double pilot_subsession_confidence_interval_python(list data, int q, double confidence_level, pilot_mean_method_t mean_method, pilot_confidence_interval_type_t ci_type) {
     if (mean_method != ARITHMETIC_MEAN && mean_method != HARMONIC_MEAN) {
         throw runtime_error("Invalid value for mean_method, must be ARITHMETIC_MEAN or HARMONIC_MEAN");
     }
+    if (ci_type != SAMPLE_MEAN && ci_type != BINOMIAL_PROPORTION) {
+        throw runtime_error("Invalid value for ci_type, must be SAMPLE_MEAN or BINOMIAL_PROPORTION");
+    }
     return pilot_subsession_confidence_interval(
             PythonListIterator<double>(data), len(data), q,
-            confidence_level, mean_method);
+            confidence_level, mean_method, ci_type);
 }
 
 
@@ -91,6 +111,12 @@ BOOST_PYTHON_MODULE(pilot_bench)
         .value("HARMONIC_MEAN", HARMONIC_MEAN)
         .export_values()
         ;
+
+    enum_<pilot_confidence_interval_type_t>("pilot_confidence_interval_type")
+        .value("SAMPLE_MEAN", SAMPLE_MEAN)
+        .value("BINOMIAL_PROPORTION", BINOMIAL_PROPORTION)
+        .export_values()
+    ;
 
     def("pilot_subsession_mean", pilot_subsession_mean_python);
     def("pilot_subsession_autocorrelation_coefficient", pilot_subsession_autocorrelation_coefficient_python);

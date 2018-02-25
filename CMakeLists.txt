@@ -153,6 +153,10 @@ if (Boost_FOUND)
     # Make Boost headers SYSTEM so compiler ignores warnings in them
     include_directories (SYSTEM ${Boost_INCLUDE_DIRS})
     link_directories (${Boost_LIBRARY_DIRS})
+
+    # Some targets don't require boost_python
+    set(Boost_LIBRARIES_WITHOUT_PYTHON ${Boost_LIBRARIES})
+    list(FILTER Boost_LIBRARIES_WITHOUT_PYTHON EXCLUDE REGEX ".*python.*")
 endif ()
 
 

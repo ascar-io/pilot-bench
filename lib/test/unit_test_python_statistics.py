@@ -67,7 +67,7 @@ class TestStatistics(unittest.TestCase):
         self.assertEqual(1.756458333333333, sample_mean)
         self.assertEqual(0.63655574361384437, pilot_subsession_autocorrelation_coefficient(g_response_time, 1, sample_mean, ARITHMETIC_MEAN))
         self.assertEqual(0.55892351761172487, pilot_subsession_autocorrelation_coefficient(g_response_time, 2, sample_mean, ARITHMETIC_MEAN))
-        self.assertEqual(0.29157062128900485, pilot_subsession_confidence_interval(g_response_time, 4, .95, ARITHMETIC_MEAN))
+        self.assertEqual(0.29157062128900485, pilot_subsession_confidence_interval(g_response_time, 4, .95, ARITHMETIC_MEAN, SAMPLE_MEAN))
 
 
 if __name__ == '__main__':

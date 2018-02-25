@@ -95,7 +95,7 @@ add_definitions ("-std=gnu++11")
 # we should use target_compile_features() when everyone upgrades to cmake 3.1+
 
 # tests
-set (PILOT_TESTS_LIBRARIES pilot_sharedlib ${Boost_LIBRARIES} ${GTEST_BINARY_DIR}/libgtest.a ${GTEST_BINARY_DIR}/libgtest_main.a ${CMAKE_THREAD_LIBS_INIT} ${CDK_LIBRARIES})
+set (PILOT_TESTS_LIBRARIES pilot_sharedlib ${Boost_LIBRARIES_WITHOUT_PYTHON} ${GTEST_BINARY_DIR}/libgtest.a ${GTEST_BINARY_DIR}/libgtest_main.a ${CMAKE_THREAD_LIBS_INIT} ${CDK_LIBRARIES})
 
 add_executable (func_test_seq_write test/func_test_seq_write.cc)
 target_link_libraries (func_test_seq_write ${PILOT_TESTS_LIBRARIES})
@@ -148,7 +148,9 @@ add_test (NAME unit_test_compare_results
           COMMAND unit_test_compare_results ${CMAKE_CURRENT_LIST_DIR}/test/unit_test_compare_results_input.csv)
 add_test (NAME unit_test_wps
           COMMAND unit_test_wps)
-if (WITH_PYTHON AND NOT ENABLE_ASAN_DEBUG)
+if (WITH_PYTHON AND NOT (ENABLE_ASAN_DEBUG AND CMAKE_BUILD_TYPE EQUAL "Debug"))
+  # ASan can't be used with a Python module. You'd get an error like
+  # ==1777==ASan runtime does not come first in initial library list; you should either link runtime to your application or manually preload it with LD_PRELOAD.
   add_test (NAME unit_test_python_statistics
             COMMAND bash -c "PYTHONPATH=$<TARGET_FILE_DIR:pilot_sharedlib> python ${CMAKE_CURRENT_LIST_DIR}/test/unit_test_python_statistics.py")
 endif(WITH_PYTHON AND NOT ENABLE_ASAN_DEBUG)

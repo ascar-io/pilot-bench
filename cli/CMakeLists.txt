@@ -48,8 +48,9 @@ if (WITH_LUA)
 endif (WITH_LUA)
 set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=gnu++11")
 
+# We link to pilot_staticlib for better portability
 target_link_libraries (bench pilot_staticlib ${CDK_STATIC_LIBRARIES}
-                       ${CDK_LIBRARIES} ${Boost_LIBRARIES}
+                       ${CDK_LIBRARIES} ${Boost_LIBRARIES_WITHOUT_PYTHON}
                        ${CMAKE_THREAD_LIBS_INIT} ${CMAKE_THREAD_LIBS_INIT})
 if (WITH_LUA)
   target_link_libraries (bench libluaprompt ${LUA_LIBRARY} ${READLINE_LIBRARY})
@@ -96,7 +97,7 @@ add_custom_target(copy_test_files ALL
                        ${CMAKE_CURRENT_LIST_DIR}/test/unit_test_pilot_opt_parsing_expected_work_amount.log $<TARGET_FILE_DIR:bench>)
 
 # tests
-set (PILOT_TESTS_LIBRARIES pilot_sharedlib ${Boost_LIBRARIES} ${GTEST_BINARY_DIR}/libgtest.a ${GTEST_BINARY_DIR}/libgtest_main.a ${CMAKE_THREAD_LIBS_INIT} ${CDK_LIBRARIES})
+set (PILOT_TESTS_LIBRARIES pilot_sharedlib ${Boost_LIBRARIES_WITHOUT_PYTHON} ${GTEST_BINARY_DIR}/libgtest.a ${GTEST_BINARY_DIR}/libgtest_main.a ${CMAKE_THREAD_LIBS_INIT} ${CDK_LIBRARIES})
 
 add_executable (unit_test_cli test/unit_test_cli.cc run_program.cc)
 target_link_libraries (unit_test_cli ${PILOT_TESTS_LIBRARIES})
