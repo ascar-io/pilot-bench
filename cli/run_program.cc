@@ -93,6 +93,7 @@ static vector<int>    g_pi_col;          // column of each PI in client program'
 static string         g_output_dir;
 static string         g_round_results_dir;
 static bool           g_quiet = false;
+static vector<int>    g_valid_rc;
 static bool           g_verbose = false;
 static shared_ptr<pilot_workload_t> g_wl;
 static string         g_prog_stdout;
@@ -200,7 +201,7 @@ string exec(char* const* cmd) {
         g_client_out_fs = NULL;
         int rc = pclose2(g_client_pid);
         // pclose() returns -1 when the client is already exited
-        if (0 != rc && -1 != rc) {
+        if (-1 != rc && find(g_valid_rc.begin(), g_valid_rc.end(), rc) == g_valid_rc.end()) {
             throw runtime_error(str(format("Client program returned %1%") % rc).c_str());
         }
         g_client_pid = 0;
@@ -341,6 +342,7 @@ int handle_run_program(int argc, const char** argv) {
             ("quiet,q", "Enable quiet mode")
             ("session-limit,s", po::value<int>(), "Set the session duration limit in seconds. Pilot will stop with error code 13 if the session runs longer (default: unlimited).")
             ("tui", "Enable the text user interface")
+            ("valid-rc", po::value<vector<int> >()->composing(), "Valid return code from the target program (default to 0, can be set more than once). Returning code not within this list by the target program causes Pilot to terminate.")
             ("verbose,v", "Print debug information")
             ("work-amount,w", po::value<string>(), "Set the valid range of work amount [min,max]")
             ("wps", "WPS must satisfy")
@@ -531,6 +533,12 @@ int handle_run_program(int argc, const char** argv) {
     } catch (const runtime_error &e) {
         cerr << e.what() << endl;
         return 2;
+    }
+
+    if (vm.count("valid-rc")) {
+        g_valid_rc = vm["valid-rc"].as<vector<int> >();
+    } else {
+        g_valid_rc.push_back(0);
     }
 
     if (vm.count("wps")) {
