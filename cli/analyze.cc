@@ -84,6 +84,7 @@ int handle_analyze(int argc, const char** argv) {
     generic.add_options()
             ("help", "help message for run_command")
             ("ac,a", po::value<double>(), "Set the required range of autocorrelation coefficient. arg should be a value within (0, 1], and the range will be set to [-arg,arg]")
+            ("cl,c", po::value<double>(), "Set the confidence level (default: .95)")
             ("field,f", po::value<int>(), "The field of the CSV to import (default: 0). Note: first field is 0.")
             ("ignore-lines,i", po::value<int>(), "ignore the first arg lines")
             ("mean-method,m", po::value<int>(), "0: arithmetic mean (default); 1: harmonic mean")
@@ -222,6 +223,13 @@ int handle_analyze(int argc, const char** argv) {
         info_log << "Setting the limit of autocorrelation coefficient to " << ac;
     }
 
+    double confidence_level = 0.95;
+    // read individual values that may override our preset
+    if (vm.count("cl")) {
+        confidence_level = vm["cl"].as<double>();
+    }
+    info_log << "Setting the confidence level to " << confidence_level;
+
     // From now on we use fatal_log for errors.
     vector<double> data;
     shared_ptr<istream> infile;
@@ -306,7 +314,7 @@ int handle_analyze(int argc, const char** argv) {
         return 5;
     }
     printf("optimal_subsession_size %d\n", ss);
-    printf("CI %f\n", pilot_subsession_confidence_interval_p(data.data(), data.size(), ss, .95, pi_mean_method));
+    printf("CI %f\n", pilot_subsession_confidence_interval_p(data.data(), data.size(), ss, confidence_level, pi_mean_method));
     printf("variance %f\n", pilot_subsession_var_p(data.data(), data.size(), ss, sample_mean, pi_mean_method));
     printf("subsession_autocorrelation_coefficient %f\n", pilot_subsession_autocorrelation_coefficient_p(data.data(), data.size(), ss, sample_mean, pi_mean_method));
 
