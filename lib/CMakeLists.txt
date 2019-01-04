@@ -153,7 +153,7 @@ if (WITH_PYTHON AND NOT (ENABLE_ASAN_DEBUG AND CMAKE_BUILD_TYPE EQUAL "Debug"))
   # ==1777==ASan runtime does not come first in initial library list; you should either link runtime to your application or manually preload it with LD_PRELOAD.
   add_test (NAME unit_test_python_statistics
             COMMAND bash -c "PYTHONPATH=$<TARGET_FILE_DIR:pilot_sharedlib> python ${CMAKE_CURRENT_LIST_DIR}/test/unit_test_python_statistics.py")
-endif(WITH_PYTHON AND NOT ENABLE_ASAN_DEBUG)
+endif (WITH_PYTHON AND NOT (ENABLE_ASAN_DEBUG AND CMAKE_BUILD_TYPE EQUAL "Debug"))
 # Disabled this test because it is too long.
 # add_test (NAME unit_test_macros
 #		  COMMAND unit_test_macros)
