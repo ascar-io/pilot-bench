@@ -1104,7 +1104,7 @@ namespace csv {
         private:
                 LineReader in;
 
-                char*(row[column_count]);
+                char* row[column_count];
                 std::string column_names[column_count];
 
                 std::vector<int>col_order;
