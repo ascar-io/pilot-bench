@@ -5,7 +5,7 @@
 # CLI as the round duration. This mock program is used by
 # unit_test_pilot_opt_parsing.sh.
 #
-# Copyright (c) 2017-2018 Yan Li <yanli@tuneup.ai>. All rights reserved.
+# Copyright (c) 2017-2019 Yan Li <yanli@tuneup.ai>. All rights reserved.
 # The Pilot tool and library is free software; you can redistribute it
 # and/or modify it under the terms of the GNU Lesser General Public
 # License version 2.1 (not any other version) as published by the Free
