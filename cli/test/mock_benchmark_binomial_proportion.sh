@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Mock benchmark for testing the binomial proportion function of Pilot CLI.
 # This script displays one mock benchmark result on each run. Progress is
 # stored at /tmp/pilot_mock_benchmark_round.txt.

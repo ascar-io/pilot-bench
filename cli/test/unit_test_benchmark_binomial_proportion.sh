@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Unit test for Pilot CLI tool run benchmark with binomial proportion inputs
 #
 # Copyright (c) 2017-2018 Yan Li <yanli@tuneup.ai>. All rights reserved.
@@ -15,7 +15,7 @@
 # You should have received a copy of the GNU Lesser General Public
 # License along with this program in file lgpl-2.1.txt; if not, see
 # https://www.gnu.org/licenses/old-licenses/lgpl-2.1.html
-set -e -u
+set -euo pipefail
 
 TMPFILE=`mktemp`
 rm -f /tmp/pilot_mock_benchmark_binomial_proportion_round.txt

@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Mock benchmark for testing Pilot CLI. This script displays one mock benchmark
 # result on each run. Progress is stored at /tmp/pilot_mock_benchmark_round.txt.
 #
@@ -47,7 +47,7 @@
 # STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
 # OF THE POSSIBILITY OF SUCH DAMAGE.
-set -e -u
+set -euo pipefail
 
 # If $1 is "-r" we return 0,1 alternatively to test Pilot's option "valid-rc"
 

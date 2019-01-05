@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Unit test for pilot cli tool opt parsing
 #
 # Copyright (c) 2017-2018 Yan Li <yanli@tuneup.ai>. All rights reserved.
@@ -46,7 +46,7 @@
 # STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
 # OF THE POSSIBILITY OF SUCH DAMAGE.
-set -e -u
+set -euo pipefail
 
 run() {
     eval "$@" || :

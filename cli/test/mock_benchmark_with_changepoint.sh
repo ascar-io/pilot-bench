@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Mock benchmark for testing Pilot's readings changepoint
 # handling. This script displays one mock benchmark result on each
 # run. Progress is stored at /tmp/pilot_mock_benchmark_cp_round.txt.
@@ -50,7 +50,7 @@
 # STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
 # OF THE POSSIBILITY OF SUCH DAMAGE.
-set -e -u
+set -euo pipefail
 
 # These sample response time are taken from [Ferrari78], page 79.
 DATA=(1.21 1.67 1.71 1.53 2.03 2.15 1.88 2.02 1.75 1.84 1.61 1.35 1.43 1.64 1.52 1.44 1.17 1.42 1.64 1.86 1.68 1.91 1.73 2.18 2.27 1.93 2.19 2.04 1.92 1.97 1.65 1.71 1.89 1.70 1.62 1.48 1.55 1.39 1.45 1.67 1.62 1.77 1.88 1.82 1.93 2.09 2.24 2.16)

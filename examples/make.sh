@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Make scripts for Pilot examples
 #
 # Copyright (c) 2015, 2016, University of California, Santa Cruz, CA, USA.
@@ -30,7 +30,7 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
 # OF THE POSSIBILITY OF SUCH DAMAGE.
 
-set -e -u
+set -euo pipefail
 cd `dirname $0`
 
 LIB_ARG=()

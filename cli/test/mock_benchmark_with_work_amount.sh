@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Mock benchmark for testing Pilot CLI. This script accepts two options. The
 # first option is the work amount, which will be appended into a file set by the
 # second option. It always prints "0.001", which will be interpreted by Pilot
@@ -50,7 +50,7 @@
 # STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
 # OF THE POSSIBILITY OF SUCH DAMAGE.
-set -e -u
+set -euo pipefail
 
 if [ $# -ne 2 ]; then
     echo "Wrong options. Exiting..."

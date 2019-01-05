@@ -1,5 +1,5 @@
-#!/bin/bash
-set -e -u
+#!/usr/bin/env bash
+set -euo pipefail
 
 dd if=/dev/zero of=/root/empty bs=1M || :
 rm /root/empty

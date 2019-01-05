@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Unit test for Pilot CLI tool run benchmark with long output lines
 #
 # Copyright (c) 2017-2018 Yan Li <yanli@tuneup.ai>. All rights reserved.
@@ -46,7 +46,7 @@
 # STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
 # OF THE POSSIBILITY OF SUCH DAMAGE.
-set -e -u
+set -euo pipefail
 
 TMPFILE=`mktemp`
 rm -f /tmp/pilot_mock_benchmark_long_lines_round.txt

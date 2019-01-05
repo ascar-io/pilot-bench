@@ -1,6 +1,6 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Grab pages from Wiki and make
-set -e -u
+set -euo pipefail
 cd `dirname $0`
 if [ ! -f config ]; then
     echo <<EOF
@@ -10,7 +10,7 @@ locally, add its path to config.template, and save the result file to config.
 EOF
     exit 1
 fi
-. config
+. ./config
 
 pushd "${PILOT_WIKI_DIR}" >/dev/null
 git pull

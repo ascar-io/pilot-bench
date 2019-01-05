@@ -1,8 +1,8 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Run dd and extract duration from dd's output
 # Author: Yan Li <yanli@tuneup.ai>
 # This file is in public domain.
-set -e -u
+set -euo pipefail
 
 OUTPUT_FILE=$1
 IO_COUNT=$2
