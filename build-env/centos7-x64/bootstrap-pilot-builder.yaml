@@ -44,6 +44,8 @@
       - numpy
       - patch
       - python-matplotlib
+      # Sphinx 2 stopped supporting Python 2
+      - python36-pip
       - readline-devel
       - rpm-build
     when: ansible_os_family == "RedHat"
