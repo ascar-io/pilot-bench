@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 # Make scripts for Pilot examples
 #
+# Copyright (c) 2016-2019 Yan Li, TuneUp.ai <yanli@tuneup.ai>.
+# All rights reserved.
+#
 # Copyright (c) 2015, 2016, University of California, Santa Cruz, CA, USA.
 # Created by Yan Li <yanli@tuneup.ai>,
 # Department of Computer Science, Baskin School of Engineering.
@@ -35,14 +38,11 @@ cd `dirname $0`
 
 LIB_ARG=()
 # Search for libpilot
-# Mac OS X ld may say: "ld: library not found for -lpilot"
-# Linux ld may say: "ld: cannot find -lpilot"
-ERR_STR="not.*lpilot"
-if ld -lpilot 2>&1 | grep -q "$ERR_STR"; then
+if ! ld -lpilot &>/dev/null; then
     echo "libpilot not in default search path, searching for other locations"
     LIB_SEARCH_PATHS=(../build/lib ../../../lib)
     for SEARCH_PATH in ${LIB_SEARCH_PATHS[@]}; do
-        if ld -L${SEARCH_PATH} -lpilot 2>&1 | grep -q "$ERR_STR"; then
+        if ! ld -L${SEARCH_PATH} -lpilot &>/dev/null; then
             continue
         else
             echo "libpilot found in $SEARCH_PATH"
@@ -60,15 +60,12 @@ fi
 
 HEADER_ARG=()
 # Search for header files
-# Mac OS X clang may say: "file not found"
-# Linux gcc may say: "No such file or directory"
-ERR_STR="file not found|No such file"
-if echo "#include <pilot/libpilot.h>" | cc -E - 2>&1 | egrep -q "$ERR_STR"; then
+if ! echo "#include <pilot/libpilot.h>" | cc -E - &>/dev/null; then
     echo "Pilot header files not in default search path, searching for other locations"
     HEADER_ARG=(-I../include -I../lib/interface_include -I../build)
-    if echo "#include <pilot/libpilot.h>" | cc -E ${HEADER_ARG[@]} - 2>&1 | egrep -q "$ERR_STR"; then
+    if ! echo "#include <pilot/libpilot.h>" | cc -E ${HEADER_ARG[@]} - &>/dev/null; then
         HEADER_ARG=(-I../../../include)
-        if echo "#include <pilot/libpilot.h>" | cc -E ${HEADER_ARG[@]} - 2>&1 | egrep -q "$ERR_STR"; then
+        if ! echo "#include <pilot/libpilot.h>" | cc -E ${HEADER_ARG[@]} - &>/dev/null; then
             echo "Cannot find Pilot header files. Please install a Pilot package or compile Pilot from source."
             exit 3
         fi
