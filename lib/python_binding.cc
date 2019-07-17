@@ -56,7 +56,9 @@
 
 using namespace boost::python;
 using namespace pilot;
-using namespace std;
+// Don't import namespace std, because it contains a `list` that conflicts with
+// boost::python::list.
+// using namespace std;
 
 // boost::python::stl_input_iterator<> is broken, see
 // https://github.com/boostorg/python/issues/69 , so we have to write our own
@@ -81,7 +83,7 @@ double pilot_subsession_mean_python(list data, pilot_mean_method_t mean_method) 
 
 double pilot_subsession_autocorrelation_coefficient_python(list data, int q, double sample_mean, pilot_mean_method_t mean_method) {
     if (mean_method != ARITHMETIC_MEAN && mean_method != HARMONIC_MEAN) {
-        throw runtime_error("Invalid value for mean_method, must be ARITHMETIC_MEAN or HARMONIC_MEAN");
+        throw std::runtime_error("Invalid value for mean_method, must be ARITHMETIC_MEAN or HARMONIC_MEAN");
     }
     return pilot_subsession_autocorrelation_coefficient(
             PythonListIterator<double>(data), len(data), q,
@@ -90,10 +92,10 @@ double pilot_subsession_autocorrelation_coefficient_python(list data, int q, dou
 
 double pilot_subsession_confidence_interval_python(list data, int q, double confidence_level, pilot_mean_method_t mean_method, pilot_confidence_interval_type_t ci_type) {
     if (mean_method != ARITHMETIC_MEAN && mean_method != HARMONIC_MEAN) {
-        throw runtime_error("Invalid value for mean_method, must be ARITHMETIC_MEAN or HARMONIC_MEAN");
+        throw std::runtime_error("Invalid value for mean_method, must be ARITHMETIC_MEAN or HARMONIC_MEAN");
     }
     if (ci_type != SAMPLE_MEAN && ci_type != BINOMIAL_PROPORTION) {
-        throw runtime_error("Invalid value for ci_type, must be SAMPLE_MEAN or BINOMIAL_PROPORTION");
+        throw std::runtime_error("Invalid value for ci_type, must be SAMPLE_MEAN or BINOMIAL_PROPORTION");
     }
     return pilot_subsession_confidence_interval(
             PythonListIterator<double>(data), len(data), q,
