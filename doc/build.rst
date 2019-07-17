@@ -1,5 +1,5 @@
-Building ASCAR Pilot
-####################
+Build ASCAR Pilot
+#################
 
 .. include:: warning-of-unstable.rst
 
@@ -17,13 +17,16 @@ Build Options
 *************
 
 The following are configuration options that are supported by Pilot's
-CMake builder. To set an option, use: `-DOPT=VAL`. For example, on
-Linux (CentOS 7) to use the system's Python 2.7 you can set
-`-DWITH_PYTHON=ON -DPYTHON_LIBRARY=/usr/lib64/libpython2.7.so -DPYTHON_INCLUDE_DIR=/usr/include/python2.7`.
-If you are using Python 3 from CentOS Software Collection, you can set
-`-DWITH_PYTHON=ON -DPYTHON_LIBRARY=/opt/python3.5/lib/libpython3.5.so -DPYTHON_INCLUDE_DIR=/opt/python3.5/inc`.
-On macOS you can set
-`-DWITH_PYTHON=ON -DPYTHON_LIBRARY=/System/Library/Frameworks/Python.framework/Versions/2.7/Python -DPYTHON_INCLUDE_DIR=/System/Library/Frameworks/Python.framework/Versions/2.7/include/python2.7`.
+CMake builder. To set an option, use: `-DOPT=VAL`. For example:
+
+* Linux (CentOS 7) to use the system's Python 2.7 you can set
+  ``-DWITH_PYTHON=ON -DPYTHON_LIBRARY=/usr/lib64/libpython2.7.so -DPYTHON_INCLUDE_DIR=/usr/include/python2.7``.
+* If you are using Python 3 from CentOS Software Collection, you can set
+  ``-DWITH_PYTHON=ON -DPYTHON_LIBRARY=/opt/python3.5/lib/libpython3.5.so -DPYTHON_INCLUDE_DIR=/opt/python3.5/inc``.
+* On macOS you can set
+  ``-DWITH_PYTHON=ON -DPYTHON_LIBRARY=/System/Library/Frameworks/Python.framework/Versions/2.7/Python -DPYTHON_INCLUDE_DIR=/System/Library/Frameworks/Python.framework/Versions/2.7/include/python2.7``.
+* On Ubuntu 19.04 you can set
+  ``-DWITH_PYTHON=ON -DPYTHON_LIBRARY=/usr/lib/x86_64-linux-gnu/libpython3.7m.so -DBOOST_PYTHON_MODULE=python37``.
 
 =================== ================================================================================== ================ ==========
 Option              Description                                                                        Default          Introduced
@@ -72,6 +75,23 @@ BOOST_PYTHON_MODULE The name of the Boost.Python module [#f3]_                  
          Python 3.5 on Ubuntu 16.04 LTS; you need to set it to
          `python3` if you are using Python 3.* and a vanilla Boost
          library.
+
+Build the documentation
+***********************
+
+First you need to install the Python requirements:
+
+.. code-block:: bash
+
+   cd doc
+   pip install -r requirements.txt
+
+Then you can build the documentation to your desired format, such as HTML:
+
+.. code-block:: bash
+
+   make html
+
 
 FAQ
 ****

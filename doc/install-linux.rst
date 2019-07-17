@@ -49,3 +49,16 @@ This generic Linux build should work on most 64-bit Linux systems:
 Older versions can be found at: https://download.ascar.io/pub/repo/linux-generic-x64/nightly/
 
 .. include:: signing-keys.rst
+
+Set up Python Binding
+=====================
+
+To use the Python binding, add the path of ``pilot_bench.so`` to your
+``PYTHONPATH``. For instance:
+
+.. code-block:: bash
+
+   export PYTHONPATH=$PYTHONPATH:/home/my/pilot-bench-0.14-Linux/lib
+
+After that, you should be able to import module ``pilot_bench`` in your Python
+program.
